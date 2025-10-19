@@ -1,10 +1,13 @@
 ---
-source: tests/integration_tests/directives.rs
+source: tests/integration_tests/switch.rs
 info:
   program: wt
   args:
     - switch
-    - my-feature
+    - "--create"
+    - "--base"
+    - main
+    - feature-with-base
   env:
     GIT_AUTHOR_DATE: "2025-01-01T00:00:00Z"
     GIT_COMMITTER_DATE: "2025-01-01T00:00:00Z"
@@ -15,9 +18,11 @@ info:
     LC_ALL: C
     SOURCE_DATE_EPOCH: "1704067200"
 ---
-success: false
-exit_code: 1
+success: true
+exit_code: 0
 ----- stdout -----
+Created new branch and worktree for 'feature-with-base'
+Path: [REPO].feature-with-base
+Note: Use 'wt-switch' (with shell integration) for automatic cd
 
 ----- stderr -----
-Error: Git command failed: fatal: invalid reference: my-feature

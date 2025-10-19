@@ -1,6 +1,9 @@
 use clap::{Parser, Subcommand};
 use std::process;
-use worktrunk::git::{GitError, list_worktrees};
+use worktrunk::git::{
+    GitError, branch_exists, get_current_branch, get_default_branch, get_git_common_dir,
+    get_worktree_root, is_dirty, is_in_worktree, list_worktrees, worktree_for_branch,
+};
 use worktrunk::shell;
 
 #[derive(Parser)]
@@ -35,6 +38,14 @@ enum Commands {
     Switch {
         /// Branch name or worktree path
         branch: String,
+
+        /// Create a new branch
+        #[arg(short = 'c', long)]
+        create: bool,
+
+        /// Base branch to create from (only with --create)
+        #[arg(short = 'b', long)]
+        base: Option<String>,
 
         /// Use internal mode (outputs directives for shell wrapper)
         #[arg(long, hide = true)]
@@ -79,10 +90,13 @@ fn main() {
             handle_init(&shell, &cmd, &hook).map_err(GitError::CommandFailed)
         }
         Commands::List => handle_list(),
-        Commands::Switch { branch, internal } => {
-            handle_switch(&branch, internal).map_err(GitError::CommandFailed)
-        }
-        Commands::Finish { internal } => handle_finish(internal).map_err(GitError::CommandFailed),
+        Commands::Switch {
+            branch,
+            create,
+            base,
+            internal,
+        } => handle_switch(&branch, create, base.as_deref(), internal),
+        Commands::Finish { internal } => handle_finish(internal),
         Commands::Push { target } => handle_push(&target).map_err(GitError::CommandFailed),
         Commands::Merge { target, squash } => {
             handle_merge(&target, squash).map_err(GitError::CommandFailed)
@@ -151,29 +165,191 @@ fn handle_list() -> Result<(), GitError> {
     Ok(())
 }
 
-fn handle_switch(branch: &str, internal: bool) -> Result<(), String> {
-    if internal {
-        // Internal mode: output directives
-        // TODO: Implement actual worktree switching logic
-        println!("__WORKTRUNK_CD__/tmp/example-worktree");
-        println!("Switched to worktree: {}", branch);
+fn handle_switch(
+    branch: &str,
+    create: bool,
+    base: Option<&str>,
+    internal: bool,
+) -> Result<(), GitError> {
+    // Check for conflicting conditions
+    if create && branch_exists(branch)? {
+        return Err(GitError::CommandFailed(format!(
+            "Branch '{}' already exists. Remove --create flag to switch to it.",
+            branch
+        )));
+    }
+
+    // Check if base flag was provided without create flag
+    if base.is_some() && !create {
+        eprintln!("Warning: --base flag is only used with --create, ignoring");
+    }
+
+    // Check if worktree already exists for this branch
+    if let Some(existing_path) = worktree_for_branch(branch)? {
+        if existing_path.exists() {
+            if internal {
+                println!("__WORKTRUNK_CD__{}", existing_path.display());
+            }
+            return Ok(());
+        } else {
+            return Err(GitError::CommandFailed(format!(
+                "Worktree directory missing for '{}'. Run 'git worktree prune' to clean up.",
+                branch
+            )));
+        }
+    }
+
+    // No existing worktree, create one
+    let git_common_dir = get_git_common_dir()?
+        .canonicalize()
+        .map_err(|e| GitError::CommandFailed(format!("Failed to canonicalize path: {}", e)))?;
+
+    let repo_root = git_common_dir
+        .parent()
+        .ok_or_else(|| GitError::CommandFailed("Invalid git directory".to_string()))?;
+
+    let repo_name = repo_root
+        .file_name()
+        .ok_or_else(|| GitError::CommandFailed("Invalid repository path".to_string()))?
+        .to_str()
+        .ok_or_else(|| GitError::CommandFailed("Invalid UTF-8 in path".to_string()))?;
+
+    let parent_dir = repo_root
+        .parent()
+        .ok_or_else(|| GitError::CommandFailed("Invalid repository location".to_string()))?;
+
+    let worktree_path = parent_dir.join(format!("{}.{}", repo_name, branch));
+
+    // Create the worktree
+    let output = if create {
+        if let Some(base_branch) = base {
+            process::Command::new("git")
+                .args([
+                    "worktree",
+                    "add",
+                    worktree_path.to_str().unwrap(),
+                    "-b",
+                    branch,
+                    base_branch,
+                ])
+                .output()
+                .map_err(|e| GitError::CommandFailed(e.to_string()))?
+        } else {
+            process::Command::new("git")
+                .args([
+                    "worktree",
+                    "add",
+                    worktree_path.to_str().unwrap(),
+                    "-b",
+                    branch,
+                ])
+                .output()
+                .map_err(|e| GitError::CommandFailed(e.to_string()))?
+        }
     } else {
-        println!("Switching to worktree: {}", branch);
+        process::Command::new("git")
+            .args(["worktree", "add", worktree_path.to_str().unwrap(), branch])
+            .output()
+            .map_err(|e| GitError::CommandFailed(e.to_string()))?
+    };
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(GitError::CommandFailed(stderr.to_string()));
+    }
+
+    // Output success message
+    let success_msg = if create {
+        format!("Created new branch and worktree for '{}'", branch)
+    } else {
+        format!("Added worktree for existing branch '{}'", branch)
+    };
+
+    if internal {
+        println!("__WORKTRUNK_CD__{}", worktree_path.display());
+        println!("{} at {}", success_msg, worktree_path.display());
+    } else {
+        println!("{}", success_msg);
+        println!("Path: {}", worktree_path.display());
         println!("Note: Use 'wt-switch' (with shell integration) for automatic cd");
     }
+
     Ok(())
 }
 
-fn handle_finish(internal: bool) -> Result<(), String> {
-    if internal {
-        // Internal mode: output directives
-        // TODO: Implement actual finish logic
-        println!("__WORKTRUNK_CD__/tmp/main-worktree");
-        println!("Finished worktree and returned to primary");
-    } else {
-        println!("Finishing worktree");
-        println!("Note: Use 'wt-finish' (with shell integration) for automatic cd");
+fn handle_finish(internal: bool) -> Result<(), GitError> {
+    // Check for uncommitted changes
+    if is_dirty()? {
+        return Err(GitError::CommandFailed(
+            "Working tree has uncommitted changes. Commit or stash them first.".to_string(),
+        ));
     }
+
+    // Get current state
+    let current_branch = get_current_branch()?;
+    let default_branch = get_default_branch()?;
+    let in_worktree = is_in_worktree()?;
+
+    // If we're on default branch and not in a worktree, nothing to do
+    if !in_worktree && current_branch.as_deref() == Some(&default_branch) {
+        if !internal {
+            println!("Already on default branch '{}'", default_branch);
+        }
+        return Ok(());
+    }
+
+    if in_worktree {
+        // In worktree: navigate to primary worktree and remove this one
+        let worktree_root = get_worktree_root()?;
+        let common_dir = get_git_common_dir()?
+            .canonicalize()
+            .map_err(|e| GitError::CommandFailed(format!("Failed to canonicalize path: {}", e)))?;
+
+        let primary_worktree_dir = common_dir
+            .parent()
+            .ok_or_else(|| GitError::CommandFailed("Invalid git directory".to_string()))?;
+
+        if internal {
+            println!("__WORKTRUNK_CD__{}", primary_worktree_dir.display());
+        }
+
+        // Schedule worktree removal (synchronous for now, could be async later)
+        let remove_result = process::Command::new("git")
+            .args(["worktree", "remove", worktree_root.to_str().unwrap()])
+            .output()
+            .map_err(|e| GitError::CommandFailed(e.to_string()))?;
+
+        if !remove_result.status.success() {
+            let stderr = String::from_utf8_lossy(&remove_result.stderr);
+            eprintln!("Warning: Failed to remove worktree: {}", stderr);
+            eprintln!(
+                "You may need to run 'git worktree remove {}' manually",
+                worktree_root.display()
+            );
+        }
+
+        if !internal {
+            println!("Moved to primary worktree and removed worktree");
+            println!("Path: {}", primary_worktree_dir.display());
+            println!("Note: Use 'wt-finish' (with shell integration) for automatic cd");
+        }
+    } else {
+        // In main repo but not on default branch: switch to default
+        let output = process::Command::new("git")
+            .args(["switch", &default_branch])
+            .output()
+            .map_err(|e| GitError::CommandFailed(e.to_string()))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(GitError::CommandFailed(stderr.to_string()));
+        }
+
+        if !internal {
+            println!("Switched to default branch '{}'", default_branch);
+        }
+    }
+
     Ok(())
 }
 

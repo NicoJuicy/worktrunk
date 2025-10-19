@@ -1,10 +1,9 @@
 ---
-source: tests/integration_tests/directives.rs
+source: tests/integration_tests/finish.rs
 info:
   program: wt
   args:
-    - switch
-    - my-feature
+    - finish
   env:
     GIT_AUTHOR_DATE: "2025-01-01T00:00:00Z"
     GIT_COMMITTER_DATE: "2025-01-01T00:00:00Z"
@@ -20,4 +19,4 @@ exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-Error: Git command failed: fatal: invalid reference: my-feature
+Error: Git command failed: Working tree has uncommitted changes. Commit or stash them first.

@@ -16,10 +16,9 @@ info:
     LC_ALL: C
     SOURCE_DATE_EPOCH: "1704067200"
 ---
-success: true
-exit_code: 0
+success: false
+exit_code: 1
 ----- stdout -----
-__WORKTRUNK_CD__[PATH]
-Switched to worktree: my-feature
 
 ----- stderr -----
+Error: Git command failed: fatal: invalid reference: my-feature

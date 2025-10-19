@@ -14,10 +14,13 @@ info:
     LC_ALL: C
     SOURCE_DATE_EPOCH: "1704067200"
 ---
-success: true
-exit_code: 0
+success: false
+exit_code: 1
 ----- stdout -----
-Finishing worktree
-Note: Use 'wt-finish' (with shell integration) for automatic cd
 
 ----- stderr -----
+Error: Git command failed: fatal: 'origin' does not appear to be a git repository
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.

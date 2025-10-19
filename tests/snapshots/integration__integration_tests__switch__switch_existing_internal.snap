@@ -1,10 +1,11 @@
 ---
-source: tests/integration_tests/directives.rs
+source: tests/integration_tests/switch.rs
 info:
   program: wt
   args:
     - switch
-    - my-feature
+    - "--internal"
+    - existing-wt
   env:
     GIT_AUTHOR_DATE: "2025-01-01T00:00:00Z"
     GIT_COMMITTER_DATE: "2025-01-01T00:00:00Z"
@@ -15,9 +16,9 @@ info:
     LC_ALL: C
     SOURCE_DATE_EPOCH: "1704067200"
 ---
-success: false
-exit_code: 1
+success: true
+exit_code: 0
 ----- stdout -----
+__WORKTRUNK_CD__[WORKTREE_EXISTING_WT]
 
 ----- stderr -----
-Error: Git command failed: fatal: invalid reference: my-feature

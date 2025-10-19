@@ -1,6 +1,5 @@
 use askama::Template;
 use std::fmt;
-use std::str::FromStr;
 
 /// Supported shells
 #[derive(Debug, Clone, Copy)]
@@ -10,7 +9,7 @@ pub enum Shell {
     Zsh,
 }
 
-impl FromStr for Shell {
+impl std::str::FromStr for Shell {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -42,7 +41,7 @@ pub enum Hook {
     Prompt,
 }
 
-impl FromStr for Hook {
+impl std::str::FromStr for Hook {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

@@ -131,13 +131,13 @@ impl TestRepo {
     #[allow(dead_code)]
     pub fn file_tree(&self) -> Vec<String> {
         let mut files = Vec::new();
-        self.collect_files(&self.root, "", &mut files);
+        Self::collect_files(&self.root, "", &mut files);
         files.sort();
         files
     }
 
-    #[allow(clippy::only_used_in_recursion)]
-    fn collect_files(&self, dir: &Path, prefix: &str, files: &mut Vec<String>) {
+    #[allow(dead_code)]
+    fn collect_files(dir: &Path, prefix: &str, files: &mut Vec<String>) {
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
@@ -155,7 +155,7 @@ impl TestRepo {
                 };
 
                 if path.is_dir() {
-                    self.collect_files(&path, &display_name, files);
+                    Self::collect_files(&path, &display_name, files);
                 } else {
                     files.push(display_name);
                 }
