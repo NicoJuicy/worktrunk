@@ -6,6 +6,7 @@ info:
     - init
     - zsh
   env:
+    CLICOLOR_FORCE: "1"
     GIT_AUTHOR_DATE: "2025-01-01T00:00:00Z"
     GIT_COMMITTER_DATE: "2025-01-01T00:00:00Z"
     GIT_CONFIG_GLOBAL: /dev/null
@@ -160,13 +161,6 @@ _arguments "${_arguments_options[@]}" : \
 ':hook_type -- Hook type:_default' \
 && ret=0
 ;;
-(completion)
-_arguments "${_arguments_options[@]}" : \
-'-h[Print help]' \
-'--help[Print help]' \
-':shell -- Shell to generate completions for:(bash fish zsh)' \
-&& ret=0
-;;
 (complete)
 _arguments "${_arguments_options[@]}" : \
 '-h[Print help]' \
@@ -189,7 +183,6 @@ _wt_commands() {
 'push:Push changes between worktrees' \
 'merge:Merge worktree into target branch' \
 'hook:Hook commands (for shell integration)' \
-'completion:Generate shell completion script (deprecated - use init instead)' \
 'complete:Internal completion helper (hidden)' \
     )
     _describe -t commands 'wt commands' commands "$@"
@@ -198,11 +191,6 @@ _wt_commands() {
 _wt__complete_commands() {
     local commands; commands=()
     _describe -t commands 'wt complete commands' commands "$@"
-}
-(( $+functions[_wt__completion_commands] )) ||
-_wt__completion_commands() {
-    local commands; commands=()
-    _describe -t commands 'wt completion commands' commands "$@"
 }
 (( $+functions[_wt__hook_commands] )) ||
 _wt__hook_commands() {

@@ -6,6 +6,7 @@ info:
     - init
     - bash
   env:
+    CLICOLOR_FORCE: "1"
     GIT_AUTHOR_DATE: "2025-01-01T00:00:00Z"
     GIT_COMMITTER_DATE: "2025-01-01T00:00:00Z"
     GIT_CONFIG_GLOBAL: /dev/null
@@ -93,9 +94,6 @@ _wt() {
             wt,complete)
                 cmd="wt__complete"
                 ;;
-            wt,completion)
-                cmd="wt__completion"
-                ;;
             wt,hook)
                 cmd="wt__hook"
                 ;;
@@ -124,7 +122,7 @@ _wt() {
 
     case "${cmd}" in
         wt)
-            opts="-h -V --help --version init list switch remove push merge hook completion complete"
+            opts="-h -V --help --version init list switch remove push merge hook complete"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -139,20 +137,6 @@ _wt() {
             ;;
         wt__complete)
             opts="-h --help [ARGS]..."
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        wt__completion)
-            opts="-h --help bash fish zsh"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

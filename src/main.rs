@@ -1,8 +1,7 @@
 use anstyle::{AnsiColor, Color, Style};
-use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
+use clap::{CommandFactory, Parser, Subcommand};
 use clap_complete::{Shell as CompletionShell, generate};
 use rayon::prelude::*;
-use std::io;
 use std::process;
 use worktrunk::config::{format_worktree_path, load_config};
 use worktrunk::error_format::{format_error, format_error_with_bold, format_hint, format_warning};
@@ -96,14 +95,6 @@ enum Commands {
         hook_type: String,
     },
 
-    /// Generate shell completion script (deprecated - use init instead)
-    #[command(hide = true)]
-    Completion {
-        /// Shell to generate completions for
-        #[arg(value_enum)]
-        shell: Shell,
-    },
-
     /// Internal completion helper (hidden)
     #[command(hide = true)]
     Complete {
@@ -111,13 +102,6 @@ enum Commands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-}
-
-#[derive(ValueEnum, Clone, Copy)]
-enum Shell {
-    Bash,
-    Fish,
-    Zsh,
 }
 
 fn main() {
@@ -151,10 +135,6 @@ fn main() {
         } => handle_push(target.as_deref(), allow_merge_commits),
         Commands::Merge { target, keep } => handle_merge(target.as_deref(), keep),
         Commands::Hook { hook_type } => handle_hook(&hook_type).map_err(GitError::CommandFailed),
-        Commands::Completion { shell } => {
-            handle_completion(shell);
-            Ok(())
-        }
         Commands::Complete { args } => handle_complete(args),
     };
 
@@ -904,16 +884,6 @@ fn handle_hook(hook_type: &str) -> Result<(), String> {
     }
 }
 
-fn handle_completion(shell: Shell) {
-    let mut cmd = Cli::command();
-    let completion_shell = match shell {
-        Shell::Bash => CompletionShell::Bash,
-        Shell::Fish => CompletionShell::Fish,
-        Shell::Zsh => CompletionShell::Zsh,
-    };
-    generate(completion_shell, &mut cmd, "wt", &mut io::stdout());
-}
-
 #[derive(Debug, PartialEq)]
 enum CompletionContext {
     SwitchBranch,
@@ -933,19 +903,18 @@ fn parse_completion_context(args: &[String]) -> CompletionContext {
 
     let subcommand = &args[1];
 
-    match subcommand.as_str() {
-        "switch" => {
-            // Check if we're completing --base flag value
-            if args.len() >= 3 {
-                for arg in args.iter().skip(2).take(args.len() - 3) {
-                    if arg == "--base" || arg == "-b" {
-                        // We're completing the value after --base
-                        return CompletionContext::BaseFlag;
-                    }
-                }
-            }
-            CompletionContext::SwitchBranch
+    // Check if the previous argument was a flag that expects a value
+    // If so, we're completing that flag's value
+    if args.len() >= 3 {
+        let prev_arg = &args[args.len() - 2];
+        if prev_arg == "--base" || prev_arg == "-b" {
+            return CompletionContext::BaseFlag;
         }
+    }
+
+    // Otherwise, complete based on the subcommand's positional argument
+    match subcommand.as_str() {
+        "switch" => CompletionContext::SwitchBranch,
         "push" => CompletionContext::PushTarget,
         "merge" => CompletionContext::MergeTarget,
         _ => CompletionContext::Unknown,

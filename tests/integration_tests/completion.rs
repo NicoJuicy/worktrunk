@@ -3,38 +3,6 @@ use assert_cmd::Command;
 use std::process::Command as StdCommand;
 
 #[test]
-fn test_completion_command_static() {
-    // Test that static completion generates valid Fish script
-    let mut cmd = Command::cargo_bin("wt").unwrap();
-    let output = cmd.arg("completion").arg("fish").output().unwrap();
-
-    assert!(output.status.success());
-    let stdout = String::from_utf8_lossy(&output.stdout);
-
-    // Check for expected Fish completion functions
-    assert!(stdout.contains("__fish_wt_needs_command"));
-    assert!(stdout.contains("complete -c wt"));
-    assert!(stdout.contains("switch"));
-    assert!(stdout.contains("remove"));
-    assert!(stdout.contains("push"));
-    assert!(stdout.contains("merge"));
-}
-
-#[test]
-fn test_completion_command_bash() {
-    let mut cmd = Command::cargo_bin("wt").unwrap();
-    let output = cmd.arg("completion").arg("bash").output().unwrap();
-
-    assert!(output.status.success());
-    let stdout = String::from_utf8_lossy(&output.stdout);
-
-    // Check for Bash completion structure
-    assert!(stdout.contains("_wt()"));
-    assert!(stdout.contains("COMPREPLY"));
-    assert!(stdout.contains("complete"));
-}
-
-#[test]
 fn test_complete_switch_shows_branches() {
     let temp = TestRepo::new();
     temp.commit("initial");
@@ -206,19 +174,6 @@ fn test_init_fish_includes_no_file_flag() {
 
     // Check that completions include -f flag
     assert!(stdout.contains("-f -a '(__wt_complete)'"));
-}
-
-#[test]
-fn test_completion_command_zsh() {
-    let mut cmd = Command::cargo_bin("wt").unwrap();
-    let output = cmd.arg("completion").arg("zsh").output().unwrap();
-
-    assert!(output.status.success());
-    let stdout = String::from_utf8_lossy(&output.stdout);
-
-    // Check for Zsh completion structure
-    assert!(stdout.contains("_wt"));
-    assert!(stdout.contains("compdef"));
 }
 
 #[test]
