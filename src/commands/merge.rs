@@ -1,6 +1,6 @@
 use worktrunk::config::WorktrunkConfig;
 use worktrunk::error_format::format_error;
-use worktrunk::git::{GitError, Repository, run_git_command};
+use worktrunk::git::{GitError, Repository};
 
 use super::worktree::handle_push;
 use super::worktree::handle_remove;
@@ -40,7 +40,7 @@ pub fn handle_merge(target: Option<&str>, squash: bool, keep: bool) -> Result<()
     // Rebase onto target
     println!("Rebasing onto '{}'...", target_branch);
 
-    run_git_command(&["rebase", &target_branch], Some(repo.path())).map_err(|e| {
+    repo.run_command(&["rebase", &target_branch]).map_err(|e| {
         GitError::CommandFailed(format!("Failed to rebase onto '{}': {}", target_branch, e))
     })?;
 
@@ -58,17 +58,18 @@ pub fn handle_merge(target: Option<&str>, squash: bool, keep: bool) -> Result<()
         handle_remove(false)?;
 
         // Check if we need to switch to target branch
-        let new_branch = Repository::at(&primary_worktree_dir).current_branch()?;
+        let primary_repo = Repository::at(&primary_worktree_dir);
+        let new_branch = primary_repo.current_branch()?;
         if new_branch.as_deref() != Some(&target_branch) {
             println!("Switching to '{}'...", target_branch);
-            run_git_command(&["switch", &target_branch], Some(&primary_worktree_dir)).map_err(
-                |e| {
+            primary_repo
+                .run_command(&["switch", &target_branch])
+                .map_err(|e| {
                     GitError::CommandFailed(format!(
                         "Failed to switch to '{}': {}",
                         target_branch, e
                     ))
-                },
-            )?;
+                })?;
         }
     } else {
         println!(
@@ -128,11 +129,11 @@ fn handle_squash(target_branch: &str) -> Result<(), GitError> {
     let commit_message = crate::llm::generate_squash_message(target_branch, &subjects, &config.llm);
 
     // Reset to merge base (soft reset stages all changes)
-    run_git_command(&["reset", "--soft", &merge_base], Some(repo.path()))
+    repo.run_command(&["reset", "--soft", &merge_base])
         .map_err(|e| GitError::CommandFailed(format!("Failed to reset to merge base: {}", e)))?;
 
     // Commit with the generated message
-    run_git_command(&["commit", "-m", &commit_message], Some(repo.path()))
+    repo.run_command(&["commit", "-m", &commit_message])
         .map_err(|e| GitError::CommandFailed(format!("Failed to create squash commit: {}", e)))?;
 
     println!("Successfully squashed {} commits into one", commit_count);

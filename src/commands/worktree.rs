@@ -1,8 +1,7 @@
-use std::path::Path;
 use std::process;
 use worktrunk::config::WorktrunkConfig;
 use worktrunk::error_format::{format_error, format_error_with_bold, format_hint};
-use worktrunk::git::{GitError, Repository, run_git_command};
+use worktrunk::git::{GitError, Repository};
 
 pub fn handle_switch(
     branch: &str,
@@ -71,7 +70,7 @@ pub fn handle_switch(
         args.push(branch);
     }
 
-    run_git_command(&args, Some(Path::new(".")))
+    repo.run_command(&args)
         .map_err(|e| GitError::CommandFailed(format!("Failed to create worktree: {}", e)))
         .map(|_| ())?;
 
@@ -146,7 +145,7 @@ pub fn handle_remove(internal: bool) -> Result<(), GitError> {
         }
     } else {
         // In main repo but not on default branch: switch to default
-        run_git_command(&["switch", &default_branch], Some(Path::new(".")))
+        repo.run_command(&["switch", &default_branch])
             .map_err(|e| {
                 GitError::CommandFailed(format!("Failed to switch to '{}': {}", default_branch, e))
             })
@@ -190,7 +189,7 @@ pub fn handle_push(target: Option<&str>, allow_merge_commits: bool) -> Result<()
     }
 
     // Configure receive.denyCurrentBranch if needed
-    // TODO: These git config commands don't use run_git_command() because they don't check
+    // TODO: These git config commands don't use repo.run_command() because they don't check
     // status.success() and may rely on exit codes for missing keys. Should be refactored.
     let deny_config_output = process::Command::new("git")
         .args(["config", "receive.denyCurrentBranch"])
@@ -210,12 +209,13 @@ pub fn handle_push(target: Option<&str>, allow_merge_commits: bool) -> Result<()
 
     if let Some(ref wt_path) = target_worktree {
         // Check if target worktree is dirty
-        if Repository::at(wt_path).is_dirty()? {
+        let wt_repo = Repository::at(wt_path);
+        if wt_repo.is_dirty()? {
             // Get files changed in the push
             let push_files = repo.changed_files(&target_branch, "HEAD")?;
 
             // Get files changed in the worktree
-            let wt_status_output = run_git_command(&["status", "--porcelain"], Some(wt_path))?;
+            let wt_status_output = wt_repo.run_command(&["status", "--porcelain"])?;
 
             let wt_files: Vec<String> = wt_status_output
                 .lines()
@@ -268,11 +268,8 @@ pub fn handle_push(target: Option<&str>, allow_merge_commits: bool) -> Result<()
 
     // Perform the push
     let push_target = format!("HEAD:{}", target_branch);
-    run_git_command(
-        &["push", git_common_dir.to_str().unwrap(), &push_target],
-        Some(Path::new(".")),
-    )
-    .map_err(|e| GitError::CommandFailed(format!("Push failed: {}", e)))?;
+    repo.run_command(&["push", git_common_dir.to_str().unwrap(), &push_target])
+        .map_err(|e| GitError::CommandFailed(format!("Push failed: {}", e)))?;
 
     println!("Successfully pushed to '{}'", target_branch);
     Ok(())
