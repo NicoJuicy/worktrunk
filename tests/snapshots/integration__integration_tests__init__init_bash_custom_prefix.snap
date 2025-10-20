@@ -25,7 +25,7 @@ exit_code: 0
 # Helper function to parse wt output and handle directives
 _wt_exec() {
     local output line exit_code
-    output="$("wt" "$@" 2>&1)"
+    output="$(command wt "$@" 2>&1)"
     exit_code=$?
 
     # Parse output line by line
@@ -42,13 +42,21 @@ _wt_exec() {
     return $exit_code
 }
 
-# Main commands that support directory changes
-wt-switch() {
-    _wt_exec switch --internal "$@"
-}
+# Override wt command to add --internal flag for switch and finish
+wt() {
+    local subcommand="$1"
 
-wt-finish() {
-    _wt_exec finish --internal "$@"
+    case "$subcommand" in
+        switch|finish)
+            # Commands that need --internal for directory change support
+            shift
+            _wt_exec "$subcommand" --internal "$@"
+            ;;
+        *)
+            # All other commands pass through directly
+            command wt "$@"
+            ;;
+    esac
 }
 
 

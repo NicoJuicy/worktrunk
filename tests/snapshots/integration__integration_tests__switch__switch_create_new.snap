@@ -21,6 +21,6 @@ exit_code: 0
 ----- stdout -----
 Created new branch and worktree for 'feature-x'
 Path: [REPO].feature-x
-Note: Use 'wt-switch' (with shell integration) for automatic cd
+Note: Use 'wt switch' (with shell integration) for automatic cd
 
 ----- stderr -----

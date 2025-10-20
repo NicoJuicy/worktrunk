@@ -263,7 +263,7 @@ fn handle_switch(
     } else {
         println!("{}", success_msg);
         println!("Path: {}", worktree_path.display());
-        println!("Note: Use 'wt-switch' (with shell integration) for automatic cd");
+        println!("Note: Use 'wt switch' (with shell integration) for automatic cd");
     }
 
     Ok(())
@@ -323,7 +323,7 @@ fn handle_finish(internal: bool) -> Result<(), GitError> {
         if !internal {
             println!("Moved to primary worktree and removed worktree");
             println!("Path: {}", primary_worktree_dir.display());
-            println!("Note: Use 'wt-finish' (with shell integration) for automatic cd");
+            println!("Note: Use 'wt finish' (with shell integration) for automatic cd");
         }
     } else {
         // In main repo but not on default branch: switch to default

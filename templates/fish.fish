@@ -2,7 +2,7 @@
 
 # Helper function to parse wt output and handle directives
 function _wt_exec
-    set -l output (wt $argv 2>&1)
+    set -l output (command wt $argv 2>&1)
     set -l exit_code $status
 
     # Parse output line by line
@@ -19,13 +19,18 @@ function _wt_exec
     return $exit_code
 end
 
-# Main commands that support directory changes
-function {{ cmd_prefix }}-switch
-    _wt_exec switch --internal $argv
-end
+# Override {{ cmd_prefix }} command to add --internal flag for switch and finish
+function {{ cmd_prefix }}
+    set -l subcommand $argv[1]
 
-function {{ cmd_prefix }}-finish
-    _wt_exec finish --internal $argv
+    switch $subcommand
+        case switch finish
+            # Commands that need --internal for directory change support
+            _wt_exec $subcommand --internal $argv[2..-1]
+        case '*'
+            # All other commands pass through directly
+            command wt $argv
+    end
 end
 
 {% if hook.to_string() == "prompt" %}

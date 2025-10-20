@@ -51,16 +51,16 @@ eval "$(wt init zsh)"
 wt list
 
 # Switch to a worktree (creates if doesn't exist)
-wt-switch feature-branch
+wt switch feature-branch
 
 # Finish current worktree and return to primary
-wt-finish
+wt finish
 
 # Push changes between worktrees
 wt push target-worktree
 
 # Merge and cleanup
-wt merge main --squash
+wt merge main
 ```
 
 ### Customization
@@ -70,7 +70,7 @@ wt merge main --squash
 # Use a custom prefix instead of 'wt'
 eval "$(wt init bash --cmd myprefix)"
 
-# Now use: myprefix-switch, myprefix-finish, etc.
+# Now use: myprefix switch, myprefix finish, etc.
 ```
 
 **Enable prompt hook:**
@@ -113,14 +113,14 @@ See [TODO.md](TODO.md) for detailed roadmap.
 wt (Rust binary)
 ├── Core commands (work standalone)
 │   ├── wt list
-│   ├── wt remove
-│   └── wt status
+│   ├── wt push
+│   └── wt merge
 ├── Internal commands (for shell wrapper)
 │   ├── wt switch --internal → outputs __WORKTRUNK_CD__ directives
 │   ├── wt finish --internal → outputs __WORKTRUNK_CD__ directives
 │   └── wt hook prompt → for prompt integration
 └── Shell integration
-    └── wt init <shell> → outputs shell wrapper functions
+    └── wt init <shell> → outputs shell wrapper function
 ```
 
 ## Design Principles

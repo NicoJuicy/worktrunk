@@ -79,13 +79,13 @@ fn test_bash_e2e_switch_changes_directory() {
 
     // Create a script that:
     // 1. Sources the init code
-    // 2. Runs wt-switch to create and switch to a new branch
+    // 2. Runs wt switch to create and switch to a new branch
     // 3. Prints the current directory
     let script = format!(
         r#"
         export PATH="{}:$PATH"
         {}
-        wt-switch --create my-feature
+        wt switch --create my-feature
         pwd
         "#,
         get_cargo_bin("wt").parent().unwrap().to_string_lossy(),
@@ -125,8 +125,8 @@ fn test_bash_e2e_finish_returns_to_main() {
         r#"
         export PATH="{}:$PATH"
         {}
-        wt-switch --create my-feature
-        wt-finish
+        wt switch --create my-feature
+        wt finish
         pwd
         "#,
         get_cargo_bin("wt").parent().unwrap().to_string_lossy(),
@@ -160,7 +160,7 @@ fn test_bash_e2e_switch_preserves_output() {
         r#"
         export PATH="{}:$PATH"
         {}
-        wt-switch --create test-branch 2>&1
+        wt switch --create test-branch 2>&1
         "#,
         get_cargo_bin("wt").parent().unwrap().to_string_lossy(),
         init_code
@@ -199,7 +199,7 @@ fn test_fish_e2e_switch_changes_directory() {
         r#"
         set -x PATH {} $PATH
         {}
-        wt-switch --create my-feature
+        wt switch --create my-feature
         pwd
         "#,
         get_cargo_bin("wt").parent().unwrap().to_string_lossy(),
@@ -234,8 +234,8 @@ fn test_fish_e2e_finish_returns_to_main() {
         r#"
         set -x PATH {} $PATH
         {}
-        wt-switch --create my-feature
-        wt-finish
+        wt switch --create my-feature
+        wt finish
         pwd
         "#,
         get_cargo_bin("wt").parent().unwrap().to_string_lossy(),
@@ -269,7 +269,7 @@ fn test_zsh_e2e_switch_changes_directory() {
         r#"
         export PATH="{}:$PATH"
         {}
-        wt-switch --create my-feature
+        wt switch --create my-feature
         pwd
         "#,
         get_cargo_bin("wt").parent().unwrap().to_string_lossy(),
@@ -304,8 +304,8 @@ fn test_zsh_e2e_finish_returns_to_main() {
         r#"
         export PATH="{}:$PATH"
         {}
-        wt-switch --create my-feature
-        wt-finish
+        wt switch --create my-feature
+        wt finish
         pwd
         "#,
         get_cargo_bin("wt").parent().unwrap().to_string_lossy(),
@@ -344,12 +344,12 @@ fn test_bash_e2e_custom_prefix() {
 
     let init_code = String::from_utf8(output.stdout).expect("Invalid UTF-8 in init code");
 
-    // Test that custom-switch works
+    // Test that custom switch works
     let script = format!(
         r#"
         export PATH="{}:$PATH"
         {}
-        custom-switch --create my-feature
+        custom switch --create my-feature
         pwd
         "#,
         get_cargo_bin("wt").parent().unwrap().to_string_lossy(),
@@ -383,8 +383,8 @@ fn test_bash_e2e_error_handling() {
         r#"
         export PATH="{}:$PATH"
         {}
-        wt-switch --create test-feature
-        wt-switch --create test-feature 2>&1 || echo "ERROR_CAUGHT"
+        wt switch --create test-feature
+        wt switch --create test-feature 2>&1 || echo "ERROR_CAUGHT"
         "#,
         get_cargo_bin("wt").parent().unwrap().to_string_lossy(),
         init_code
@@ -521,10 +521,10 @@ fn test_bash_e2e_switch_to_existing_worktree() {
         r#"
         export PATH="{}:$PATH"
         {}
-        wt-switch --create existing-branch
+        wt switch --create existing-branch
         pwd
         cd /tmp
-        wt-switch existing-branch
+        wt switch existing-branch
         pwd
         "#,
         get_cargo_bin("wt").parent().unwrap().to_string_lossy(),
@@ -538,6 +538,50 @@ fn test_bash_e2e_switch_to_existing_worktree() {
     assert!(
         count >= 2,
         "Expected to see existing-branch path at least twice, got: {}",
+        output
+    );
+}
+
+#[test]
+fn test_bash_e2e_multiple_switches() {
+    if !is_shell_available("bash") {
+        eprintln!("Skipping test: bash not available");
+        return;
+    }
+
+    let mut repo = TestRepo::new();
+    repo.commit("Initial commit");
+    repo.setup_remote("main");
+
+    let init_code = generate_init_code(&repo, "bash");
+
+    // Test that multiple switches work
+    let script = format!(
+        r#"
+        export PATH="{}:$PATH"
+        {}
+        wt switch --create test-branch
+        pwd
+        wt finish
+        pwd
+        "#,
+        get_cargo_bin("wt").parent().unwrap().to_string_lossy(),
+        init_code
+    );
+
+    let output = execute_shell_script(&repo, "bash", &script);
+
+    // Should have switched to test-branch
+    assert!(
+        output.contains("test-branch"),
+        "Expected wt switch to work, got: {}",
+        output
+    );
+
+    // Should have returned to main (wt finish should work)
+    assert!(
+        output.contains("main"),
+        "Expected wt finish to work, got: {}",
         output
     );
 }
