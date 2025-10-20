@@ -80,6 +80,7 @@ wt completion fish > ~/.config/fish/completions/wt.fish
 - Zsh currently uses Bash-compatible completion syntax. Dynamic branch completion may require `bashcompinit`. For best results, use Fish or Bash.
 - Regenerate completion scripts after updating `wt`
 - Debug completion: Set `WT_DEBUG_COMPLETION=1` to see errors
+- Performance: Run `cargo bench` to measure completion performance on your system
 
 ## Usage
 

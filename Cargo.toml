@@ -32,3 +32,8 @@ assert_cmd = "2.0"
 tempfile = "3.14"
 toml = "0.8"
 rstest = "0.23"
+criterion = "0.5"
+
+[[bench]]
+name = "completion"
+harness = false

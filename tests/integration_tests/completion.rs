@@ -207,3 +207,141 @@ fn test_init_fish_includes_no_file_flag() {
     // Check that completions include -f flag
     assert!(stdout.contains("-f -a '(__wt_complete)'"));
 }
+
+#[test]
+fn test_completion_command_zsh() {
+    let mut cmd = Command::cargo_bin("wt").unwrap();
+    let output = cmd.arg("completion").arg("zsh").output().unwrap();
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Check for Zsh completion structure
+    assert!(stdout.contains("_wt"));
+    assert!(stdout.contains("compdef"));
+}
+
+#[test]
+fn test_complete_base_flag_short_form() {
+    let temp = TestRepo::new();
+    temp.commit("initial");
+
+    // Create branches
+    StdCommand::new("git")
+        .args(&["branch", "develop"])
+        .current_dir(temp.root_path())
+        .output()
+        .unwrap();
+
+    // Test completion for -b flag (short form of --base)
+    let mut cmd = Command::cargo_bin("wt").unwrap();
+    let output = cmd
+        .current_dir(temp.root_path())
+        .args(&[
+            "complete",
+            "wt",
+            "switch",
+            "--create",
+            "new-branch",
+            "-b",
+            "",
+        ])
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let branches: Vec<&str> = stdout.lines().collect();
+
+    // Should show all branches as potential base
+    assert!(branches.iter().any(|b| b.contains("develop")));
+}
+
+#[test]
+fn test_complete_empty_repo_returns_empty() {
+    let temp = TestRepo::new();
+    // No commits, no branches
+
+    // Test completion in empty repo
+    let mut cmd = Command::cargo_bin("wt").unwrap();
+    let output = cmd
+        .current_dir(temp.root_path())
+        .args(&["complete", "wt", "switch", ""])
+        .output()
+        .unwrap();
+
+    // Should succeed but return no branches
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(stdout.trim(), "");
+}
+
+#[test]
+fn test_complete_with_partial_prefix() {
+    let temp = TestRepo::new();
+    temp.commit("initial");
+
+    // Create branches with common prefix
+    StdCommand::new("git")
+        .args(&["branch", "feature/one"])
+        .current_dir(temp.root_path())
+        .output()
+        .unwrap();
+
+    StdCommand::new("git")
+        .args(&["branch", "feature/two"])
+        .current_dir(temp.root_path())
+        .output()
+        .unwrap();
+
+    StdCommand::new("git")
+        .args(&["branch", "hotfix/bug"])
+        .current_dir(temp.root_path())
+        .output()
+        .unwrap();
+
+    // Complete with partial prefix - should return all branches
+    // (shell completion framework handles the prefix filtering)
+    let mut cmd = Command::cargo_bin("wt").unwrap();
+    let output = cmd
+        .current_dir(temp.root_path())
+        .args(&["complete", "wt", "switch", "feat"])
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Should return all branches, not just those matching "feat"
+    // The shell will filter based on user input
+    assert!(stdout.contains("feature/one"));
+    assert!(stdout.contains("feature/two"));
+    assert!(stdout.contains("hotfix/bug"));
+}
+
+#[test]
+fn test_complete_switch_no_available_branches() {
+    let mut temp = TestRepo::new();
+    temp.commit("initial");
+
+    // Create two branches, both with worktrees - this should result in no available branches
+    temp.add_worktree("feature-worktree", "feature/new");
+    temp.add_worktree("hotfix-worktree", "hotfix/bug");
+
+    // From the main worktree, test completion - should return empty since both non-main branches have worktrees
+    // and we're currently in the main worktree
+    let mut cmd = Command::cargo_bin("wt").unwrap();
+    let output = cmd
+        .current_dir(temp.root_path())
+        .args(&["complete", "wt", "switch", ""])
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Should not include branches that have worktrees
+    assert!(!stdout.contains("feature/new"));
+    assert!(!stdout.contains("hotfix/bug"));
+    // May include main if it doesn't have a worktree
+}
