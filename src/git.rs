@@ -560,6 +560,49 @@ pub fn get_available_branches() -> Result<Vec<String>, GitError> {
         .collect())
 }
 
+/// Get the merge base between two commits
+pub fn get_merge_base(commit1: &str, commit2: &str) -> Result<String, GitError> {
+    get_merge_base_in(std::env::current_dir().unwrap().as_path(), commit1, commit2)
+}
+
+pub fn get_merge_base_in(
+    path: &std::path::Path,
+    commit1: &str,
+    commit2: &str,
+) -> Result<String, GitError> {
+    let output = run_git_command(&["merge-base", commit1, commit2], Some(path))?;
+    Ok(output.trim().to_string())
+}
+
+/// Get commit subjects (first line of commit message) from a range
+pub fn get_commit_subjects(range: &str) -> Result<Vec<String>, GitError> {
+    get_commit_subjects_in(std::env::current_dir().unwrap().as_path(), range)
+}
+
+pub fn get_commit_subjects_in(
+    path: &std::path::Path,
+    range: &str,
+) -> Result<Vec<String>, GitError> {
+    let output = run_git_command(&["log", "--format=%s", range], Some(path))?;
+    Ok(output.lines().map(|s| s.to_string()).collect())
+}
+
+/// Check if there are staged changes
+pub fn has_staged_changes() -> Result<bool, GitError> {
+    has_staged_changes_in(std::env::current_dir().unwrap().as_path())
+}
+
+pub fn has_staged_changes_in(path: &std::path::Path) -> Result<bool, GitError> {
+    let output = Command::new("git")
+        .args(["diff", "--cached", "--quiet", "--exit-code"])
+        .current_dir(path)
+        .output()
+        .map_err(|e| GitError::CommandFailed(e.to_string()))?;
+
+    // exit code 0 = no changes, 1 = has changes
+    Ok(!output.status.success())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -147,6 +147,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (merge)
 _arguments "${_arguments_options[@]}" : \
+'-s[Squash all commits into one before merging]' \
+'--squash[Squash all commits into one before merging]' \
 '-k[Keep worktree after merging (don'\''t remove)]' \
 '--keep[Keep worktree after merging (don'\''t remove)]' \
 '-h[Print help]' \

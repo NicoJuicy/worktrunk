@@ -7,10 +7,11 @@ use worktrunk::config::{format_worktree_path, load_config};
 use worktrunk::error_format::{format_error, format_error_with_bold, format_hint, format_warning};
 use worktrunk::git::{
     GitError, Worktree, branch_exists, count_commits, get_ahead_behind_in, get_all_branches,
-    get_available_branches, get_branch_diff_stats_in, get_changed_files, get_commit_timestamp_in,
-    get_current_branch, get_current_branch_in, get_default_branch, get_git_common_dir,
-    get_working_tree_diff_stats_in, get_worktree_root, has_merge_commits, is_ancestor, is_dirty,
-    is_dirty_in, is_in_worktree, list_worktrees, worktree_for_branch,
+    get_available_branches, get_branch_diff_stats_in, get_changed_files, get_commit_subjects,
+    get_commit_timestamp_in, get_current_branch, get_current_branch_in, get_default_branch,
+    get_git_common_dir, get_merge_base, get_working_tree_diff_stats_in, get_worktree_root,
+    has_merge_commits, has_staged_changes, is_ancestor, is_dirty, is_dirty_in, is_in_worktree,
+    list_worktrees, worktree_for_branch,
 };
 use worktrunk::shell;
 
@@ -83,6 +84,10 @@ enum Commands {
         /// Target branch to merge into (defaults to default branch)
         target: Option<String>,
 
+        /// Squash all commits into one before merging
+        #[arg(short, long)]
+        squash: bool,
+
         /// Keep worktree after merging (don't remove)
         #[arg(short, long)]
         keep: bool,
@@ -133,7 +138,11 @@ fn main() {
             target,
             allow_merge_commits,
         } => handle_push(target.as_deref(), allow_merge_commits),
-        Commands::Merge { target, keep } => handle_merge(target.as_deref(), keep),
+        Commands::Merge {
+            target,
+            squash,
+            keep,
+        } => handle_merge(target.as_deref(), squash, keep),
         Commands::Hook { hook_type } => handle_hook(&hook_type).map_err(GitError::CommandFailed),
         Commands::Complete { args } => handle_complete(args),
     };
@@ -786,7 +795,87 @@ fn handle_push(target: Option<&str>, allow_merge_commits: bool) -> Result<(), Gi
     Ok(())
 }
 
-fn handle_merge(target: Option<&str>, keep: bool) -> Result<(), GitError> {
+fn handle_squash(target_branch: &str) -> Result<(), GitError> {
+    // Get merge base with target branch
+    let merge_base = get_merge_base("HEAD", target_branch)?;
+
+    // Count commits since merge base
+    let commit_count = count_commits(&merge_base, "HEAD")?;
+
+    // Check if there are staged changes
+    let has_staged = has_staged_changes()?;
+
+    // Handle different scenarios
+    if commit_count == 0 && !has_staged {
+        // No commits and no staged changes - nothing to squash
+        println!("No commits to squash - already at merge base");
+        return Ok(());
+    }
+
+    if commit_count == 0 && has_staged {
+        // Just staged changes, no commits - would need to commit but this shouldn't happen in merge flow
+        return Err(GitError::CommandFailed(format_error(
+            "Staged changes without commits - please commit them first",
+        )));
+    }
+
+    if commit_count == 1 && !has_staged {
+        // Single commit, no staged changes - nothing to do
+        println!(
+            "Only 1 commit since '{}' - no squashing needed",
+            target_branch
+        );
+        return Ok(());
+    }
+
+    // One or more commits (possibly with staged changes) - squash them
+    println!("Squashing {} commits into one...", commit_count);
+
+    // Get commit subjects for the squash message
+    let range = format!("{}..HEAD", merge_base);
+    let subjects = get_commit_subjects(&range)?;
+
+    // Build deterministic commit message
+    let mut commit_message = format!("Squash commits from {}\n\n", target_branch);
+    commit_message.push_str("Combined commits:\n");
+    for subject in subjects.iter().rev() {
+        // Reverse so they're in chronological order
+        commit_message.push_str(&format!("- {}\n", subject));
+    }
+
+    // Reset to merge base (soft reset stages all changes)
+    let reset_result = process::Command::new("git")
+        .args(["reset", "--soft", &merge_base])
+        .output()
+        .map_err(|e| GitError::CommandFailed(e.to_string()))?;
+
+    if !reset_result.status.success() {
+        let stderr = String::from_utf8_lossy(&reset_result.stderr);
+        return Err(GitError::CommandFailed(format!(
+            "Failed to reset to merge base: {}",
+            stderr
+        )));
+    }
+
+    // Commit with the generated message
+    let commit_result = process::Command::new("git")
+        .args(["commit", "-m", &commit_message])
+        .output()
+        .map_err(|e| GitError::CommandFailed(e.to_string()))?;
+
+    if !commit_result.status.success() {
+        let stderr = String::from_utf8_lossy(&commit_result.stderr);
+        return Err(GitError::CommandFailed(format!(
+            "Failed to create squash commit: {}",
+            stderr
+        )));
+    }
+
+    println!("Successfully squashed {} commits into one", commit_count);
+    Ok(())
+}
+
+fn handle_merge(target: Option<&str>, squash: bool, keep: bool) -> Result<(), GitError> {
     // Get current branch
     let current_branch = get_current_branch()?
         .ok_or_else(|| GitError::CommandFailed(format_error("Not on a branch (detached HEAD)")))?;
@@ -808,6 +897,11 @@ fn handle_merge(target: Option<&str>, keep: bool) -> Result<(), GitError> {
         return Err(GitError::CommandFailed(format_error(
             "Working tree has uncommitted changes. Commit or stash them first.",
         )));
+    }
+
+    // Squash commits if requested
+    if squash {
+        handle_squash(&target_branch)?;
     }
 
     // Rebase onto target
