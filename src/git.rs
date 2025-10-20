@@ -72,6 +72,29 @@ impl Repository {
         &self.path
     }
 
+    /// Get the primary remote name for this repository.
+    ///
+    /// Uses the following strategy:
+    /// 1. If the current branch has an upstream, use its remote
+    ///    (Note: Detached HEAD falls through to step 2)
+    /// 2. Otherwise, get the first remote from `git remote`
+    /// 3. Fall back to "origin" if no remotes exist
+    pub fn primary_remote(&self) -> Result<String, GitError> {
+        // Try to get the remote from the current branch's upstream
+        if let Ok(Some(branch)) = self.current_branch()
+            && let Ok(Some(upstream)) = self.upstream_branch(&branch)
+            && let Some((remote, _)) = upstream.split_once('/')
+        {
+            return Ok(remote.to_string());
+        }
+
+        // Fall back to first remote in the list
+        let output = self.run_command(&["remote"])?;
+        let first_remote = output.lines().next();
+
+        Ok(first_remote.unwrap_or("origin").to_string())
+    }
+
     /// Check if a git branch exists (local or remote).
     pub fn branch_exists(&self, branch: &str) -> Result<bool, GitError> {
         // Try local branch first
@@ -83,11 +106,12 @@ impl Repository {
         }
 
         // Try remote branch
+        let remote = self.primary_remote()?;
         Ok(self
             .run_command(&[
                 "rev-parse",
                 "--verify",
-                &format!("refs/remotes/origin/{}", branch),
+                &format!("refs/remotes/{}/{}", remote, branch),
             ])
             .is_ok())
     }
@@ -107,14 +131,15 @@ impl Repository {
     /// Get the default branch name for the repository.
     ///
     /// Uses a hybrid approach:
-    /// 1. Try local cache (origin/HEAD) first for speed
+    /// 1. Try local cache (remote/HEAD) first for speed
     /// 2. If not cached, query the remote and cache the result
     pub fn default_branch(&self) -> Result<String, GitError> {
+        let remote = self.primary_remote()?;
         // Try local cache first (fast path)
-        self.get_local_default_branch().or_else(|_| {
+        self.get_local_default_branch(&remote).or_else(|_| {
             // Query remote and cache it
-            let branch = self.query_remote_default_branch()?;
-            self.cache_default_branch(&branch)?;
+            let branch = self.query_remote_default_branch(&remote)?;
+            self.cache_default_branch(&remote, &branch)?;
             Ok(branch)
         })
     }
@@ -372,18 +397,19 @@ impl Repository {
 
     // Private helper methods for default_branch()
 
-    fn get_local_default_branch(&self) -> Result<String, GitError> {
-        let stdout = self.run_command(&["rev-parse", "--abbrev-ref", "origin/HEAD"])?;
-        parse_local_default_branch(&stdout)
+    fn get_local_default_branch(&self, remote: &str) -> Result<String, GitError> {
+        let stdout =
+            self.run_command(&["rev-parse", "--abbrev-ref", &format!("{}/HEAD", remote)])?;
+        parse_local_default_branch(&stdout, remote)
     }
 
-    fn query_remote_default_branch(&self) -> Result<String, GitError> {
-        let stdout = self.run_command(&["ls-remote", "--symref", "origin", "HEAD"])?;
+    fn query_remote_default_branch(&self, remote: &str) -> Result<String, GitError> {
+        let stdout = self.run_command(&["ls-remote", "--symref", remote, "HEAD"])?;
         parse_remote_default_branch(&stdout)
     }
 
-    fn cache_default_branch(&self, branch: &str) -> Result<(), GitError> {
-        self.run_command(&["remote", "set-head", "origin", branch])?;
+    fn cache_default_branch(&self, remote: &str, branch: &str) -> Result<(), GitError> {
+        self.run_command(&["remote", "set-head", remote, branch])?;
         Ok(())
     }
 
@@ -504,16 +530,18 @@ fn parse_worktree_list(output: &str) -> Result<Vec<Worktree>, GitError> {
     Ok(worktrees)
 }
 
-fn parse_local_default_branch(output: &str) -> Result<String, GitError> {
+fn parse_local_default_branch(output: &str, remote: &str) -> Result<String, GitError> {
     let trimmed = output.trim();
 
-    // Strip "origin/" prefix if present
-    let branch = trimmed.strip_prefix("origin/").unwrap_or(trimmed);
+    // Strip "remote/" prefix if present
+    let prefix = format!("{}/", remote);
+    let branch = trimmed.strip_prefix(&prefix).unwrap_or(trimmed);
 
     if branch.is_empty() {
-        return Err(GitError::ParseError(
-            "Empty branch name from origin/HEAD".to_string(),
-        ));
+        return Err(GitError::ParseError(format!(
+            "Empty branch name from {}/HEAD",
+            remote
+        )));
     }
 
     Ok(branch.to_string())
@@ -644,35 +672,42 @@ bare
     #[test]
     fn test_parse_local_default_branch_with_prefix() {
         let output = "origin/main\n";
-        let branch = parse_local_default_branch(output).unwrap();
+        let branch = parse_local_default_branch(output, "origin").unwrap();
         assert_eq!(branch, "main");
     }
 
     #[test]
     fn test_parse_local_default_branch_without_prefix() {
         let output = "main\n";
-        let branch = parse_local_default_branch(output).unwrap();
+        let branch = parse_local_default_branch(output, "origin").unwrap();
         assert_eq!(branch, "main");
     }
 
     #[test]
     fn test_parse_local_default_branch_master() {
         let output = "origin/master\n";
-        let branch = parse_local_default_branch(output).unwrap();
+        let branch = parse_local_default_branch(output, "origin").unwrap();
         assert_eq!(branch, "master");
     }
 
     #[test]
     fn test_parse_local_default_branch_custom_name() {
         let output = "origin/develop\n";
-        let branch = parse_local_default_branch(output).unwrap();
+        let branch = parse_local_default_branch(output, "origin").unwrap();
         assert_eq!(branch, "develop");
+    }
+
+    #[test]
+    fn test_parse_local_default_branch_custom_remote() {
+        let output = "upstream/main\n";
+        let branch = parse_local_default_branch(output, "upstream").unwrap();
+        assert_eq!(branch, "main");
     }
 
     #[test]
     fn test_parse_local_default_branch_empty() {
         let output = "";
-        let result = parse_local_default_branch(output);
+        let result = parse_local_default_branch(output, "origin");
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), GitError::ParseError(_)));
     }
@@ -680,7 +715,7 @@ bare
     #[test]
     fn test_parse_local_default_branch_whitespace_only() {
         let output = "  \n  ";
-        let result = parse_local_default_branch(output);
+        let result = parse_local_default_branch(output, "origin");
         assert!(result.is_err());
     }
 

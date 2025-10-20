@@ -268,8 +268,17 @@ impl TestRepo {
     /// it as the 'origin' remote. The remote will have the same default branch
     /// as the local repository (main).
     pub fn setup_remote(&mut self, default_branch: &str) {
+        self.setup_custom_remote("origin", default_branch);
+    }
+
+    /// Create a bare remote repository with a custom name
+    ///
+    /// This creates a bare git repository in the temp directory and configures
+    /// it with the specified remote name. The remote will have the same default
+    /// branch as the local repository.
+    pub fn setup_custom_remote(&mut self, remote_name: &str, default_branch: &str) {
         // Create bare remote repository
-        let remote_path = self.temp_dir.path().join("remote.git");
+        let remote_path = self.temp_dir.path().join(format!("{}.git", remote_name));
         std::fs::create_dir(&remote_path).expect("Failed to create remote directory");
 
         let mut cmd = Command::new("git");
@@ -287,7 +296,7 @@ impl TestRepo {
         // Add as remote
         let mut cmd = Command::new("git");
         self.configure_git_cmd(&mut cmd);
-        cmd.args(["remote", "add", "origin", remote_path.to_str().unwrap()])
+        cmd.args(["remote", "add", remote_name, remote_path.to_str().unwrap()])
             .current_dir(&self.root)
             .output()
             .expect("Failed to add remote");
@@ -295,18 +304,18 @@ impl TestRepo {
         // Push current branch to remote
         let mut cmd = Command::new("git");
         self.configure_git_cmd(&mut cmd);
-        cmd.args(["push", "-u", "origin", default_branch])
+        cmd.args(["push", "-u", remote_name, default_branch])
             .current_dir(&self.root)
             .output()
             .expect("Failed to push to remote");
 
-        // Set origin/HEAD to point to the default branch
+        // Set remote/HEAD to point to the default branch
         let mut cmd = Command::new("git");
         self.configure_git_cmd(&mut cmd);
-        cmd.args(["remote", "set-head", "origin", default_branch])
+        cmd.args(["remote", "set-head", remote_name, default_branch])
             .current_dir(&self.root)
             .output()
-            .expect("Failed to set origin/HEAD");
+            .unwrap_or_else(|_| panic!("Failed to set {}/HEAD", remote_name));
 
         self.remote = Some(remote_path);
     }
