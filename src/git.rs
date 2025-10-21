@@ -183,10 +183,11 @@ impl Repository {
     /// Returns an error if there are uncommitted changes.
     pub fn ensure_clean_working_tree(&self) -> Result<(), GitError> {
         if self.is_dirty()? {
-            use crate::styling::{ERROR, ERROR_EMOJI};
-            return Err(GitError::CommandFailed(format!(
-                "{ERROR_EMOJI} {ERROR}Working tree has uncommitted changes. Commit or stash them first.{ERROR:#}"
-            )));
+            use crate::styling::{ERROR, ERROR_EMOJI, HINT, HINT_EMOJI, eprintln};
+            eprintln!("{ERROR_EMOJI} {ERROR}Working tree has uncommitted changes{ERROR:#}");
+            eprintln!();
+            eprintln!("{HINT_EMOJI} {HINT}Commit or stash them first{HINT:#}");
+            return Err(GitError::CommandFailed(String::new()));
         }
         Ok(())
     }

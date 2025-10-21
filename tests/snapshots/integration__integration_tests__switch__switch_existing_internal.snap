@@ -7,6 +7,7 @@ info:
     - "--internal"
     - existing-wt
   env:
+    CLICOLOR_FORCE: "1"
     GIT_AUTHOR_DATE: "2025-01-01T00:00:00Z"
     GIT_COMMITTER_DATE: "2025-01-01T00:00:00Z"
     GIT_CONFIG_GLOBAL: /dev/null
@@ -20,5 +21,6 @@ success: true
 exit_code: 0
 ----- stdout -----
 __WORKTRUNK_CD__[WORKTREE_EXISTING_WT]
+✅ [32mSwitched to worktree for [1m[32mexisting-wt[0m[0m
 
 ----- stderr -----

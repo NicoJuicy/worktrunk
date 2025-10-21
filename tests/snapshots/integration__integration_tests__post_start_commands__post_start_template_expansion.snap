@@ -13,6 +13,7 @@ info:
     GIT_CONFIG_GLOBAL: /dev/null
     GIT_CONFIG_SYSTEM: /dev/null
     GIT_EDITOR: ""
+    HOME: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpIvjDOu
     LANG: C
     LC_ALL: C
     SOURCE_DATE_EPOCH: "1704067200"
@@ -20,12 +21,13 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
-Created new branch and worktree for [1mfeature/test[0m at [REPO].feature-test
+✅ [32mCreated new worktree for [1m[32mfeature/test[0m[0m
+  [2mPath: [REPO].feature-test[0m
 
 To enable automatic cd, run: wt configure-shell
 
 ----- stderr -----
-Executing: echo 'Repo: main' > info.txt
-Executing: echo 'Branch: feature-test' >> info.txt
-Executing: echo 'Worktree: [REPO].feature-test' >> info.txt
-Executing: echo 'Root: [REPO]' >> info.txt
+🔄 [36mExecuting: echo 'Repo: main' > info.txt[0m
+🔄 [36mExecuting: echo 'Branch: feature-test' >> info.txt[0m
+🔄 [36mExecuting: echo 'Worktree: [REPO].feature-test' >> info.txt[0m
+🔄 [36mExecuting: echo 'Root: [REPO]' >> info.txt[0m

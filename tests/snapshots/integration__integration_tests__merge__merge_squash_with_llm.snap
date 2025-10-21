@@ -22,15 +22,17 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
-Squashing 2 commits into one...
-Successfully squashed 2 commits into one
-Rebasing onto [1mmain[0m...
-Fast-forwarding [1mmain[0m to current HEAD...
-Pushing 1 commit to [1mmain[0m
-Successfully pushed to [1mmain[0m
-Cleaning up worktree...
-Moved to primary worktree and removed worktree
-Path: [REPO]
+🔄 [36mSquashing 2 commits into one...[0m
+✅ [32mSquashed 2 commits into one[0m
+🔄 [36mRebasing onto [1m[36mmain[0m...[0m
+🔄 [36mPushing 1 commit to [1m[36mmain[0m @ [SHA][0m
+
+* [SHA] (HEAD -> feature) Squash commits from main
+
+✅ [32mPushed to [1m[32mmain[0m[0m
+🔄 [36mCleaning up worktree...[0m
+✅ [32mRemoved worktree and returned to primary[0m
+  [2mPath: [REPO][0m
 
 To enable automatic cd, run: wt configure-shell
 

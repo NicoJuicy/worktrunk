@@ -1,6 +1,7 @@
+use anstyle::{AnsiColor, Color};
 use worktrunk::config::WorktrunkConfig;
 use worktrunk::git::{GitError, Repository};
-use worktrunk::styling::{AnstyleStyle, ERROR, ERROR_EMOJI, println};
+use worktrunk::styling::{AnstyleStyle, ERROR, ERROR_EMOJI, HINT, HINT_EMOJI, eprintln, println};
 
 use super::worktree::handle_push;
 use super::worktree::handle_remove;
@@ -15,9 +16,10 @@ pub fn handle_merge(
 
     // Get current branch
     let current_branch = repo.current_branch()?.ok_or_else(|| {
-        GitError::CommandFailed(format!(
-            "{ERROR_EMOJI} {ERROR}Not on a branch (detached HEAD){ERROR:#}"
-        ))
+        eprintln!("{ERROR_EMOJI} {ERROR}Not on a branch (detached HEAD){ERROR:#}");
+        eprintln!();
+        eprintln!("{HINT_EMOJI} {HINT}You are in detached HEAD state{HINT:#}");
+        GitError::CommandFailed(String::new())
     })?;
 
     // Get target branch (default to default branch if not provided)
@@ -25,8 +27,11 @@ pub fn handle_merge(
 
     // Check if already on target branch
     if current_branch == target_branch {
-        let bold = AnstyleStyle::new().bold();
-        println!("Already on {bold}{target_branch}{bold:#}, nothing to merge");
+        let green = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Green)));
+        let green_bold = green.bold();
+        println!(
+            "✅ {green}Already on {green_bold}{target_branch}{green_bold:#}, nothing to merge{green:#}"
+        );
         return Ok(());
     }
 
@@ -39,20 +44,21 @@ pub fn handle_merge(
     }
 
     // Rebase onto target
-    let bold = AnstyleStyle::new().bold();
-    println!("Rebasing onto {bold}{target_branch}{bold:#}...");
+    let cyan = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Cyan)));
+    let cyan_bold = cyan.bold();
+    println!("🔄 {cyan}Rebasing onto {cyan_bold}{target_branch}{cyan_bold:#}...{cyan:#}");
 
     repo.run_command(&["rebase", &target_branch]).map_err(|e| {
         GitError::CommandFailed(format!("Failed to rebase onto '{}': {}", target_branch, e))
     })?;
 
     // Fast-forward push to target branch (reuse handle_push logic)
-    println!("Fast-forwarding {bold}{target_branch}{bold:#} to current HEAD...");
     handle_push(Some(&target_branch), false)?;
 
     // Finish worktree unless --keep was specified
     if !keep {
-        println!("Cleaning up worktree...");
+        let cyan = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Cyan)));
+        println!("🔄 {cyan}Cleaning up worktree...{cyan:#}");
 
         // Get primary worktree path before finishing (while we can still run git commands)
         let primary_worktree_dir = repo.repo_root()?;
@@ -72,8 +78,9 @@ pub fn handle_merge(
         let primary_repo = Repository::at(&primary_worktree_dir);
         let new_branch = primary_repo.current_branch()?;
         if new_branch.as_deref() != Some(&target_branch) {
-            let bold = AnstyleStyle::new().bold();
-            println!("Switching to {bold}{target_branch}{bold:#}...");
+            let cyan = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Cyan)));
+            let cyan_bold = cyan.bold();
+            println!("🔄 {cyan}Switching to {cyan_bold}{target_branch}{cyan_bold:#}...{cyan:#}");
             primary_repo
                 .run_command(&["switch", &target_branch])
                 .map_err(|e| {
@@ -84,8 +91,11 @@ pub fn handle_merge(
                 })?;
         }
     } else {
-        let bold = AnstyleStyle::new().bold();
-        println!("Successfully merged to {bold}{target_branch}{bold:#} (worktree preserved)");
+        let green = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Green)));
+        let green_bold = green.bold();
+        println!(
+            "✅ {green}Successfully merged to {green_bold}{target_branch}{green_bold:#} (worktree preserved){green:#}"
+        );
     }
 
     Ok(())
@@ -106,26 +116,34 @@ fn handle_squash(target_branch: &str) -> Result<(), GitError> {
     // Handle different scenarios
     if commit_count == 0 && !has_staged {
         // No commits and no staged changes - nothing to squash
-        println!("No commits to squash - already at merge base");
+        let dim = AnstyleStyle::new().dimmed();
+        println!("{dim}No commits to squash - already at merge base{dim:#}");
         return Ok(());
     }
 
     if commit_count == 0 && has_staged {
         // Just staged changes, no commits - would need to commit but this shouldn't happen in merge flow
-        return Err(GitError::CommandFailed(format!(
-            "{ERROR_EMOJI} {ERROR}Staged changes without commits - please commit them first{ERROR:#}"
-        )));
+        eprintln!("{ERROR_EMOJI} {ERROR}Staged changes without commits{ERROR:#}");
+        eprintln!();
+        eprintln!("{HINT_EMOJI} {HINT}Please commit them first{HINT:#}");
+        return Err(GitError::CommandFailed(String::new()));
     }
 
     if commit_count == 1 && !has_staged {
         // Single commit, no staged changes - nothing to do
-        let bold = AnstyleStyle::new().bold();
-        println!("Only 1 commit since {bold}{target_branch}{bold:#} - no squashing needed");
+        let cyan_bold = AnstyleStyle::new()
+            .fg_color(Some(Color::Ansi(AnsiColor::Cyan)))
+            .bold();
+        let dim = AnstyleStyle::new().dimmed();
+        println!(
+            "{dim}Only 1 commit since {cyan_bold}{target_branch}{cyan_bold:#} - no squashing needed{dim:#}"
+        );
         return Ok(());
     }
 
     // One or more commits (possibly with staged changes) - squash them
-    println!("Squashing {} commits into one...", commit_count);
+    let cyan = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Cyan)));
+    println!("🔄 {cyan}Squashing {commit_count} commits into one...{cyan:#}");
 
     // Get commit subjects for the squash message
     let range = format!("{}..HEAD", merge_base);
@@ -144,6 +162,7 @@ fn handle_squash(target_branch: &str) -> Result<(), GitError> {
     repo.run_command(&["commit", "-m", &commit_message])
         .map_err(|e| GitError::CommandFailed(format!("Failed to create squash commit: {}", e)))?;
 
-    println!("Successfully squashed {} commits into one", commit_count);
+    let green = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Green)));
+    println!("✅ {green}Squashed {commit_count} commits into one{green:#}");
     Ok(())
 }

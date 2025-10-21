@@ -21,5 +21,10 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
+✅ [32mSwitched to worktree for [1m[32mexisting-exec[0m[0m
+
+
+
+To enable automatic cd, run: wt configure-shell
 
 ----- stderr -----

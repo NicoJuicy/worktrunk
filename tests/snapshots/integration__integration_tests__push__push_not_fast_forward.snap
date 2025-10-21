@@ -19,7 +19,10 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
-Pushing 1 commit to [1mmain[0m
-Successfully pushed to [1mmain[0m
+🔄 [36mPushing 1 commit to [1m[36mmain[0m @ [SHA][0m
+
+* [SHA] (HEAD -> feature) Add feature file
+
+✅ [32mPushed to [1m[32mmain[0m[0m
 
 ----- stderr -----

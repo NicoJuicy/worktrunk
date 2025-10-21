@@ -103,21 +103,33 @@ pub enum SwitchResult {
 impl SwitchResult {
     /// Format the result for display (non-internal mode)
     pub fn format_user_output(&self, branch: &str) -> Option<String> {
+        use anstyle::{AnsiColor, Color};
+
         match self {
-            SwitchResult::ExistingWorktree(_) => None,
+            SwitchResult::ExistingWorktree(_path) => {
+                let green = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Green)));
+                let green_bold = green.bold();
+                Some(format!(
+                    "✅ {green}Switched to worktree for {green_bold}{branch}{green_bold:#}{green:#}\n\n{}",
+                    shell_integration_hint()
+                ))
+            }
             SwitchResult::CreatedWorktree {
                 path,
                 created_branch,
             } => {
-                let bold = AnstyleStyle::new().bold();
+                let green = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Green)));
+                let green_bold = green.bold();
+                let dim = AnstyleStyle::new().dimmed();
+
                 let msg = if *created_branch {
                     format!(
-                        "Created new branch and worktree for {bold}{branch}{bold:#} at {}",
+                        "✅ {green}Created new worktree for {green_bold}{branch}{green_bold:#}{green:#}\n  {dim}Path: {}{dim:#}",
                         path.display()
                     )
                 } else {
                     format!(
-                        "Added worktree for existing branch {bold}{branch}{bold:#} at {}",
+                        "✅ {green}Added worktree for {green_bold}{branch}{green_bold:#}{green:#}\n  {dim}Path: {}{dim:#}",
                         path.display()
                     )
                 };
@@ -129,26 +141,34 @@ impl SwitchResult {
 
     /// Format the result for shell integration (internal mode)
     pub fn format_internal_output(&self, branch: &str) -> Option<String> {
+        use anstyle::{AnsiColor, Color};
+
         match self {
             SwitchResult::ExistingWorktree(path) => {
-                Some(format!("__WORKTRUNK_CD__{}", path.display()))
+                let green = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Green)));
+                let green_bold = green.bold();
+                Some(format!(
+                    "__WORKTRUNK_CD__{}\n✅ {green}Switched to worktree for {green_bold}{branch}{green_bold:#}{green:#}",
+                    path.display()
+                ))
             }
             SwitchResult::CreatedWorktree {
                 path,
                 created_branch,
             } => {
-                let bold = AnstyleStyle::new().bold();
+                let green = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Green)));
+                let green_bold = green.bold();
+
                 let msg = if *created_branch {
-                    format!("Created new branch and worktree for {bold}{branch}{bold:#}")
+                    format!(
+                        "✅ {green}Created new worktree for {green_bold}{branch}{green_bold:#}{green:#}"
+                    )
                 } else {
-                    format!("Added worktree for existing branch {bold}{branch}{bold:#}")
+                    format!(
+                        "✅ {green}Added worktree for {green_bold}{branch}{green_bold:#}{green:#}"
+                    )
                 };
-                Some(format!(
-                    "__WORKTRUNK_CD__{}\n{} at {}",
-                    path.display(),
-                    msg,
-                    path.display()
-                ))
+                Some(format!("__WORKTRUNK_CD__{}\n{}", path.display(), msg))
             }
         }
     }
@@ -167,28 +187,46 @@ pub enum RemoveResult {
 impl RemoveResult {
     /// Format the result for display (non-internal mode)
     pub fn format_user_output(&self) -> Option<String> {
+        use anstyle::{AnsiColor, Color};
+
         match self {
             RemoveResult::AlreadyOnDefault(branch) => {
-                let bold = AnstyleStyle::new().bold();
-                Some(format!("Already on default branch {bold}{branch}{bold:#}"))
+                let green = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Green)));
+                let green_bold = green.bold();
+                Some(format!(
+                    "✅ {green}Already on default branch {green_bold}{branch}{green_bold:#}{green:#}"
+                ))
             }
-            RemoveResult::RemovedWorktree { primary_path } => Some(format!(
-                "Moved to primary worktree and removed worktree\nPath: {}\n\nTo enable automatic cd, run: wt configure-shell",
-                primary_path.display()
-            )),
+            RemoveResult::RemovedWorktree { primary_path } => {
+                let green = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Green)));
+                let dim = AnstyleStyle::new().dimmed();
+                Some(format!(
+                    "✅ {green}Removed worktree and returned to primary{green:#}\n  {dim}Path: {}{dim:#}\n\nTo enable automatic cd, run: wt configure-shell",
+                    primary_path.display()
+                ))
+            }
             RemoveResult::SwitchedToDefault(branch) => {
-                let bold = AnstyleStyle::new().bold();
-                Some(format!("Switched to default branch {bold}{branch}{bold:#}"))
+                let green = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Green)));
+                let green_bold = green.bold();
+                Some(format!(
+                    "✅ {green}Switched to default branch {green_bold}{branch}{green_bold:#}{green:#}"
+                ))
             }
         }
     }
 
     /// Format the result for shell integration (internal mode)
     pub fn format_internal_output(&self) -> Option<String> {
+        use anstyle::{AnsiColor, Color};
+
         match self {
             RemoveResult::AlreadyOnDefault(_) => None,
             RemoveResult::RemovedWorktree { primary_path } => {
-                Some(format!("__WORKTRUNK_CD__{}", primary_path.display()))
+                let green = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Green)));
+                Some(format!(
+                    "__WORKTRUNK_CD__{}\n✅ {green}Removed worktree and returned to primary{green:#}",
+                    primary_path.display()
+                ))
             }
             RemoveResult::SwitchedToDefault(_) => None,
         }
@@ -207,9 +245,12 @@ pub fn handle_switch(
     // Check for conflicting conditions
     if create && repo.branch_exists(branch)? {
         let error_bold = ERROR.bold();
-        return Err(GitError::CommandFailed(format!(
-            "{ERROR_EMOJI} Branch '{error_bold}{branch}{error_bold:#}' already exists. Remove --create flag to switch to it."
-        )));
+        eprintln!(
+            "{ERROR_EMOJI} {ERROR}Branch {error_bold}{branch}{error_bold:#} already exists{ERROR:#}"
+        );
+        eprintln!();
+        eprintln!("{HINT_EMOJI} {HINT}Remove --create flag to switch to it{HINT:#}");
+        return Err(GitError::CommandFailed(String::new()));
     }
 
     // Check if base flag was provided without create flag
@@ -231,9 +272,12 @@ pub fn handle_switch(
         }
         Some(_) => {
             let error_bold = ERROR.bold();
-            return Err(GitError::CommandFailed(format!(
-                "{ERROR_EMOJI} Worktree directory missing for '{error_bold}{branch}{error_bold:#}'. Run 'git worktree prune' to clean up."
-            )));
+            eprintln!(
+                "{ERROR_EMOJI} {ERROR}Worktree directory missing for {error_bold}{branch}{error_bold:#}{ERROR:#}"
+            );
+            eprintln!();
+            eprintln!("{HINT_EMOJI} {HINT}Run 'git worktree prune' to clean up{HINT:#}");
+            return Err(GitError::CommandFailed(String::new()));
         }
         None => {}
     }
@@ -403,13 +447,17 @@ fn check_worktree_conflicts(
 
     if !overlapping.is_empty() {
         eprintln!("{ERROR_EMOJI} {ERROR}Cannot push: conflicting uncommitted changes in:{ERROR:#}");
+        eprintln!();
+        let dim = AnstyleStyle::new().dimmed();
         for file in &overlapping {
-            eprintln!("  - {}", file);
+            eprintln!("  {dim}•{dim:#} {}", file);
         }
-        return Err(GitError::CommandFailed(format!(
-            "Commit or stash changes in {} first",
+        eprintln!();
+        eprintln!(
+            "{HINT_EMOJI} {HINT}Commit or stash these changes in {} first{HINT:#}",
             wt_path.display()
-        )));
+        );
+        return Err(GitError::CommandFailed(String::new()));
     }
 
     Ok(())
@@ -477,8 +525,10 @@ fn execute_post_start_commands(
                 "{WARNING_EMOJI} {WARNING}Failed to load project config from {}{WARNING:#}",
                 config_path.display()
             );
-            eprintln!("Error: {}", e);
-            eprintln!("Skipping post-start commands. Check TOML syntax if file exists.");
+            eprintln!("{HINT_EMOJI} {HINT}Error details: {e}{HINT:#}");
+            eprintln!(
+                "{HINT_EMOJI} {HINT}Skipping post-start commands. Check TOML syntax if file exists.{HINT:#}"
+            );
             return Ok(());
         }
     };
@@ -521,7 +571,8 @@ fn execute_post_start_commands(
                     true
                 }
                 Ok(false) => {
-                    eprintln!("Skipping command: {}", command);
+                    let dim = AnstyleStyle::new().dimmed();
+                    eprintln!("{dim}Skipping command: {command}{dim:#}");
                     false
                 }
                 Err(e) => {
@@ -536,7 +587,9 @@ fn execute_post_start_commands(
             let expanded_command =
                 expand_command_template(command, repo_name, branch, worktree_path, &repo_root);
 
-            eprintln!("Executing: {}", expanded_command);
+            use anstyle::{AnsiColor, Color};
+            let cyan = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Cyan)));
+            eprintln!("🔄 {cyan}Executing: {expanded_command}{cyan:#}");
             if let Err(e) = execute_command_in_worktree(worktree_path, &expanded_command) {
                 eprintln!("{WARNING_EMOJI} {WARNING}Command failed: {e}{WARNING:#}");
                 // Continue with other commands even if one fails
@@ -548,6 +601,8 @@ fn execute_post_start_commands(
 }
 
 pub fn handle_push(target: Option<&str>, allow_merge_commits: bool) -> Result<(), GitError> {
+    use anstyle::{AnsiColor, Color};
+
     let repo = Repository::current();
 
     // Get target branch (default to default branch if not provided)
@@ -556,23 +611,25 @@ pub fn handle_push(target: Option<&str>, allow_merge_commits: bool) -> Result<()
     // Check if it's a fast-forward
     if !repo.is_ancestor(&target_branch, "HEAD")? {
         let error_bold = ERROR.bold();
-        let error_msg = format!(
-            "{ERROR_EMOJI} Not a fast-forward from '{error_bold}{target_branch}{error_bold:#}' to HEAD"
+        eprintln!(
+            "{ERROR_EMOJI} {ERROR}Not a fast-forward from {error_bold}{target_branch}{error_bold:#} to HEAD{ERROR:#}"
         );
-        let hint_msg = format!(
-            "{HINT_EMOJI} {HINT}The target branch has commits not in your current branch. Consider 'git pull' or 'git rebase'{HINT:#}"
+        eprintln!();
+        eprintln!(
+            "{HINT_EMOJI} {HINT}The target branch has commits not in your current branch{HINT:#}"
         );
-        return Err(GitError::CommandFailed(format!(
-            "{}\n{}",
-            error_msg, hint_msg
-        )));
+        eprintln!("{HINT_EMOJI} {HINT}Consider: git pull or git rebase{HINT:#}");
+        return Err(GitError::CommandFailed(String::new()));
     }
 
     // Check for merge commits unless allowed
     if !allow_merge_commits && repo.has_merge_commits(&target_branch, "HEAD")? {
-        return Err(GitError::CommandFailed(format!(
-            "{ERROR_EMOJI} {ERROR}Found merge commits in push range. Use --allow-merge-commits to push non-linear history.{ERROR:#}"
-        )));
+        eprintln!("{ERROR_EMOJI} {ERROR}Found merge commits in push range{ERROR:#}");
+        eprintln!();
+        eprintln!(
+            "{HINT_EMOJI} {HINT}Use --allow-merge-commits to push non-linear history{HINT:#}"
+        );
+        return Err(GitError::CommandFailed(String::new()));
     }
 
     // Configure receive.denyCurrentBranch if needed
@@ -585,7 +642,7 @@ pub fn handle_push(target: Option<&str>, allow_merge_commits: bool) -> Result<()
     let target_worktree = repo.worktree_for_branch(&target_branch)?;
     check_worktree_conflicts(&repo, &target_worktree, &target_branch)?;
 
-    // Count commits and show info
+    // Count commits and show what will be pushed
     let commit_count = repo.count_commits(&target_branch, "HEAD")?;
     if commit_count > 0 {
         let commit_text = if commit_count == 1 {
@@ -593,8 +650,27 @@ pub fn handle_push(target: Option<&str>, allow_merge_commits: bool) -> Result<()
         } else {
             "commits"
         };
-        let bold = AnstyleStyle::new().bold();
-        println!("Pushing {commit_count} {commit_text} to {bold}{target_branch}{bold:#}");
+        let head_sha = repo.run_command(&["rev-parse", "--short", "HEAD"])?;
+        let head_sha = head_sha.trim();
+
+        let cyan = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Cyan)));
+        let cyan_bold = cyan.bold();
+
+        println!(
+            "🔄 {cyan}Pushing {commit_count} {commit_text} to {cyan_bold}{target_branch}{cyan_bold:#} @ {head_sha}{cyan:#}"
+        );
+        println!();
+
+        // Show the commit graph
+        let log_output = repo.run_command(&[
+            "log",
+            "--graph",
+            "--oneline",
+            "--decorate",
+            &format!("{}..HEAD", target_branch),
+        ])?;
+        println!("{}", log_output.trim());
+        println!();
     }
 
     // Get git common dir for the push
@@ -603,9 +679,12 @@ pub fn handle_push(target: Option<&str>, allow_merge_commits: bool) -> Result<()
     // Perform the push
     let push_target = format!("HEAD:{}", target_branch);
     repo.run_command(&["push", git_common_dir.to_str().unwrap(), &push_target])
-        .map_err(|e| GitError::CommandFailed(format!("Push failed: {}", e)))?;
+        .map_err(|e| {
+            GitError::CommandFailed(format!("{ERROR_EMOJI} {ERROR}Push failed: {e}{ERROR:#}"))
+        })?;
 
-    let bold = AnstyleStyle::new().bold();
-    println!("Successfully pushed to {bold}{target_branch}{bold:#}");
+    let green = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Green)));
+    let green_bold = green.bold();
+    println!("✅ {green}Pushed to {green_bold}{target_branch}{green_bold:#}{green:#}");
     Ok(())
 }

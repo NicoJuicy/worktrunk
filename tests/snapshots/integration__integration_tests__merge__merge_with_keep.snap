@@ -20,10 +20,12 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
-Rebasing onto [1mmain[0m...
-Fast-forwarding [1mmain[0m to current HEAD...
-Pushing 1 commit to [1mmain[0m
-Successfully pushed to [1mmain[0m
-Successfully merged to [1mmain[0m (worktree preserved)
+🔄 [36mRebasing onto [1m[36mmain[0m...[0m
+🔄 [36mPushing 1 commit to [1m[36mmain[0m @ [SHA][0m
+
+* [SHA] (HEAD -> feature) Add feature file
+
+✅ [32mPushed to [1m[32mmain[0m[0m
+✅ [32mSuccessfully merged to [1m[32mmain[0m (worktree preserved)[0m
 
 ----- stderr -----

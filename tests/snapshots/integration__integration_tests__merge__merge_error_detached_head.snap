@@ -22,3 +22,5 @@ exit_code: 1
 
 ----- stderr -----
 ❌ [31mNot on a branch (detached HEAD)[0m
+
+💡 [2mYou are in detached HEAD state[0m

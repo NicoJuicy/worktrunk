@@ -18,8 +18,8 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
-Moved to primary worktree and removed worktree
-Path: [REPO]
+✅ [32mRemoved worktree and returned to primary[0m
+  [2mPath: [REPO][0m
 
 To enable automatic cd, run: wt configure-shell
 

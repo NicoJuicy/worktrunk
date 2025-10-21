@@ -14,11 +14,13 @@ All styling uses the **anstyle ecosystem** for composable, auto-detecting termin
 
 ### Message Types
 
-Three canonical message patterns with their emojis:
+Five canonical message patterns with their emojis:
 
-1. **Errors**: ❌ + red text
-2. **Warnings**: 🟡 + yellow text
-3. **Hints**: 💡 + dimmed text
+1. **Progress**: 🔄 + cyan text (operations in progress)
+2. **Success**: ✅ + green text (successful completion)
+3. **Errors**: ❌ + red text (failures, invalid states)
+4. **Warnings**: 🟡 + yellow text (non-blocking issues)
+5. **Hints**: 💡 + dimmed text (helpful suggestions)
 
 ### Semantic Style Constants
 
@@ -42,9 +44,18 @@ Three canonical message patterns with their emojis:
 Use anstyle's inline pattern `{style}text{style:#}` where `#` means reset:
 
 ```rust
-use worktrunk::styling::{eprintln, println, ERROR, ERROR_EMOJI, WARNING, WARNING_EMOJI, HINT, HINT_EMOJI};
+use worktrunk::styling::{eprintln, println, ERROR, ERROR_EMOJI, WARNING, WARNING_EMOJI, HINT, HINT_EMOJI, AnstyleStyle};
+use anstyle::{AnsiColor, Color};
 
-// Simple error
+// Progress
+let cyan = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Cyan)));
+println!("🔄 {cyan}Rebasing onto main...{cyan:#}");
+
+// Success
+let green = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Green)));
+println!("✅ {green}Pushed to main{green:#}");
+
+// Error
 eprintln!("{ERROR_EMOJI} {ERROR}Working tree has uncommitted changes{ERROR:#}");
 
 // Warning

@@ -21,5 +21,7 @@ exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-❌ Not a fast-forward from '[1m[31mmain[0m' to HEAD
-💡 [2mThe target branch has commits not in your current branch. Consider 'git pull' or 'git rebase'[0m
+❌ [31mNot a fast-forward from [1m[31mmain[0m to HEAD[0m
+
+💡 [2mThe target branch has commits not in your current branch[0m
+💡 [2mConsider: git pull or git rebase[0m
