@@ -13,20 +13,20 @@ pub fn format_all_states(info: &WorktreeInfo) -> String {
     }
 
     // Don't show detached state if branch is None (already shown in branch column)
-    if info.detached && info.branch.is_some() {
+    if info.worktree.detached && info.worktree.branch.is_some() {
         states.push("(detached)".to_string());
     }
-    if info.bare {
+    if info.worktree.bare {
         states.push("(bare)".to_string());
     }
-    if let Some(ref reason) = info.locked {
+    if let Some(ref reason) = info.worktree.locked {
         if reason.is_empty() {
             states.push("(locked)".to_string());
         } else {
             states.push(format!("(locked: {})", reason));
         }
     }
-    if let Some(ref reason) = info.prunable {
+    if let Some(ref reason) = info.worktree.prunable {
         if reason.is_empty() {
             states.push("(prunable)".to_string());
         } else {
@@ -134,12 +134,12 @@ pub fn format_worktree_line(
     let yellow_style = theme.neutral;
     let dim_style = theme.dim;
 
-    let branch_display = info.branch.as_deref().unwrap_or("(detached)");
-    let short_head = &info.head[..8.min(info.head.len())];
+    let branch_display = info.worktree.branch.as_deref().unwrap_or("(detached)");
+    let short_head = &info.worktree.head[..8.min(info.worktree.head.len())];
 
     // Determine styles: current worktree is bold magenta, primary is cyan
     let is_current = current_worktree_path
-        .map(|p| p == &info.path)
+        .map(|p| p == &info.worktree.path)
         .unwrap_or(false);
     let text_style = match (is_current, info.is_primary) {
         (true, _) => Some(current_style),
@@ -289,7 +289,7 @@ pub fn format_worktree_line(
     }
 
     // Path (no padding needed, it's the last column, use shortened path)
-    let path_str = shorten_path(&info.path, &layout.common_prefix);
+    let path_str = shorten_path(&info.worktree.path, &layout.common_prefix);
     if let Some(style) = text_style {
         line.push_styled(path_str, style);
     } else {
@@ -311,9 +311,15 @@ mod tests {
     fn test_column_alignment_with_all_columns() {
         // Create test data with all columns populated
         let info = WorktreeInfo {
-            path: PathBuf::from("/test/path"),
-            head: "abc12345".to_string(),
-            branch: Some("test-branch".to_string()),
+            worktree: worktrunk::git::Worktree {
+                path: PathBuf::from("/test/path"),
+                head: "abc12345".to_string(),
+                branch: Some("test-branch".to_string()),
+                bare: false,
+                detached: false,
+                locked: Some("test lck".to_string()), // "(locked: test lck)" = 18 chars
+                prunable: None,
+            },
             timestamp: 0,
             commit_message: "Test message".to_string(),
             ahead: 3,
@@ -321,10 +327,6 @@ mod tests {
             working_tree_diff: (100, 50),
             branch_diff: (200, 30),
             is_primary: false,
-            detached: false,
-            bare: false,
-            locked: Some("test lck".to_string()), // "(locked: test lck)" = 18 chars
-            prunable: None,
             upstream_remote: Some("origin".to_string()),
             upstream_ahead: 4,
             upstream_behind: 0,
@@ -467,7 +469,7 @@ mod tests {
         ));
         data.push_raw("  ");
         // Path
-        data.push_raw(shorten_path(&info.path, &layout.common_prefix));
+        data.push_raw(shorten_path(&info.worktree.path, &layout.common_prefix));
 
         // Verify both lines have columns at the same positions
         // We'll check this by verifying specific column start positions
@@ -482,7 +484,7 @@ mod tests {
         // (Path is variable width, so we only check up to there)
         let header_width_without_path = header.width() - "Path".len();
         let data_width_without_path =
-            data.width() - shorten_path(&info.path, &layout.common_prefix).len();
+            data.width() - shorten_path(&info.worktree.path, &layout.common_prefix).len();
 
         assert_eq!(
             header_width_without_path, data_width_without_path,

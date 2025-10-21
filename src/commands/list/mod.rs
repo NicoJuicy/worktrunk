@@ -8,9 +8,7 @@ use layout::calculate_responsive_layout;
 use render::{format_header_line, format_worktree_line};
 
 pub struct WorktreeInfo {
-    pub path: std::path::PathBuf,
-    pub head: String,
-    pub branch: Option<String>,
+    pub worktree: worktrunk::git::Worktree,
     pub timestamp: i64,
     pub commit_message: String,
     pub ahead: usize,
@@ -18,10 +16,6 @@ pub struct WorktreeInfo {
     pub working_tree_diff: (usize, usize),
     pub branch_diff: (usize, usize),
     pub is_primary: bool,
-    pub detached: bool,
-    pub bare: bool,
-    pub locked: Option<String>,
-    pub prunable: Option<String>,
     pub upstream_remote: Option<String>,
     pub upstream_ahead: usize,
     pub upstream_behind: usize,
@@ -30,7 +24,7 @@ pub struct WorktreeInfo {
 
 impl WorktreeInfo {
     /// Create WorktreeInfo from a Worktree, enriching it with git metadata
-    fn from_worktree(wt: &worktrunk::git::Worktree, primary: &worktrunk::git::Worktree) -> Self {
+    fn from_worktree(wt: worktrunk::git::Worktree, primary: &worktrunk::git::Worktree) -> Self {
         let wt_repo = Repository::at(&wt.path);
         let is_primary = wt.path == primary.path;
 
@@ -84,9 +78,7 @@ impl WorktreeInfo {
         let worktree_state = wt_repo.worktree_state().unwrap_or(None);
 
         WorktreeInfo {
-            path: wt.path.clone(),
-            head: wt.head.clone(),
-            branch: wt.branch.clone(),
+            worktree: wt,
             timestamp,
             commit_message,
             ahead,
@@ -94,10 +86,6 @@ impl WorktreeInfo {
             working_tree_diff,
             branch_diff,
             is_primary,
-            detached: wt.detached,
-            bare: wt.bare,
-            locked: wt.locked.clone(),
-            prunable: wt.prunable.clone(),
             upstream_remote,
             upstream_ahead,
             upstream_behind,
@@ -114,8 +102,8 @@ pub fn handle_list() -> Result<(), GitError> {
         return Ok(());
     }
 
-    // First worktree is the primary
-    let primary = &worktrees[0];
+    // First worktree is the primary - clone it for use in closure
+    let primary = worktrees[0].clone();
 
     // Get current worktree to identify active one
     let current_worktree_path = repo.worktree_root().ok();
@@ -135,14 +123,14 @@ pub fn handle_list() -> Result<(), GitError> {
     let mut infos: Vec<WorktreeInfo> = if std::env::var("WT_SEQUENTIAL").is_ok() {
         // Sequential iteration (for benchmarking)
         worktrees
-            .iter()
-            .map(|wt| WorktreeInfo::from_worktree(wt, primary))
+            .into_iter()
+            .map(|wt| WorktreeInfo::from_worktree(wt, &primary))
             .collect()
     } else {
         // Parallel iteration (default)
         worktrees
-            .par_iter()
-            .map(|wt| WorktreeInfo::from_worktree(wt, primary))
+            .into_par_iter()
+            .map(|wt| WorktreeInfo::from_worktree(wt, &primary))
             .collect()
     };
 

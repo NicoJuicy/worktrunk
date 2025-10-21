@@ -54,7 +54,12 @@ pub fn calculate_column_widths(infos: &[WorktreeInfo]) -> ColumnWidths {
 
     for info in infos {
         // Branch name
-        let branch_len = info.branch.as_deref().unwrap_or("(detached)").width();
+        let branch_len = info
+            .worktree
+            .branch
+            .as_deref()
+            .unwrap_or("(detached)")
+            .width();
         max_branch = max_branch.max(branch_len);
 
         // Time
@@ -120,7 +125,10 @@ pub fn calculate_column_widths(infos: &[WorktreeInfo]) -> ColumnWidths {
 /// Calculate responsive layout based on terminal width
 pub fn calculate_responsive_layout(infos: &[WorktreeInfo]) -> LayoutConfig {
     let terminal_width = get_terminal_width();
-    let paths: Vec<&Path> = infos.iter().map(|info| info.path.as_path()).collect();
+    let paths: Vec<&Path> = infos
+        .iter()
+        .map(|info| info.worktree.path.as_path())
+        .collect();
     let common_prefix = find_common_prefix(&paths);
 
     // Count how many rows have each sparse column
@@ -154,10 +162,10 @@ pub fn calculate_responsive_layout(infos: &[WorktreeInfo]) -> LayoutConfig {
         .iter()
         .filter(|i| {
             i.worktree_state.is_some()
-                || (i.detached && i.branch.is_some())
-                || i.bare
-                || i.locked.is_some()
-                || i.prunable.is_some()
+                || (i.worktree.detached && i.worktree.branch.is_some())
+                || i.worktree.bare
+                || i.worktree.locked.is_some()
+                || i.worktree.prunable.is_some()
         })
         .count();
 
@@ -279,9 +287,15 @@ mod tests {
         use crate::commands::list::WorktreeInfo;
 
         let info1 = WorktreeInfo {
-            path: PathBuf::from("/test"),
-            head: "abc123".to_string(),
-            branch: Some("main".to_string()),
+            worktree: worktrunk::git::Worktree {
+                path: PathBuf::from("/test"),
+                head: "abc123".to_string(),
+                branch: Some("main".to_string()),
+                bare: false,
+                detached: false,
+                locked: None,
+                prunable: None,
+            },
             timestamp: 0,
             commit_message: "Test".to_string(),
             ahead: 3,
@@ -289,10 +303,6 @@ mod tests {
             working_tree_diff: (100, 50),
             branch_diff: (200, 30),
             is_primary: false,
-            detached: false,
-            bare: false,
-            locked: None,
-            prunable: None,
             upstream_remote: Some("origin".to_string()),
             upstream_ahead: 4,
             upstream_behind: 0,
