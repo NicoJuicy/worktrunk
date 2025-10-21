@@ -101,10 +101,10 @@ fn test_push_to_default_branch() {
     repo.commit("Initial commit");
     repo.setup_remote("main");
 
-    let _main_wt = repo.root_path().parent().unwrap().join("test-repo.main-wt");
+    let main_wt = repo.root_path().parent().unwrap().join("test-repo.main-wt");
     let mut cmd = Command::new("git");
     repo.configure_git_cmd(&mut cmd);
-    cmd.args(["worktree", "add", _main_wt.to_str().unwrap(), "main"])
+    cmd.args(["worktree", "add", main_wt.to_str().unwrap(), "main"])
         .current_dir(repo.root_path())
         .output()
         .expect("Failed to add worktree");
