@@ -54,9 +54,9 @@ enum Commands {
         #[arg(long, default_value = "wt")]
         cmd: String,
 
-        /// Show what would be done without making changes
-        #[arg(long)]
-        dry_run: bool,
+        /// Skip confirmation prompt
+        #[arg(long, short)]
+        yes: bool,
     },
 
     /// List all worktrees
@@ -152,27 +152,26 @@ fn main() {
             let mut cli_cmd = Cli::command();
             handle_init(&shell, &cmd, &mut cli_cmd).map_err(GitError::CommandFailed)
         }
-        Commands::ConfigureShell {
-            shell,
-            cmd,
-            dry_run,
-        } => handle_configure_shell(shell, &cmd, dry_run)
-            .map(|results| {
-                for result in results {
-                    println!(
-                        "{:12} {} {}",
-                        result.action.description(),
-                        result.shell,
-                        result.path.display()
-                    );
-                    // Indent each line of the config content with dim/gray color
-                    for line in result.config_line.lines() {
-                        let dim = Style::new().dimmed();
-                        println!("  {dim}{line}{dim:#}");
+        Commands::ConfigureShell { shell, cmd, yes } => {
+            handle_configure_shell(shell, &cmd, yes)
+                .map(|results| {
+                    for result in results {
+                        let bold = Style::new().bold();
+                        let shell = result.shell;
+                        let path = result.path.display();
+                        println!(
+                            "{} {bold}{shell}{bold:#} {path}",
+                            result.action.description(),
+                        );
+                        // Indent each line of the config content with dim/gray color
+                        for line in result.config_line.lines() {
+                            let dim = Style::new().dimmed();
+                            println!("  {dim}{line}{dim:#}");
+                        }
                     }
-                }
-            })
-            .map_err(GitError::CommandFailed),
+                })
+                .map_err(GitError::CommandFailed)
+        }
         Commands::List { format, branches } => handle_list(format, branches),
         Commands::Switch {
             branch,
@@ -233,3 +232,4 @@ fn main() {
         process::exit(1);
     }
 }
+// test change

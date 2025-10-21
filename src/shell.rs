@@ -122,16 +122,45 @@ impl Shell {
 
     /// Returns the line to add to the config file for shell integration
     ///
-    /// All shells use an eval-like pattern now.
+    /// All shells use a conditional wrapper to avoid errors when the command doesn't exist.
     pub fn config_line(&self, cmd_prefix: &str) -> String {
         match self {
-            Self::Fish => {
-                // Fish uses 'source' instead of 'eval'
-                format!("{} init {} | source", cmd_prefix, self)
+            Self::Bash | Self::Zsh | Self::Oil => {
+                format!(
+                    "if command -v {} >/dev/null 2>&1; then eval \"$({} init {})\"; fi",
+                    cmd_prefix, cmd_prefix, self
+                )
             }
-            _ => {
-                // All other shells use eval pattern
-                format!("eval \"$({} init {})\"", cmd_prefix, self)
+            Self::Fish => {
+                format!(
+                    "if type -q {}; {} init {} | source; end",
+                    cmd_prefix, cmd_prefix, self
+                )
+            }
+            Self::Nushell => {
+                // Use user's home directory cache instead of shared /tmp for security
+                format!(
+                    "if (which {} | is-not-empty) {{ let tmpfile = ($env.HOME | path join \".cache\" \"nushell-{}-init.nu\"); {} init {} | save --force $tmpfile; source $tmpfile }}",
+                    cmd_prefix, cmd_prefix, cmd_prefix, self
+                )
+            }
+            Self::Powershell => {
+                format!(
+                    "if (Get-Command {} -ErrorAction SilentlyContinue) {{ Invoke-Expression (& {} init {}) }}",
+                    cmd_prefix, cmd_prefix, self
+                )
+            }
+            Self::Elvish => {
+                format!(
+                    "if (has-external {}) {{ eval ({} init {}) }}",
+                    cmd_prefix, cmd_prefix, self
+                )
+            }
+            Self::Xonsh => {
+                format!(
+                    "import shutil; exec(shutil.which('{}') and $({} init {}).strip() or '')",
+                    cmd_prefix, cmd_prefix, self
+                )
             }
         }
     }
@@ -214,6 +243,13 @@ impl Shell {
         }
 
         None
+    }
+
+    /// Returns a summary of what the shell integration does for display in confirmation
+    ///
+    /// This just returns the same as config_line since we want to show the exact wrapper
+    pub fn integration_summary(&self, cmd_prefix: &str) -> String {
+        self.config_line(cmd_prefix)
     }
 }
 

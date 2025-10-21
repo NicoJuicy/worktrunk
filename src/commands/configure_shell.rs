@@ -1,5 +1,5 @@
 use std::fs::{self, OpenOptions};
-use std::io::{BufRead, BufReader, Write};
+use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use worktrunk::shell::Shell;
 
@@ -25,13 +25,48 @@ impl ConfigAction {
             ConfigAction::Added => "Added",
             ConfigAction::AlreadyExists => "Already configured",
             ConfigAction::Created => "Created",
-            ConfigAction::WouldAdd => "Would add to",
-            ConfigAction::WouldCreate => "Would create",
+            ConfigAction::WouldAdd => "Will add to",
+            ConfigAction::WouldCreate => "Will create",
         }
     }
 }
 
 pub fn handle_configure_shell(
+    shell_filter: Option<Shell>,
+    cmd_prefix: &str,
+    skip_confirmation: bool,
+) -> Result<Vec<ConfigureResult>, String> {
+    // Validate cmd_prefix to prevent command injection
+    validate_cmd_prefix(cmd_prefix)?;
+
+    // First, do a dry-run to see what would be changed
+    let preview_results = scan_shell_configs(shell_filter, cmd_prefix, true)?;
+
+    // If nothing to do, return early
+    if preview_results.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // Check if any changes are needed (not all are AlreadyExists)
+    let needs_changes = preview_results
+        .iter()
+        .any(|r| !matches!(r.action, ConfigAction::AlreadyExists));
+
+    // If nothing needs to be changed, just return the preview results
+    if !needs_changes {
+        return Ok(preview_results);
+    }
+
+    // Show what will be done and ask for confirmation (unless --yes flag is used)
+    if !skip_confirmation && !prompt_for_confirmation(&preview_results)? {
+        return Err("Cancelled by user".to_string());
+    }
+
+    // User confirmed (or --yes flag was used), now actually apply the changes
+    scan_shell_configs(shell_filter, cmd_prefix, false)
+}
+
+fn scan_shell_configs(
     shell_filter: Option<Shell>,
     cmd_prefix: &str,
     dry_run: bool,
@@ -121,6 +156,10 @@ fn configure_shell_file(
     dry_run: bool,
     explicit_shell: bool,
 ) -> Result<Option<ConfigureResult>, String> {
+    // Get a summary of the shell integration for display
+    let integration_summary = shell.integration_summary(cmd_prefix);
+
+    // The actual line we write to the config file
     let config_content = shell.config_line(cmd_prefix);
 
     // For Fish, we write to a separate conf.d/ file
@@ -143,22 +182,17 @@ fn configure_shell_file(
 
         let reader = BufReader::new(file);
 
-        // More precise pattern matching for the eval statement
-        let eval_pattern = format!("eval \"$({} init", cmd_prefix);
-        let eval_pattern_single_quote = format!("eval '$({} init", cmd_prefix);
-
+        // Check for the exact conditional wrapper we would write
         for line in reader.lines() {
             let line = line.map_err(|e| format!("Failed to read line: {}", e))?;
-            let trimmed = line.trim();
 
-            // Check for the actual eval statement, not just any mention of "wt init"
-            if trimmed.starts_with(&eval_pattern) || trimmed.starts_with(&eval_pattern_single_quote)
-            {
+            // Canonical detection: check if the line matches exactly what we write
+            if line.trim() == config_content {
                 return Ok(Some(ConfigureResult {
                     shell,
                     path: path.to_path_buf(),
                     action: ConfigAction::AlreadyExists,
-                    config_line: config_content.to_string(),
+                    config_line: integration_summary.clone(),
                 }));
             }
         }
@@ -169,7 +203,7 @@ fn configure_shell_file(
                 shell,
                 path: path.to_path_buf(),
                 action: ConfigAction::WouldAdd,
-                config_line: config_content.to_string(),
+                config_line: integration_summary.clone(),
             }));
         }
 
@@ -187,7 +221,7 @@ fn configure_shell_file(
             shell,
             path: path.to_path_buf(),
             action: ConfigAction::Added,
-            config_line: config_content.to_string(),
+            config_line: integration_summary.clone(),
         }))
     } else {
         // File doesn't exist
@@ -198,7 +232,7 @@ fn configure_shell_file(
                     shell,
                     path: path.to_path_buf(),
                     action: ConfigAction::WouldCreate,
-                    config_line: config_content.to_string(),
+                    config_line: integration_summary.clone(),
                 }));
             }
 
@@ -217,7 +251,7 @@ fn configure_shell_file(
                 shell,
                 path: path.to_path_buf(),
                 action: ConfigAction::Created,
-                config_line: config_content.to_string(),
+                config_line: integration_summary.clone(),
             }))
         } else {
             // Don't create config files for shells the user might not use
@@ -234,6 +268,9 @@ fn configure_fish_file(
     dry_run: bool,
     explicit_shell: bool,
 ) -> Result<Option<ConfigureResult>, String> {
+    // Get a summary of the shell integration for display
+    let integration_summary = shell.integration_summary(cmd_prefix);
+
     // For Fish, we write to conf.d/{cmd_prefix}.fish (separate file)
 
     // Check if it already exists and has our integration
@@ -241,16 +278,13 @@ fn configure_fish_file(
         let existing_content = fs::read_to_string(path)
             .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
 
-        // Check for the init pattern (either old function-based or new eval-based)
-        let init_pattern = format!("{} init", cmd_prefix);
-        let has_integration = existing_content.contains(&init_pattern);
-
-        if has_integration {
+        // Canonical detection: check if the file matches exactly what we write
+        if existing_content.trim() == content {
             return Ok(Some(ConfigureResult {
                 shell,
                 path: path.to_path_buf(),
                 action: ConfigAction::AlreadyExists,
-                config_line: content.to_string(),
+                config_line: integration_summary.clone(),
             }));
         }
     }
@@ -276,7 +310,7 @@ fn configure_fish_file(
             } else {
                 ConfigAction::WouldCreate
             },
-            config_line: content.to_string(),
+            config_line: integration_summary.clone(),
         }));
     }
 
@@ -286,7 +320,7 @@ fn configure_fish_file(
             .map_err(|e| format!("Failed to create directory {}: {}", parent.display(), e))?;
     }
 
-    // Write the config content with newline
+    // Write the conditional wrapper (short one-liner that calls wt init fish | source)
     fs::write(path, format!("{}\n", content))
         .map_err(|e| format!("Failed to write to {}: {}", path.display(), e))?;
 
@@ -294,6 +328,84 @@ fn configure_fish_file(
         shell,
         path: path.to_path_buf(),
         action: ConfigAction::Created,
-        config_line: content.to_string(),
+        config_line: integration_summary.clone(),
     }))
+}
+
+fn prompt_for_confirmation(results: &[ConfigureResult]) -> Result<bool, String> {
+    use anstyle::Style;
+
+    eprintln!();
+    eprintln!("The following changes will be made:");
+    eprintln!();
+
+    for result in results {
+        // Skip items that are already configured
+        if matches!(result.action, ConfigAction::AlreadyExists) {
+            continue;
+        }
+
+        // Format with bold shell and path
+        let bold = Style::new().bold();
+        let shell = result.shell;
+        let path = result.path.display();
+        eprintln!(
+            "  {} {bold}{shell}{bold:#} {bold}{path}{bold:#}",
+            result.action.description(),
+        );
+
+        // Show the config line that will be added with dim styling
+        for line in result.config_line.lines() {
+            let dim = Style::new().dimmed();
+            eprintln!("    {dim}{line}{dim:#}");
+        }
+    }
+
+    eprintln!();
+    eprint!("Proceed? [y/N] ");
+    io::stderr().flush().map_err(|e| e.to_string())?;
+
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .map_err(|e| e.to_string())?;
+
+    let response = input.trim().to_lowercase();
+    Ok(response == "y" || response == "yes")
+}
+
+fn validate_cmd_prefix(cmd_prefix: &str) -> Result<(), String> {
+    // Ensure it's not empty
+    if cmd_prefix.is_empty() {
+        return Err("Command prefix cannot be empty".to_string());
+    }
+
+    // Can't start with dash (would be interpreted as a flag)
+    if cmd_prefix.starts_with('-') {
+        return Err(format!(
+            "Invalid command prefix '{}': cannot start with '-'",
+            cmd_prefix
+        ));
+    }
+
+    // Only allow alphanumeric, dash, and underscore
+    if !cmd_prefix
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+    {
+        return Err(format!(
+            "Invalid command prefix '{}': only alphanumeric characters, dash, and underscore allowed",
+            cmd_prefix
+        ));
+    }
+
+    // Ensure it's not too long (reasonable limit)
+    if cmd_prefix.len() > 64 {
+        return Err(format!(
+            "Command prefix '{}' is too long (max 64 characters)",
+            cmd_prefix
+        ));
+    }
+
+    Ok(())
 }

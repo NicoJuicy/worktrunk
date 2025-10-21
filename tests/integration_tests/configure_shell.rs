@@ -5,9 +5,9 @@ use std::fs;
 use std::process::Command;
 use tempfile::TempDir;
 
-/// Test configure-shell with dry-run flag
+/// Test configure-shell with --yes flag (skips confirmation)
 #[test]
-fn test_configure_shell_dry_run() {
+fn test_configure_shell_with_yes() {
     let repo = TestRepo::new();
     let temp_home = TempDir::new().unwrap();
 
@@ -23,12 +23,16 @@ fn test_configure_shell_dry_run() {
         let mut cmd = Command::new(get_cargo_bin("wt"));
         repo.clean_cli_env(&mut cmd);
         cmd.arg("configure-shell")
-            .arg("--dry-run")
+            .arg("--yes")
             .env("HOME", temp_home.path())
             .current_dir(repo.root_path());
 
-        assert_cmd_snapshot!("configure_shell_dry_run", cmd);
+        assert_cmd_snapshot!("configure_shell_with_yes", cmd);
     });
+
+    // Verify the file was modified
+    let content = fs::read_to_string(&zshrc_path).unwrap();
+    assert!(content.contains("eval \"$(wt init zsh)\""));
 }
 
 /// Test configure-shell with specific shell
@@ -51,6 +55,7 @@ fn test_configure_shell_specific_shell() {
         cmd.arg("configure-shell")
             .arg("--shell")
             .arg("zsh")
+            .arg("--yes")
             .env("HOME", temp_home.path())
             .current_dir(repo.root_path());
 
@@ -70,7 +75,11 @@ fn test_configure_shell_already_exists() {
 
     // Create a fake .zshrc file with the line already present
     let zshrc_path = temp_home.path().join(".zshrc");
-    fs::write(&zshrc_path, "# Existing config\neval \"$(wt init zsh)\"\n").unwrap();
+    fs::write(
+        &zshrc_path,
+        "# Existing config\nif command -v wt >/dev/null 2>&1; then eval \"$(wt init zsh)\"; fi\n",
+    )
+    .unwrap();
 
     let mut settings = Settings::clone_current();
     settings.set_snapshot_path("../snapshots");
@@ -82,6 +91,7 @@ fn test_configure_shell_already_exists() {
         cmd.arg("configure-shell")
             .arg("--shell")
             .arg("zsh")
+            .arg("--yes")
             .env("HOME", temp_home.path())
             .current_dir(repo.root_path());
 
@@ -120,6 +130,7 @@ fn test_configure_shell_custom_prefix() {
             .arg("bash")
             .arg("--cmd")
             .arg("worktree")
+            .arg("--yes")
             .env("HOME", temp_home.path())
             .current_dir(repo.root_path());
 
@@ -147,6 +158,7 @@ fn test_configure_shell_fish() {
         cmd.arg("configure-shell")
             .arg("--shell")
             .arg("fish")
+            .arg("--yes")
             .env("HOME", temp_home.path())
             .current_dir(repo.root_path());
 
@@ -159,8 +171,9 @@ fn test_configure_shell_fish() {
 
     let content = fs::read_to_string(&fish_config).unwrap();
     assert!(
-        content.contains("wt init fish | source"),
-        "Should contain wt init command"
+        content.trim() == "if type -q wt; wt init fish | source; end",
+        "Should contain conditional wrapper: {}",
+        content
     );
 }
 
@@ -178,6 +191,7 @@ fn test_configure_shell_no_files() {
         let mut cmd = Command::new(get_cargo_bin("wt"));
         repo.clean_cli_env(&mut cmd);
         cmd.arg("configure-shell")
+            .arg("--yes")
             .env("HOME", temp_home.path())
             .current_dir(repo.root_path());
 
@@ -203,6 +217,7 @@ fn test_configure_shell_fish_custom_prefix() {
             .arg("fish")
             .arg("--cmd")
             .arg("worktree")
+            .arg("--yes")
             .env("HOME", temp_home.path())
             .current_dir(repo.root_path());
 
@@ -218,8 +233,9 @@ fn test_configure_shell_fish_custom_prefix() {
 
     let content = fs::read_to_string(&fish_config).unwrap();
     assert!(
-        content.contains("worktree init fish | source"),
-        "Should contain worktree init command with custom prefix"
+        content.trim() == "if type -q worktree; worktree init fish | source; end",
+        "Should contain conditional wrapper with custom prefix: {}",
+        content
     );
 }
 
@@ -247,6 +263,7 @@ fn test_configure_shell_multiple_configs() {
         let mut cmd = Command::new(get_cargo_bin("wt"));
         repo.clean_cli_env(&mut cmd);
         cmd.arg("configure-shell")
+            .arg("--yes")
             .env("HOME", temp_home.path())
             .current_dir(repo.root_path());
 
@@ -281,7 +298,7 @@ fn test_configure_shell_mixed_states() {
     };
     fs::write(
         &bash_config_path,
-        "# Existing config\neval \"$(wt init bash)\"\n",
+        "# Existing config\nif command -v wt >/dev/null 2>&1; then eval \"$(wt init bash)\"; fi\n",
     )
     .unwrap();
 
@@ -297,6 +314,7 @@ fn test_configure_shell_mixed_states() {
         let mut cmd = Command::new(get_cargo_bin("wt"));
         repo.clean_cli_env(&mut cmd);
         cmd.arg("configure-shell")
+            .arg("--yes")
             .env("HOME", temp_home.path())
             .current_dir(repo.root_path());
 
@@ -316,90 +334,5 @@ fn test_configure_shell_mixed_states() {
     assert!(
         zsh_content.contains("eval \"$(wt init zsh)\""),
         "Zsh config should be updated"
-    );
-}
-
-/// Test configure-shell --dry-run shows both shells needing updates and already configured shells
-#[test]
-fn test_configure_shell_mixed_states_dry_run() {
-    let repo = TestRepo::new();
-    let temp_home = TempDir::new().unwrap();
-
-    // Create bash config with wt already configured
-    let bash_config_path = if cfg!(target_os = "macos") {
-        temp_home.path().join(".bash_profile")
-    } else {
-        temp_home.path().join(".bashrc")
-    };
-    fs::write(
-        &bash_config_path,
-        "# Existing config\neval \"$(wt init bash)\"\n",
-    )
-    .unwrap();
-
-    // Create zsh config without wt
-    let zshrc_path = temp_home.path().join(".zshrc");
-    fs::write(&zshrc_path, "# Existing zsh config\n").unwrap();
-
-    let mut settings = Settings::clone_current();
-    settings.set_snapshot_path("../snapshots");
-    settings.add_filter(&temp_home.path().to_string_lossy(), "[TEMP_HOME]");
-
-    settings.bind(|| {
-        let mut cmd = Command::new(get_cargo_bin("wt"));
-        repo.clean_cli_env(&mut cmd);
-        cmd.arg("configure-shell")
-            .arg("--dry-run")
-            .env("HOME", temp_home.path())
-            .current_dir(repo.root_path());
-
-        assert_cmd_snapshot!("configure_shell_mixed_states_dry_run", cmd);
-    });
-
-    // Verify files were not modified in dry-run
-    let bash_content = fs::read_to_string(&bash_config_path).unwrap();
-    let bash_wt_count = bash_content.matches("wt init").count();
-    assert_eq!(
-        bash_wt_count, 1,
-        "Bash should still have exactly one wt init line"
-    );
-
-    let zsh_content = fs::read_to_string(&zshrc_path).unwrap();
-    assert!(
-        !zsh_content.contains("eval \"$(wt init zsh)\""),
-        "Zsh config should not be modified in dry-run"
-    );
-}
-
-/// Test configure-shell detects Fish when conf.d directory exists
-#[test]
-fn test_configure_shell_fish_conf_d_exists() {
-    let repo = TestRepo::new();
-    let temp_home = TempDir::new().unwrap();
-
-    // Create Fish conf.d directory (but not the wt.fish file)
-    let fish_conf_d = temp_home.path().join(".config/fish/conf.d");
-    fs::create_dir_all(&fish_conf_d).unwrap();
-
-    let mut settings = Settings::clone_current();
-    settings.set_snapshot_path("../snapshots");
-    settings.add_filter(&temp_home.path().to_string_lossy(), "[TEMP_HOME]");
-
-    settings.bind(|| {
-        let mut cmd = Command::new(get_cargo_bin("wt"));
-        repo.clean_cli_env(&mut cmd);
-        cmd.arg("configure-shell")
-            .arg("--dry-run")
-            .env("HOME", temp_home.path())
-            .current_dir(repo.root_path());
-
-        assert_cmd_snapshot!("configure_shell_fish_conf_d_exists", cmd);
-    });
-
-    // Verify the fish file was not created in dry-run
-    let fish_config = temp_home.path().join(".config/fish/conf.d/wt.fish");
-    assert!(
-        !fish_config.exists(),
-        "Fish config file should not be created in dry-run"
     );
 }

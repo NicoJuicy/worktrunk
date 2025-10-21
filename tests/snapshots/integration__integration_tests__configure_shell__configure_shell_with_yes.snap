@@ -4,10 +4,6 @@ info:
   program: wt
   args:
     - configure-shell
-    - "--shell"
-    - fish
-    - "--cmd"
-    - worktree
     - "--yes"
   env:
     CLICOLOR_FORCE: "1"
@@ -16,7 +12,7 @@ info:
     GIT_CONFIG_GLOBAL: /dev/null
     GIT_CONFIG_SYSTEM: /dev/null
     GIT_EDITOR: ""
-    HOME: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpHWEVR4
+    HOME: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpsM7nu9
     LANG: C
     LC_ALL: C
     SOURCE_DATE_EPOCH: "1704067200"
@@ -24,7 +20,7 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
-Created [1mfish[0m [TEMP_HOME]/.config/fish/conf.d/worktree.fish
-  [2mif type -q worktree; worktree init fish | source; end[0m
+Added [1mzsh[0m [TEMP_HOME]/.zshrc
+  [2mif command -v wt >/dev/null 2>&1; then eval "$(wt init zsh)"; fi[0m
 
 ----- stderr -----
