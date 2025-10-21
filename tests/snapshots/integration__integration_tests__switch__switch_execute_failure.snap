@@ -24,4 +24,4 @@ exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-Command 'exit 1' exited with status: 1
+Command 'exit 1' failed with exit code 1

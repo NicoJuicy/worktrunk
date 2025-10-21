@@ -12,7 +12,6 @@ fn strip_ansi_codes(s: &str) -> String {
 /// Represents the start position of each column in a table row
 #[derive(Debug, Clone)]
 struct ColumnPositions {
-    _branch: usize,
     age: Option<usize>,
     cmts: Option<usize>,
     cmt_diff: Option<usize>,
@@ -28,7 +27,6 @@ impl ColumnPositions {
     /// Parse column positions from a header line (without ANSI codes)
     fn from_header(header: &str) -> Self {
         let mut positions = ColumnPositions {
-            _branch: 0,
             age: None,
             cmts: None,
             cmt_diff: None,
@@ -70,76 +68,6 @@ impl ColumnPositions {
         }
 
         positions
-    }
-
-    /// Verify that a data row's content starts at the same positions
-    /// Returns Ok(()) if aligned, or Err with misalignment details
-    fn _verify_row_alignment(&self, row: &str, row_num: usize) -> Result<(), String> {
-        let _visual_width = row.width();
-        let mut errors = Vec::new();
-
-        // Helper to check if content starts at expected position
-        let check_column = |name: &str, expected_pos: Option<usize>| -> Option<String> {
-            if let Some(pos) = expected_pos {
-                // For each column, we need to verify that content either:
-                // 1. Starts at the expected position (for non-empty cells)
-                // 2. Has only spaces before the next column (for empty cells)
-
-                // Get the substring starting at expected position
-                if pos >= row.len() {
-                    return Some(format!(
-                        "  Column '{}': Expected position {} is beyond row length {}",
-                        name,
-                        pos,
-                        row.len()
-                    ));
-                }
-
-                // For verification, we just ensure the position exists
-                // The actual content validation is complex due to variable-width cells
-                // So we'll check that we can access the position
-                let _ = &row[..pos.min(row.len())];
-            }
-            None
-        };
-
-        if let Some(err) = check_column("Age", self.age) {
-            errors.push(err);
-        }
-        if let Some(err) = check_column("Cmts", self.cmts) {
-            errors.push(err);
-        }
-        if let Some(err) = check_column("Cmt +/-", self.cmt_diff) {
-            errors.push(err);
-        }
-        if let Some(err) = check_column("WT +/-", self.wt_diff) {
-            errors.push(err);
-        }
-        if let Some(err) = check_column("Remote", self.remote) {
-            errors.push(err);
-        }
-        if let Some(err) = check_column("Commit", self.commit) {
-            errors.push(err);
-        }
-        if let Some(err) = check_column("Message", self.message) {
-            errors.push(err);
-        }
-        if let Some(err) = check_column("State", self.state) {
-            errors.push(err);
-        }
-        if let Some(err) = check_column("Path", self.path) {
-            errors.push(err);
-        }
-
-        if !errors.is_empty() {
-            return Err(format!(
-                "Row {} misalignment:\n{}",
-                row_num,
-                errors.join("\n")
-            ));
-        }
-
-        Ok(())
     }
 }
 
@@ -311,7 +239,8 @@ fn verify_table_alignment(output: &str) -> Result<(), String> {
                         .map(|b| &b.content);
 
                     if let Some(content) = content_at_pos
-                        && !content.is_empty() && content.trim() != ""
+                        && !content.is_empty()
+                        && content.trim() != ""
                     {
                         println!(
                             "  ⚠️  Column '{}': content starts at {} instead of {} (content: '{}')",
@@ -332,7 +261,7 @@ fn verify_table_alignment(output: &str) -> Result<(), String> {
         let first_row_boundary_starts: Vec<usize> =
             all_row_boundaries[0].iter().map(|b| b.start).collect();
 
-        for (_row_idx, boundaries) in all_row_boundaries.iter().enumerate().skip(1) {
+        for boundaries in all_row_boundaries.iter().skip(1) {
             let this_row_starts: Vec<usize> = boundaries.iter().map(|b| b.start).collect();
 
             // Check that boundaries align (allowing for sparse columns)
