@@ -75,50 +75,66 @@ pub fn calculate_column_widths(items: &[ListItem]) -> ColumnWidths {
     let mut max_br_deleted_digits = 0;
 
     for item in items {
+        let (commit, counts, branch_diff, upstream, worktree_info) = match item {
+            ListItem::Worktree(info) => (
+                &info.commit,
+                &info.counts,
+                info.branch_diff.diff,
+                &info.upstream,
+                Some(info),
+            ),
+            ListItem::Branch(info) => (
+                &info.commit,
+                &info.counts,
+                info.branch_diff.diff,
+                &info.upstream,
+                None,
+            ),
+        };
+
         // Branch name
         max_branch = max_branch.max(item.branch_name().width());
 
         // Time
-        let time_str = crate::display::format_relative_time(item.timestamp());
+        let time_str = crate::display::format_relative_time(commit.timestamp);
         max_time = max_time.max(time_str.width());
 
         // Message (truncate to 50 chars max)
-        let msg_len = item.commit_message().chars().take(50).count();
+        let msg_len = commit.commit_message.chars().take(50).count();
         max_message = max_message.max(msg_len);
 
         // Ahead/behind (only for non-primary items)
-        if !item.is_primary() && (item.ahead() > 0 || item.behind() > 0) {
-            let ahead_behind_len = format!("↑{} ↓{}", item.ahead(), item.behind()).width();
+        if !item.is_primary() && (counts.ahead > 0 || counts.behind > 0) {
+            let ahead_behind_len = format!("↑{} ↓{}", counts.ahead, counts.behind).width();
             max_ahead_behind = max_ahead_behind.max(ahead_behind_len);
         }
 
         // Working tree diff (worktrees only) - track digits separately
-        if let Some((wt_added, wt_deleted)) = item.working_tree_diff()
-            && (wt_added > 0 || wt_deleted > 0)
+        if let Some(info) = worktree_info
+            && (info.working_tree_diff.0 > 0 || info.working_tree_diff.1 > 0)
         {
-            max_wt_added_digits = max_wt_added_digits.max(wt_added.to_string().len());
-            max_wt_deleted_digits = max_wt_deleted_digits.max(wt_deleted.to_string().len());
+            max_wt_added_digits =
+                max_wt_added_digits.max(info.working_tree_diff.0.to_string().len());
+            max_wt_deleted_digits =
+                max_wt_deleted_digits.max(info.working_tree_diff.1.to_string().len());
         }
 
         // Branch diff (only for non-primary items) - track digits separately
-        if !item.is_primary() {
-            let (br_added, br_deleted) = item.branch_diff();
-            if br_added > 0 || br_deleted > 0 {
-                max_br_added_digits = max_br_added_digits.max(br_added.to_string().len());
-                max_br_deleted_digits = max_br_deleted_digits.max(br_deleted.to_string().len());
-            }
+        if !item.is_primary() && (branch_diff.0 > 0 || branch_diff.1 > 0) {
+            max_br_added_digits = max_br_added_digits.max(branch_diff.0.to_string().len());
+            max_br_deleted_digits = max_br_deleted_digits.max(branch_diff.1.to_string().len());
         }
 
         // Upstream tracking
-        if let Some((remote_name, upstream_ahead, upstream_behind)) = item.upstream_info() {
+        if let Some((remote_name, upstream_ahead, upstream_behind)) = upstream.active() {
             let upstream_len =
                 format!("{} ↑{} ↓{}", remote_name, upstream_ahead, upstream_behind).width();
             max_upstream = max_upstream.max(upstream_len);
         }
 
         // States (worktrees only)
-        if let Some(worktree_info) = item.worktree_info() {
-            let states = super::render::format_all_states(worktree_info);
+        if let Some(info) = worktree_info {
+            let states = super::render::format_all_states(info);
             if !states.is_empty() {
                 max_states = max_states.max(states.width());
             }
@@ -167,9 +183,9 @@ pub fn calculate_responsive_layout(items: &[ListItem]) -> LayoutConfig {
     let terminal_width = get_terminal_width();
     let paths: Vec<&Path> = items
         .iter()
-        .filter_map(|item| {
-            item.worktree_info()
-                .map(|info| info.worktree.path.as_path())
+        .filter_map(|item| match item {
+            ListItem::Worktree(info) => Some(info.worktree.path.as_path()),
+            ListItem::Branch(_) => None,
         })
         .collect();
     let common_prefix = find_common_prefix(&paths);
@@ -178,41 +194,59 @@ pub fn calculate_responsive_layout(items: &[ListItem]) -> LayoutConfig {
     let non_primary_count = items.iter().filter(|item| !item.is_primary()).count();
     let ahead_behind_count = items
         .iter()
-        .filter(|item| !item.is_primary() && (item.ahead() > 0 || item.behind() > 0))
+        .filter(|item| {
+            !item.is_primary() && {
+                let counts = match item {
+                    ListItem::Worktree(info) => &info.counts,
+                    ListItem::Branch(info) => &info.counts,
+                };
+                counts.ahead > 0 || counts.behind > 0
+            }
+        })
         .count();
     let working_diff_count = items
         .iter()
-        .filter(|item| {
-            item.working_tree_diff()
-                .map(|(added, deleted)| added > 0 || deleted > 0)
-                .unwrap_or(false)
+        .filter(|item| match item {
+            ListItem::Worktree(info) => {
+                info.working_tree_diff.0 > 0 || info.working_tree_diff.1 > 0
+            }
+            ListItem::Branch(_) => false,
         })
         .count();
     let branch_diff_count = items
         .iter()
         .filter(|item| {
             !item.is_primary() && {
-                let (added, deleted) = item.branch_diff();
-                added > 0 || deleted > 0
+                let diff = match item {
+                    ListItem::Worktree(info) => info.branch_diff.diff,
+                    ListItem::Branch(info) => info.branch_diff.diff,
+                };
+                diff.0 > 0 || diff.1 > 0
             }
         })
         .count();
     let upstream_count = items
         .iter()
-        .filter(|item| item.upstream_info().is_some())
+        .filter(|item| {
+            match item {
+                ListItem::Worktree(info) => info.upstream.active(),
+                ListItem::Branch(info) => info.upstream.active(),
+            }
+            .is_some()
+        })
         .count();
     let states_count = items
         .iter()
         .filter(|item| {
-            item.worktree_info()
-                .map(|i| {
-                    i.worktree_state.is_some()
+            matches!(
+                item,
+                ListItem::Worktree(i)
+                    if i.worktree_state.is_some()
                         || (i.worktree.detached && i.worktree.branch.is_some())
                         || i.worktree.bare
                         || i.worktree.locked.is_some()
                         || i.worktree.prunable.is_some()
-                })
-                .unwrap_or(false)
+            )
         })
         .count();
 
@@ -231,7 +265,10 @@ pub fn calculate_responsive_layout(items: &[ListItem]) -> LayoutConfig {
     // Calculate actual maximum path width (after common prefix removal)
     let max_path_width = items
         .iter()
-        .filter_map(|item| item.worktree_info())
+        .filter_map(|item| match item {
+            ListItem::Worktree(info) => Some(info),
+            ListItem::Branch(_) => None,
+        })
         .map(|info| {
             use crate::display::shorten_path;
             use unicode_width::UnicodeWidthStr;
@@ -357,7 +394,9 @@ mod tests {
 
     #[test]
     fn test_column_width_calculation_with_unicode() {
-        use crate::commands::list::WorktreeInfo;
+        use crate::commands::list::{
+            AheadBehind, BranchDiffTotals, CommitDetails, UpstreamStatus, WorktreeInfo,
+        };
 
         let info1 = WorktreeInfo {
             worktree: worktrunk::git::Worktree {
@@ -369,16 +408,22 @@ mod tests {
                 locked: None,
                 prunable: None,
             },
-            timestamp: 0,
-            commit_message: "Test".to_string(),
-            ahead: 3,
-            behind: 2,
+            commit: CommitDetails {
+                timestamp: 0,
+                commit_message: "Test".to_string(),
+            },
+            counts: AheadBehind {
+                ahead: 3,
+                behind: 2,
+            },
             working_tree_diff: (100, 50),
-            branch_diff: (200, 30),
+            branch_diff: BranchDiffTotals { diff: (200, 30) },
             is_primary: false,
-            upstream_remote: Some("origin".to_string()),
-            upstream_ahead: 4,
-            upstream_behind: 0,
+            upstream: UpstreamStatus {
+                remote: Some("origin".to_string()),
+                ahead: 4,
+                behind: 0,
+            },
             worktree_state: None,
         };
 

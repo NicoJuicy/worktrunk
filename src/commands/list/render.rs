@@ -122,14 +122,32 @@ fn format_item_line(
 ) {
     let widths = &layout.widths;
 
-    let short_head = &item.commit_head()[..8.min(item.commit_head().len())];
+    let (head, commit, counts, branch_diff, upstream, worktree_info) = match item {
+        ListItem::Worktree(info) => (
+            &info.worktree.head,
+            &info.commit,
+            &info.counts,
+            info.branch_diff.diff,
+            &info.upstream,
+            Some(info),
+        ),
+        ListItem::Branch(info) => (
+            &info.head,
+            &info.commit,
+            &info.counts,
+            info.branch_diff.diff,
+            &info.upstream,
+            None,
+        ),
+    };
+    let short_head = &head[..8.min(head.len())];
 
     // Determine styling (worktree-specific)
-    let text_style = item.worktree_info().and_then(|info| {
+    let text_style = worktree_info.and_then(|info| {
         let is_current = current_worktree_path
             .map(|p| p == &info.worktree.path)
             .unwrap_or(false);
-        match (is_current, item.is_primary()) {
+        match (is_current, info.is_primary) {
             (true, _) => Some(CURRENT),
             (_, true) => Some(Style::new().fg_color(Some(Color::Ansi(AnsiColor::Cyan)))),
             _ => None,
@@ -152,7 +170,7 @@ fn format_item_line(
     if widths.time > 0 {
         let time_str = format!(
             "{:width$}",
-            format_relative_time(item.timestamp()),
+            format_relative_time(commit.timestamp),
             width = widths.time
         );
         line.push_styled(time_str, Style::new().dimmed());
@@ -161,32 +179,37 @@ fn format_item_line(
 
     // Ahead/behind (commits difference)
     if widths.ahead_behind > 0 {
-        if !item.is_primary() && (item.ahead() > 0 || item.behind() > 0) {
-            let ahead_behind_text = format!(
-                "{:width$}",
-                format!("↑{} ↓{}", item.ahead(), item.behind()),
-                width = widths.ahead_behind
-            );
-            line.push_styled(
-                ahead_behind_text,
-                Style::new().fg_color(Some(Color::Ansi(AnsiColor::Yellow))),
-            );
+        if !item.is_primary() {
+            if counts.ahead > 0 || counts.behind > 0 {
+                let ahead_behind_text = format!(
+                    "{:width$}",
+                    format!("↑{} ↓{}", counts.ahead, counts.behind),
+                    width = widths.ahead_behind
+                );
+                line.push_styled(
+                    ahead_behind_text,
+                    Style::new().fg_color(Some(Color::Ansi(AnsiColor::Yellow))),
+                );
+                line.push_raw("  ");
+            } else {
+                line.push_raw(" ".repeat(widths.ahead_behind));
+                line.push_raw("  ");
+            }
         } else {
             line.push_raw(" ".repeat(widths.ahead_behind));
+            line.push_raw("  ");
         }
-        line.push_raw("  ");
     }
 
     // Branch diff (line diff in commits)
     if widths.branch_diff.total > 0 {
         if !item.is_primary() {
-            let (br_added, br_deleted) = item.branch_diff();
-            if br_added > 0 || br_deleted > 0 {
+            if branch_diff.0 > 0 || branch_diff.1 > 0 {
                 // Right-align numbers within their fields: "+{num:width$} -{num:width$}"
                 let formatted = format!(
                     "+{:width_add$} -{:width_del$}",
-                    br_added,
-                    br_deleted,
+                    branch_diff.0,
+                    branch_diff.1,
                     width_add = widths.branch_diff.added_digits,
                     width_del = widths.branch_diff.deleted_digits
                 );
@@ -209,7 +232,8 @@ fn format_item_line(
 
     // Working tree diff (worktrees only)
     if widths.working_diff.total > 0 {
-        if let Some((wt_added, wt_deleted)) = item.working_tree_diff() {
+        if let ListItem::Worktree(info) = item {
+            let (wt_added, wt_deleted) = info.working_tree_diff;
             if wt_added > 0 || wt_deleted > 0 {
                 // Right-align numbers within their fields: "+{num:width$} -{num:width$}"
                 let formatted = format!(
@@ -238,7 +262,7 @@ fn format_item_line(
 
     // Upstream tracking
     if widths.upstream > 0 {
-        if let Some((remote_name, upstream_ahead, upstream_behind)) = item.upstream_info() {
+        if let Some((remote_name, upstream_ahead, upstream_behind)) = upstream.active() {
             let mut upstream_segment = StyledLine::new();
             upstream_segment.push_styled(remote_name, Style::new().dimmed());
             upstream_segment.push_raw(" ");
@@ -267,7 +291,7 @@ fn format_item_line(
     if widths.message > 0 {
         let msg = format!(
             "{:width$}",
-            truncate_at_word_boundary(item.commit_message(), layout.max_message_len),
+            truncate_at_word_boundary(&commit.commit_message, layout.max_message_len),
             width = widths.message
         );
         line.push_styled(msg, Style::new().dimmed());
@@ -276,8 +300,8 @@ fn format_item_line(
 
     // States (worktrees only)
     if widths.states > 0 {
-        if let Some(worktree_info) = item.worktree_info() {
-            let states = format_all_states(worktree_info);
+        if let Some(info) = worktree_info {
+            let states = format_all_states(info);
             if !states.is_empty() {
                 let states_text = format!("{:width$}", states, width = widths.states);
                 line.push_raw(states_text);
@@ -291,8 +315,8 @@ fn format_item_line(
     }
 
     // Path (worktrees only)
-    if let Some(worktree_info) = item.worktree_info() {
-        let path_str = shorten_path(&worktree_info.worktree.path, &layout.common_prefix);
+    if let Some(info) = worktree_info {
+        let path_str = shorten_path(&info.worktree.path, &layout.common_prefix);
         if let Some(style) = text_style {
             line.push_styled(path_str, style);
         } else {
@@ -305,8 +329,10 @@ fn format_item_line(
 
 #[cfg(test)]
 mod tests {
+    use super::super::{
+        AheadBehind, BranchDiffTotals, CommitDetails, UpstreamStatus, WorktreeInfo,
+    };
     use super::*;
-    use crate::commands::list::WorktreeInfo;
     use crate::commands::list::layout::{ColumnWidths, LayoutConfig};
     use crate::display::shorten_path;
     use std::path::PathBuf;
@@ -325,16 +351,22 @@ mod tests {
                 locked: Some("test lck".to_string()), // "(locked: test lck)" = 18 chars
                 prunable: None,
             },
-            timestamp: 0,
-            commit_message: "Test message".to_string(),
-            ahead: 3,
-            behind: 2,
+            commit: CommitDetails {
+                timestamp: 0,
+                commit_message: "Test message".to_string(),
+            },
+            counts: AheadBehind {
+                ahead: 3,
+                behind: 2,
+            },
             working_tree_diff: (100, 50),
-            branch_diff: (200, 30),
+            branch_diff: BranchDiffTotals { diff: (200, 30) },
             is_primary: false,
-            upstream_remote: Some("origin".to_string()),
-            upstream_ahead: 4,
-            upstream_behind: 0,
+            upstream: UpstreamStatus {
+                remote: Some("origin".to_string()),
+                ahead: 4,
+                behind: 0,
+            },
             worktree_state: None,
         };
 

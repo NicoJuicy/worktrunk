@@ -14,16 +14,16 @@ use render::{format_header_line, format_list_item_line};
 #[derive(serde::Serialize)]
 pub struct WorktreeInfo {
     pub worktree: worktrunk::git::Worktree,
-    pub timestamp: i64,
-    pub commit_message: String,
-    pub ahead: usize,
-    pub behind: usize,
+    #[serde(flatten)]
+    pub commit: CommitDetails,
+    #[serde(flatten)]
+    pub counts: AheadBehind,
     pub working_tree_diff: (usize, usize),
-    pub branch_diff: (usize, usize),
+    #[serde(flatten)]
+    pub branch_diff: BranchDiffTotals,
     pub is_primary: bool,
-    pub upstream_remote: Option<String>,
-    pub upstream_ahead: usize,
-    pub upstream_behind: usize,
+    #[serde(flatten)]
+    pub upstream: UpstreamStatus,
     pub worktree_state: Option<String>,
 }
 
@@ -31,14 +31,110 @@ pub struct WorktreeInfo {
 pub struct BranchInfo {
     pub name: String,
     pub head: String,
+    #[serde(flatten)]
+    pub commit: CommitDetails,
+    #[serde(flatten)]
+    pub counts: AheadBehind,
+    #[serde(flatten)]
+    pub branch_diff: BranchDiffTotals,
+    #[serde(flatten)]
+    pub upstream: UpstreamStatus,
+}
+
+#[derive(serde::Serialize, Clone)]
+pub(crate) struct CommitDetails {
     pub timestamp: i64,
     pub commit_message: String,
+}
+
+impl CommitDetails {
+    fn gather(repo: &Repository, head: &str) -> Result<Self, GitError> {
+        Ok(Self {
+            timestamp: repo.commit_timestamp(head)?,
+            commit_message: repo.commit_message(head)?,
+        })
+    }
+}
+
+#[derive(serde::Serialize, Default, Clone)]
+pub(crate) struct AheadBehind {
     pub ahead: usize,
     pub behind: usize,
-    pub branch_diff: (usize, usize),
-    pub upstream_remote: Option<String>,
-    pub upstream_ahead: usize,
-    pub upstream_behind: usize,
+}
+
+impl AheadBehind {
+    fn compute(repo: &Repository, base: Option<&str>, head: &str) -> Result<Self, GitError> {
+        let Some(base) = base else {
+            return Ok(Self::default());
+        };
+
+        let (ahead, behind) = repo.ahead_behind(base, head)?;
+        Ok(Self { ahead, behind })
+    }
+}
+
+#[derive(serde::Serialize, Default, Clone)]
+pub(crate) struct BranchDiffTotals {
+    #[serde(rename = "branch_diff")]
+    pub diff: (usize, usize),
+}
+
+impl BranchDiffTotals {
+    fn compute(repo: &Repository, base: Option<&str>, head: &str) -> Result<Self, GitError> {
+        let Some(base) = base else {
+            return Ok(Self::default());
+        };
+
+        let diff = repo.branch_diff_stats(base, head)?;
+        Ok(Self { diff })
+    }
+}
+
+#[derive(serde::Serialize, Default, Clone)]
+pub(crate) struct UpstreamStatus {
+    #[serde(rename = "upstream_remote")]
+    remote: Option<String>,
+    #[serde(rename = "upstream_ahead")]
+    ahead: usize,
+    #[serde(rename = "upstream_behind")]
+    behind: usize,
+}
+
+impl UpstreamStatus {
+    fn calculate(repo: &Repository, branch: Option<&str>, head: &str) -> Result<Self, GitError> {
+        let Some(branch) = branch else {
+            return Ok(Self::default());
+        };
+
+        match repo.upstream_branch(branch) {
+            Ok(Some(upstream_branch)) => {
+                let remote = upstream_branch
+                    .split_once('/')
+                    .map(|(remote, _)| remote)
+                    .unwrap_or("origin")
+                    .to_string();
+                let (ahead, behind) = repo.ahead_behind(&upstream_branch, head)?;
+                Ok(Self {
+                    remote: Some(remote),
+                    ahead,
+                    behind,
+                })
+            }
+            _ => Ok(Self::default()),
+        }
+    }
+
+    fn active(&self) -> Option<(&str, usize, usize)> {
+        if self.ahead == 0 && self.behind == 0 {
+            None
+        } else {
+            Some((
+                self.remote.as_deref().unwrap_or("origin"),
+                self.ahead,
+                self.behind,
+            ))
+        }
+    }
 }
 
 /// Unified type for displaying worktrees and branches in the same table
@@ -50,20 +146,6 @@ pub enum ListItem {
 }
 
 impl ListItem {
-    pub fn timestamp(&self) -> i64 {
-        match self {
-            ListItem::Worktree(wt) => wt.timestamp,
-            ListItem::Branch(br) => br.timestamp,
-        }
-    }
-
-    pub fn worktree_info(&self) -> Option<&WorktreeInfo> {
-        match self {
-            ListItem::Worktree(wt) => Some(wt),
-            ListItem::Branch(_) => None,
-        }
-    }
-
     pub fn branch_name(&self) -> &str {
         match self {
             ListItem::Worktree(wt) => wt.worktree.branch.as_deref().unwrap_or("(detached)"),
@@ -71,79 +153,10 @@ impl ListItem {
         }
     }
 
-    pub fn commit_head(&self) -> &str {
-        match self {
-            ListItem::Worktree(wt) => &wt.worktree.head,
-            ListItem::Branch(br) => &br.head,
-        }
-    }
-
-    pub fn commit_message(&self) -> &str {
-        match self {
-            ListItem::Worktree(wt) => &wt.commit_message,
-            ListItem::Branch(br) => &br.commit_message,
-        }
-    }
-
-    pub fn ahead(&self) -> usize {
-        match self {
-            ListItem::Worktree(wt) => wt.ahead,
-            ListItem::Branch(br) => br.ahead,
-        }
-    }
-
-    pub fn behind(&self) -> usize {
-        match self {
-            ListItem::Worktree(wt) => wt.behind,
-            ListItem::Branch(br) => br.behind,
-        }
-    }
-
     pub fn is_primary(&self) -> bool {
         match self {
             ListItem::Worktree(wt) => wt.is_primary,
             ListItem::Branch(_) => false,
-        }
-    }
-
-    pub fn branch_diff(&self) -> (usize, usize) {
-        match self {
-            ListItem::Worktree(wt) => wt.branch_diff,
-            ListItem::Branch(br) => br.branch_diff,
-        }
-    }
-
-    pub fn working_tree_diff(&self) -> Option<(usize, usize)> {
-        match self {
-            ListItem::Worktree(wt) => Some(wt.working_tree_diff),
-            ListItem::Branch(_) => None,
-        }
-    }
-
-    pub fn upstream_info(&self) -> Option<(&str, usize, usize)> {
-        match self {
-            ListItem::Worktree(wt) => {
-                if wt.upstream_ahead > 0 || wt.upstream_behind > 0 {
-                    Some((
-                        wt.upstream_remote.as_deref().unwrap_or("origin"),
-                        wt.upstream_ahead,
-                        wt.upstream_behind,
-                    ))
-                } else {
-                    None
-                }
-            }
-            ListItem::Branch(br) => {
-                if br.upstream_ahead > 0 || br.upstream_behind > 0 {
-                    Some((
-                        br.upstream_remote.as_deref().unwrap_or("origin"),
-                        br.upstream_ahead,
-                        br.upstream_behind,
-                    ))
-                } else {
-                    None
-                }
-            }
         }
     }
 }
@@ -158,52 +171,18 @@ impl BranchInfo {
         // Get the commit SHA for this branch
         let head = repo.run_command(&["rev-parse", branch])?.trim().to_string();
 
-        // Get commit timestamp
-        let timestamp = repo.commit_timestamp(&head)?;
-
-        // Get commit message
-        let commit_message = repo.commit_message(&head)?;
-
-        // Calculate ahead/behind relative to primary branch
-        let (ahead, behind) = if let Some(pb) = primary_branch {
-            repo.ahead_behind(pb, &head)?
-        } else {
-            (0, 0)
-        };
-
-        // Get branch diff stats (line diff relative to primary)
-        let branch_diff = if let Some(pb) = primary_branch {
-            repo.branch_diff_stats(pb, &head)?
-        } else {
-            (0, 0)
-        };
-
-        // Get upstream tracking info
-        let (upstream_remote, upstream_ahead, upstream_behind) =
-            match repo.upstream_branch(branch).ok().flatten() {
-                Some(upstream_branch) => {
-                    let remote = upstream_branch
-                        .split_once('/')
-                        .map(|(remote, _)| remote)
-                        .unwrap_or("origin")
-                        .to_string();
-                    let (ahead, behind) = repo.ahead_behind(&upstream_branch, &head)?;
-                    (Some(remote), ahead, behind)
-                }
-                None => (None, 0, 0),
-            };
+        let commit = CommitDetails::gather(repo, &head)?;
+        let counts = AheadBehind::compute(repo, primary_branch, &head)?;
+        let branch_diff = BranchDiffTotals::compute(repo, primary_branch, &head)?;
+        let upstream = UpstreamStatus::calculate(repo, Some(branch), &head)?;
 
         Ok(BranchInfo {
             name: branch.to_string(),
             head,
-            timestamp,
-            commit_message,
-            ahead,
-            behind,
+            commit,
+            counts,
             branch_diff,
-            upstream_remote,
-            upstream_ahead,
-            upstream_behind,
+            upstream,
         })
     }
 }
@@ -217,65 +196,33 @@ impl WorktreeInfo {
         let wt_repo = Repository::at(&wt.path);
         let is_primary = wt.path == primary.path;
 
-        // Get commit timestamp
-        let timestamp = wt_repo.commit_timestamp(&wt.head)?;
+        let commit = CommitDetails::gather(&wt_repo, &wt.head)?;
 
-        // Get commit message
-        let commit_message = wt_repo.commit_message(&wt.head)?;
-
-        // Calculate ahead/behind relative to primary branch (only if primary has a branch)
-        let (ahead, behind) = if is_primary {
-            (0, 0)
-        } else if let Some(pb) = primary.branch.as_deref() {
-            wt_repo.ahead_behind(pb, &wt.head)?
+        let counts = if is_primary {
+            AheadBehind::default()
         } else {
-            (0, 0)
+            AheadBehind::compute(&wt_repo, primary.branch.as_deref(), &wt.head)?
         };
+
         let working_tree_diff = wt_repo.working_tree_diff_stats()?;
-
-        // Get branch diff stats (downstream of primary, only if primary has a branch)
         let branch_diff = if is_primary {
-            (0, 0)
-        } else if let Some(pb) = primary.branch.as_deref() {
-            wt_repo.branch_diff_stats(pb, &wt.head)?
+            BranchDiffTotals::default()
         } else {
-            (0, 0)
+            BranchDiffTotals::compute(&wt_repo, primary.branch.as_deref(), &wt.head)?
         };
-
-        // Get upstream tracking info
-        let (upstream_remote, upstream_ahead, upstream_behind) = match wt
-            .branch
-            .as_ref()
-            .and_then(|b| wt_repo.upstream_branch(b).ok().flatten())
-        {
-            Some(upstream_branch) => {
-                // Extract remote name from "origin/main" -> "origin"
-                let remote = upstream_branch
-                    .split_once('/')
-                    .map(|(remote, _)| remote)
-                    .unwrap_or("origin")
-                    .to_string();
-                let (ahead, behind) = wt_repo.ahead_behind(&upstream_branch, &wt.head)?;
-                (Some(remote), ahead, behind)
-            }
-            None => (None, 0, 0),
-        };
+        let upstream = UpstreamStatus::calculate(&wt_repo, wt.branch.as_deref(), &wt.head)?;
 
         // Get worktree state (merge/rebase/etc)
         let worktree_state = wt_repo.worktree_state()?;
 
         Ok(WorktreeInfo {
             worktree: wt.clone(),
-            timestamp,
-            commit_message,
-            ahead,
-            behind,
+            commit,
+            counts,
             working_tree_diff,
             branch_diff,
             is_primary,
-            upstream_remote,
-            upstream_ahead,
-            upstream_behind,
+            upstream,
             worktree_state,
         })
     }
@@ -333,7 +280,13 @@ pub fn handle_list(format: crate::OutputFormat, show_branches: bool) -> Result<(
     }
 
     // Sort by most recent commit (descending)
-    items.sort_by_key(|b| std::cmp::Reverse(b.timestamp()));
+    items.sort_by_key(|item| {
+        let timestamp = match item {
+            ListItem::Worktree(info) => info.commit.timestamp,
+            ListItem::Branch(info) => info.commit.timestamp,
+        };
+        std::cmp::Reverse(timestamp)
+    });
 
     match format {
         crate::OutputFormat::Json => {
