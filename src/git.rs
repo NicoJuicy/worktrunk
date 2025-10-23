@@ -156,11 +156,12 @@ impl Repository {
         Ok(PathBuf::from(stdout.trim()))
     }
 
-    /// Get the canonicalized repository root directory (parent of .git).
+    /// Get the main worktree root (top-level directory of the main worktree).
     ///
-    /// The canonicalization resolves symlinks and relative paths, which is important
-    /// for worktree operations to ensure consistent path handling.
-    pub fn repo_root(&self) -> Result<PathBuf, GitError> {
+    /// This returns the main worktree's root, even when called from a linked worktree.
+    /// The main worktree is the original repository created by git-init or git-clone.
+    /// Use this when you need to reference the primary worktree location.
+    pub fn main_worktree_root(&self) -> Result<PathBuf, GitError> {
         let git_common_dir = self
             .git_common_dir()?
             .canonicalize()
@@ -193,9 +194,15 @@ impl Repository {
     }
 
     /// Get the worktree root directory (top-level of the working tree).
+    ///
+    /// Returns the canonicalized absolute path to the top-level directory of the
+    /// current working tree. This could be the main worktree or a linked worktree.
     pub fn worktree_root(&self) -> Result<PathBuf, GitError> {
         let stdout = self.run_command(&["rev-parse", "--show-toplevel"])?;
-        Ok(PathBuf::from(stdout.trim()))
+        let path = PathBuf::from(stdout.trim());
+        path.canonicalize().map_err(|e| {
+            GitError::CommandFailed(format!("Failed to canonicalize worktree root: {}", e))
+        })
     }
 
     /// Check if the path is in a worktree (vs the main repository).
@@ -492,8 +499,8 @@ impl Repository {
             return Ok(url.to_string());
         }
 
-        // Fall back to repository name
-        let repo_root = self.repo_root()?;
+        // Fall back to repository name (use main worktree for consistency across all worktrees)
+        let repo_root = self.main_worktree_root()?;
         let repo_name = repo_root
             .file_name()
             .and_then(|name| name.to_str())

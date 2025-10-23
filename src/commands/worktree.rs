@@ -188,7 +188,7 @@ pub fn handle_switch(
     }
 
     // No existing worktree, create one
-    let repo_root = repo.repo_root()?;
+    let repo_root = repo.main_worktree_root()?;
 
     let repo_name = repo_root
         .file_name()
@@ -254,7 +254,7 @@ pub fn handle_remove() -> Result<RemoveResult, GitError> {
     if in_worktree {
         // In worktree: navigate to primary worktree and remove this one
         let worktree_root = repo.worktree_root()?;
-        let primary_worktree_dir = repo.repo_root()?;
+        let primary_worktree_dir = repo.main_worktree_root()?;
 
         // Remove the worktree
         if let Err(e) = repo.remove_worktree(&worktree_root) {
@@ -391,7 +391,7 @@ fn prompt_for_approval(command: &str, project_id: &str) -> io::Result<bool> {
 
 /// Helper to load project config with error handling
 fn load_project_config(repo: &Repository) -> Result<Option<ProjectConfig>, GitError> {
-    let repo_root = repo.repo_root()?;
+    let repo_root = repo.worktree_root()?;
     let config_path = repo_root.join(".config").join("wt.toml");
     match ProjectConfig::load(&repo_root) {
         Ok(cfg) => Ok(cfg),
@@ -452,7 +452,7 @@ fn execute_post_create_commands(
     }
 
     let project_id = repo.project_identifier()?;
-    let repo_root = repo.repo_root()?;
+    let repo_root = repo.main_worktree_root()?;
 
     // Execute each command sequentially
     for (name, command) in commands {
@@ -508,7 +508,7 @@ fn spawn_post_start_commands(
     }
 
     let project_id = repo.project_identifier()?;
-    let repo_root = repo.repo_root()?;
+    let repo_root = repo.main_worktree_root()?;
 
     // Spawn each command as a detached background process
     for (name, command) in commands {

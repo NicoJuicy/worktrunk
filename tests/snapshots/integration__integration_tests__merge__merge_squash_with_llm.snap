@@ -16,8 +16,9 @@ info:
     LANG: C
     LC_ALL: C
     SOURCE_DATE_EPOCH: "1704067200"
-    WORKTRUNK_LLM__ARGS: "feat: implement user authentication system"
-    WORKTRUNK_LLM__COMMAND: echo
+    WORKTRUNK_LLM__ARGS__0: "-c"
+    WORKTRUNK_LLM__ARGS__1: "cat >/dev/null && echo 'feat: implement user authentication system'"
+    WORKTRUNK_LLM__COMMAND: sh
 ---
 success: true
 exit_code: 0
