@@ -422,7 +422,7 @@ fn execute_post_create_commands(
         use std::io::Write;
         let cyan = AnstyleStyle::new().fg_color(Some(Color::Ansi(AnsiColor::Cyan)));
         eprintln!("🔄 {cyan}Executing (post-create):{cyan:#}");
-        eprint!("{}", format_with_gutter(&expanded_command, " "));
+        eprint!("{}", format_with_gutter(&expanded_command, "")); // Gutter at column 0
         let _ = std::io::stderr().flush();
 
         if let Err(e) = execute_command_in_worktree(worktree_path, &expanded_command) {

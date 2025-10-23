@@ -239,6 +239,71 @@ println!("{}", line.render());
 
 See `src/commands/list/render.rs` for advanced usage.
 
+### Gutter Formatting for Quoted Content
+
+The **gutter** is a subtle visual separator (single space with background color) used for quoted content like commands and configuration.
+
+**Core Principle: Alignment with Context**
+
+The gutter must align with its surrounding context to maintain clear visual hierarchy.
+
+#### Indentation Rules
+
+1. **Gutter positioning**: Place the gutter at the same indent level as its context
+   - If the label/description is at indent N, the gutter starts at indent N
+   - This creates visual cohesion between the context and the quoted content
+
+2. **After-gutter spacing**: Always use 1 space after the gutter
+   - The gutter itself provides visual separation
+   - Minimal spacing keeps content readable without excessive whitespace
+
+3. **Preserve internal structure**: Multi-line content maintains its original formatting
+   - Don't strip leading whitespace that's part of the content
+   - Apply gutter treatment uniformly to each line
+
+#### Examples
+
+**Top-level content (no context indent):**
+```
+Global Config: /path/to/config
+ worktree-path = "../{main-worktree}.{branch}"
+
+ [llm]
+```
+- Label at column 0 → gutter at column 0 → content at column 1
+
+**Nested context (2-space indent):**
+```
+  project wants to execute:
+   command here
+   more lines
+```
+- Label at column 2 → gutter at column 2 → content at column 3
+
+**Implementation:**
+
+```rust
+use worktrunk::styling::format_with_gutter;
+
+// Top-level: gutter at column 0
+print!("{}", format_with_gutter(&command, ""));
+
+// 2-space context: gutter at column 2
+print!("  ");  // Position at context level
+print!("{}", format_with_gutter(&command, ""));
+
+// Or equivalently with left margin parameter:
+print!("{}", format_with_gutter(&command, "  "));
+```
+
+**Function Signature:**
+```rust
+/// Arguments:
+/// - content: Text to format (preserves internal structure for multi-line)
+/// - left_margin: Spaces before the gutter (positions it at context level)
+pub fn format_with_gutter(content: &str, left_margin: &str) -> String
+```
+
 ## Testing Guidelines
 
 ### Testing with --execute Commands

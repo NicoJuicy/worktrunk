@@ -168,20 +168,25 @@ impl StyledLine {
 /// This creates a subtle visual separator for quoted content like commands or configuration.
 ///
 /// # Arguments
-/// * `content` - The text to format (can be multi-line)
-/// * `indent` - Additional indentation after the gutter (e.g., " " or "  ")
+/// * `content` - The text to format (preserves internal structure for multi-line)
+/// * `left_margin` - Spaces before the gutter (positions it at the context indent level)
+///
+/// The gutter appears at the `left_margin` position, followed by 1 space, then the content.
 ///
 /// # Example
 /// ```ignore
-/// let command = "npm install\nnpm test";
-/// print!("{}", format_with_gutter(&command, " "));
+/// // Top-level (gutter at column 0)
+/// print!("{}", format_with_gutter(&config, ""));
+///
+/// // Nested in 2-space context (gutter at column 2)
+/// print!("{}", format_with_gutter(&command, "  "));
 /// ```
-pub fn format_with_gutter(content: &str, indent: &str) -> String {
+pub fn format_with_gutter(content: &str, left_margin: &str) -> String {
     let gutter = Style::new().bg_color(Some(Color::Ansi(AnsiColor::Black)));
     let mut output = String::new();
 
     for line in content.lines() {
-        output.push_str(&format!("{gutter} {gutter:#}{indent}{line}\n"));
+        output.push_str(&format!("{left_margin}{gutter} {gutter:#} {line}\n"));
     }
 
     output
@@ -192,7 +197,7 @@ pub fn format_with_gutter(content: &str, indent: &str) -> String {
 // ============================================================================
 
 /// Formats TOML content with syntax highlighting using synoptic
-pub fn format_toml(content: &str, indent: &str) -> String {
+pub fn format_toml(content: &str, left_margin: &str) -> String {
     // Gutter style: subtle background for visual separation
     let gutter = Style::new().bg_color(Some(Color::Ansi(AnsiColor::Black)));
 
@@ -204,7 +209,9 @@ pub fn format_toml(content: &str, indent: &str) -> String {
             let dim = Style::new().dimmed();
             let mut output = String::new();
             for line in content.lines() {
-                output.push_str(&format!("{gutter} {gutter:#}{indent}{dim}{line}{dim:#}\n"));
+                output.push_str(&format!(
+                    "{left_margin}{gutter} {gutter:#} {dim}{line}{dim:#}\n"
+                ));
             }
             return output;
         }
@@ -218,10 +225,8 @@ pub fn format_toml(content: &str, indent: &str) -> String {
 
     // Render each line with appropriate styling
     for (y, line) in lines.iter().enumerate() {
-        // Add gutter first
-        output.push_str(&format!("{gutter} {gutter:#}"));
-        // Add indentation
-        output.push_str(indent);
+        // Add left margin, gutter, and spacing
+        output.push_str(&format!("{left_margin}{gutter} {gutter:#} "));
 
         // Render each token with appropriate styling
         for token in highlighter.line(y, line) {
@@ -298,7 +303,7 @@ project = "github.com/user/repo"
 command = "npm install"
 "#;
 
-        let output = format_toml(toml_content, " ");
+        let output = format_toml(toml_content, "");
 
         // Check that output contains ANSI escape codes
         assert!(
