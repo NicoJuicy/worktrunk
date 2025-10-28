@@ -112,6 +112,18 @@ pub fn flush() -> io::Result<()> {
     })
 }
 
+/// Emit command output (stdout/stderr from external processes)
+///
+/// In directive mode, ensures output is NUL-terminated so subsequent directives
+/// are in separate chunks for the shell wrapper to parse correctly.
+/// In interactive mode, prints output normally with colors.
+pub fn command_output(stdout: &str, stderr: &str) -> io::Result<()> {
+    OUTPUT_CONTEXT.with(|ctx| match &mut *ctx.borrow_mut() {
+        OutputHandler::Interactive(i) => i.command_output(stdout, stderr),
+        OutputHandler::Directive(d) => d.command_output(stdout, stderr),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

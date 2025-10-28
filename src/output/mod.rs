@@ -62,7 +62,9 @@ pub mod handlers;
 pub mod interactive;
 
 // Re-export the public API
-pub use global::{OutputMode, change_directory, execute, flush, initialize, progress, success};
+pub use global::{
+    OutputMode, change_directory, command_output, execute, flush, initialize, progress, success,
+};
 
 // Re-export output handlers
 pub use handlers::{execute_command_in_worktree, handle_remove_output, handle_switch_output};

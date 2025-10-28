@@ -36,16 +36,51 @@ impl InteractiveOutput {
     }
 
     pub fn execute(&mut self, command: String) -> io::Result<()> {
+        use std::process::Command;
+
         // Execute command in the target directory
         let exec_dir = self.target_dir.as_deref().unwrap_or_else(|| Path::new("."));
 
-        crate::output::execute_command_in_worktree(exec_dir, &command)
-            .map_err(|e| io::Error::other(e.to_string()))
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(&command)
+            .current_dir(exec_dir)
+            .output()
+            .map_err(|e| io::Error::other(format!("Failed to execute command: {}", e)))?;
+
+        if !output.status.success() {
+            return Err(io::Error::other(format!(
+                "Command failed with exit code: {}",
+                output.status
+            )));
+        }
+
+        // Print output directly (we're already inside the output framework)
+        if !output.stdout.is_empty() {
+            println!("{}", String::from_utf8_lossy(&output.stdout).trim_end());
+        }
+        if !output.stderr.is_empty() {
+            use worktrunk::styling::eprintln;
+            eprintln!("{}", String::from_utf8_lossy(&output.stderr).trim_end());
+        }
+
+        Ok(())
     }
 
     pub fn flush(&mut self) -> io::Result<()> {
         io::stdout().flush()?;
         io::stderr().flush()?;
+        Ok(())
+    }
+
+    pub fn command_output(&mut self, stdout: &str, stderr: &str) -> io::Result<()> {
+        if !stdout.is_empty() {
+            println!("{}", stdout.trim_end());
+        }
+        if !stderr.is_empty() {
+            use worktrunk::styling::eprintln;
+            eprintln!("{}", stderr.trim_end());
+        }
         Ok(())
     }
 }
