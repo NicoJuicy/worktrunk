@@ -107,13 +107,13 @@ pub fn handle_remove_output(result: &RemoveResult) -> Result<(), GitError> {
 
 /// Execute a command in a worktree directory
 ///
-/// Uses Stdio::inherit() for real-time streaming output in both modes.
-/// Redirects child stdout to stderr to ensure all output appears on a single file descriptor,
-/// preventing terminal reordering issues between stdout and stderr.
+/// Merges stdout into stderr using shell redirection (1>&2) to ensure deterministic output ordering.
+/// Per CLAUDE.md guidelines: child process output goes to stderr, worktrunk output goes to stdout.
+/// Streams output line-by-line in real-time (no buffering) to provide immediate feedback for
+/// long-running commands.
 ///
-/// The redirect ensures that all child output and our progress messages go through the same FD
-/// (stderr), which guarantees deterministic ordering: bytes written later cannot appear before
-/// bytes written earlier to the same FD.
+/// The shell-level redirect ensures all output flows through a single pipe (stderr) in the order written,
+/// eliminating race conditions that would occur with separate stdout/stderr threads.
 ///
 /// Calls terminate_output() after completion to handle mode-specific cleanup
 /// (NUL terminator in directive mode, no-op in interactive mode).
@@ -121,22 +121,39 @@ pub fn execute_command_in_worktree(
     worktree_path: &std::path::Path,
     command: &str,
 ) -> Result<(), GitError> {
+    use std::io::{BufRead, BufReader, Write};
     use std::process::{Command, Stdio};
 
     // Flush stdout before executing command to ensure all our messages appear
     // before the child process output
     super::flush()?;
 
-    // Run the command with inherited stdio - child stdout and stderr both appear on our stdout and stderr
-    // All output goes through the terminal, which handles the display ordering
-    let status = Command::new("sh")
+    // Redirect stdout to stderr in the shell command to merge streams
+    // This ensures deterministic ordering: all output flows through a single pipe (stderr)
+    // in the order it was written, with no race conditions between threads
+    // Per CLAUDE.md: child process output goes to stderr, worktrunk output goes to stdout
+    let merged_command = format!("{{ {}; }} 1>&2", command);
+
+    let mut child = Command::new("sh")
         .arg("-c")
-        .arg(command)
+        .arg(&merged_command)
         .current_dir(worktree_path)
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
+        .stdout(Stdio::inherit()) // Inherit stdout for any shell errors (though redirected to stderr)
+        .stderr(Stdio::piped())
+        .spawn()
         .git_context("Failed to execute command")?;
+
+    // Read and stream output line-by-line in real-time (no buffering)
+    let stderr = child.stderr.take().unwrap();
+    let reader = BufReader::new(stderr);
+
+    for line in reader.lines().map_while(Result::ok) {
+        eprintln!("{}", line);
+        let _ = std::io::stderr().flush();
+    }
+
+    // Wait for command to complete
+    let status = child.wait().git_context("Failed to wait for command")?;
 
     if !status.success() {
         return Err(GitError::CommandFailed(format!(

@@ -765,6 +765,45 @@ This constraint maintains architectural integrity:
 
 When adding new functionality to restricted commands, always ask: "Does this need output?" If yes, use `crate::output::progress()` or `crate::output::success()`, never direct prints.
 
+## Command Execution Principles
+
+### Real-time Output Streaming
+
+**CRITICAL: Command output must stream through in real-time. Never buffer external command output.**
+
+When executing external commands (git, npm, user scripts, etc.):
+
+- **Stream immediately**: Output from child processes must appear as it's generated
+- **No buffering**: Do NOT collect output into buffers before displaying
+- **Real-time feedback**: Users must see progress as it happens, not after completion
+
+**Why this matters:**
+- Long-running commands (npm install, cargo build) provide progress indicators
+- Users need to see what's happening in real-time for debugging
+- Buffering breaks interactive commands and progress bars
+- Commands may run for minutes - buffering until completion is unacceptable
+
+**Good - streaming output:**
+```rust
+// Read and write line-by-line as data arrives
+for line in reader.lines() {
+    println!("{}", line);
+    stdout().flush();
+}
+```
+
+**Bad - buffering output:**
+```rust
+// ❌ NEVER DO THIS - waits until command completes
+let lines: Vec<_> = reader.lines().collect();
+for line in lines {
+    println!("{}", line);
+}
+```
+
+**Implementation constraint:**
+Any solution to output ordering problems must maintain real-time streaming. If you need deterministic ordering, solve it at the pipe level (e.g., redirect stderr to stdout in the shell), not by buffering in Rust.
+
 ## Testing Guidelines
 
 ### Testing with --execute Commands
