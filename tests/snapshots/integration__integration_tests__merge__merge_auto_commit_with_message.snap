@@ -19,7 +19,7 @@ info:
     SOURCE_DATE_EPOCH: "1761609600"
     WORKTRUNK_COMMIT_GENERATION__ARGS: "feat: complete user dashboard"
     WORKTRUNK_COMMIT_GENERATION__COMMAND: echo
-    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpPijZbQ/test-config.toml
+    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpTeQhy0/test-config.toml
 ---
 success: true
 exit_code: 0
@@ -43,7 +43,7 @@ exit_code: 0
 
 ✅ [32mMerge complete
 
-  [2mMerged: [1mfeature[0m → [1mmain[0m[0m
-  [2mWorktree: Removed[0m[0m
+[2mMerged: [1mfeature[0m → [1mmain[0m[0m
+[2mWorktree: Removed[0m[0m
 
 ----- stderr -----

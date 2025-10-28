@@ -144,20 +144,20 @@ fn format_merge_summary(
 
     // Show what was merged
     output.push_str(&format!(
-        "  {dim}Merged: {bold}{from_branch}{bold:#} → {bold}{to_branch}{bold:#}{dim:#}\n"
+        "{dim}Merged: {bold}{from_branch}{bold:#} → {bold}{to_branch}{bold:#}{dim:#}\n"
     ));
 
     // Show squash info if applicable
     if let Some(count) = squashed_count {
-        output.push_str(&format!("  {dim}Squashed: {count} commits into 1{dim:#}\n"));
+        output.push_str(&format!("{dim}Squashed: {count} commits into 1{dim:#}\n"));
     }
 
     // Show worktree status
     if cleaned_up {
-        output.push_str(&format!("  {dim}Worktree: Removed{dim:#}"));
+        output.push_str(&format!("{dim}Worktree: Removed{dim:#}"));
     } else {
         output.push_str(&format!(
-            "  {dim}Worktree: Kept (use 'wt remove' to clean up){dim:#}"
+            "{dim}Worktree: Kept (use 'wt remove' to clean up){dim:#}"
         ));
     }
 
@@ -378,7 +378,7 @@ fn run_pre_merge_checks(
                 name = prepared.name,
             );
             eprintln!();
-            eprintln!("  {e}");
+            eprintln!("{e}");
             eprintln!();
             eprintln!("{HINT_EMOJI} {HINT}Use --no-verify to skip pre-merge checks{HINT:#}");
             return Err(GitError::CommandFailed(String::new()));

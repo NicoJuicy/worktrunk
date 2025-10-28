@@ -40,7 +40,7 @@ pub fn handle_config_init() -> Result<(), GitError> {
     // Success message
     let bold = AnstyleStyle::new().bold();
     println!("{SUCCESS_EMOJI} {GREEN}Created config file{GREEN:#}");
-    println!("   {bold}{}{bold:#}", config_path.display());
+    println!("{bold}{}{bold:#}", config_path.display());
     println!();
     println!(
         "{HINT_EMOJI} {HINT}Edit this file to customize worktree paths and LLM settings{HINT:#}"
@@ -74,11 +74,11 @@ fn display_global_config() -> Result<(), GitError> {
 
     // Check if file exists
     if !config_path.exists() {
-        println!("  {HINT_EMOJI} {HINT}Not found (using defaults){HINT:#}");
-        println!("  {HINT_EMOJI} {HINT}Run 'wt config init' to create a config file{HINT:#}");
+        println!("{HINT_EMOJI} {HINT}Not found (using defaults){HINT:#}");
+        println!("{HINT_EMOJI} {HINT}Run 'wt config init' to create a config file{HINT:#}");
         println!();
-        println!("  {dim}# Default configuration:{dim:#}");
-        println!("  {dim}worktree-path = \"../{{repo}}.{{branch}}\"{dim:#}");
+        println!("{dim}# Default configuration:{dim:#}");
+        println!("{dim}worktree-path = \"../{{repo}}.{{branch}}\"{dim:#}");
         return Ok(());
     }
 
@@ -87,7 +87,7 @@ fn display_global_config() -> Result<(), GitError> {
         .map_err(|e| GitError::CommandFailed(format!("Failed to read config file: {}", e)))?;
 
     if contents.trim().is_empty() {
-        println!("  {HINT_EMOJI} {HINT}Empty file (using defaults){HINT:#}");
+        println!("{HINT_EMOJI} {HINT}Empty file (using defaults){HINT:#}");
         return Ok(());
     }
 
@@ -116,7 +116,7 @@ fn display_project_config() -> Result<(), GitError> {
 
     // Check if file exists
     if !config_path.exists() {
-        println!("  {HINT_EMOJI} {HINT}Not found{HINT:#}");
+        println!("{HINT_EMOJI} {HINT}Not found{HINT:#}");
         return Ok(());
     }
 
@@ -125,7 +125,7 @@ fn display_project_config() -> Result<(), GitError> {
         .map_err(|e| GitError::CommandFailed(format!("Failed to read config file: {}", e)))?;
 
     if contents.trim().is_empty() {
-        println!("  {HINT_EMOJI} {HINT}Empty file{HINT:#}");
+        println!("{HINT_EMOJI} {HINT}Empty file{HINT:#}");
         return Ok(());
     }
 

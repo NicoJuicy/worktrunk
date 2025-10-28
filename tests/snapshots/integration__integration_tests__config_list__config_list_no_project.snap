@@ -1,6 +1,5 @@
 ---
 source: tests/integration_tests/config_list.rs
-assertion_line: 94
 info:
   program: wt
   args:
@@ -13,10 +12,11 @@ info:
     GIT_CONFIG_GLOBAL: /dev/null
     GIT_CONFIG_SYSTEM: /dev/null
     GIT_EDITOR: ""
-    HOME: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpROELyU
+    HOME: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpg8SPRY
     LANG: C
     LC_ALL: C
-    SOURCE_DATE_EPOCH: "1704067200"
+    SOURCE_DATE_EPOCH: "1761609600"
+    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmp5FApx5/test-config.toml
 ---
 success: true
 exit_code: 0
@@ -25,6 +25,6 @@ Global Config: [1m[TEMP_HOME]/.config/worktrunk/config.toml[0m
 [40m [0m worktree-path = [32m"../{main-worktree}.{branch}"[0m
 
 Project Config: [1m[REPO]/.config/wt.toml[0m
-  💡 [2mNot found[0m
+💡 [2mNot found[0m
 
 ----- stderr -----

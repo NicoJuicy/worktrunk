@@ -17,7 +17,7 @@ info:
     LC_ALL: C
     SOURCE_DATE_EPOCH: "1761609600"
     WORKTRUNK_COMMIT_GENERATION__COMMAND: nonexistent-llm-command
-    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpfuanLT/test-config.toml
+    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpifaOZL/test-config.toml
 ---
 success: true
 exit_code: 0
@@ -45,8 +45,8 @@ exit_code: 0
 
 ✅ [32mMerge complete
 
-  [2mMerged: [1mfeature[0m → [1mmain[0m[0m
-  [2mSquashed: 2 commits into 1[0m
-  [2mWorktree: Removed[0m[0m
+[2mMerged: [1mfeature[0m → [1mmain[0m[0m
+[2mSquashed: 2 commits into 1[0m
+[2mWorktree: Removed[0m[0m
 
 ----- stderr -----
