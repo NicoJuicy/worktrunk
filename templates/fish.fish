@@ -92,16 +92,50 @@ if type -q {{ cmd_prefix }}
 
     # Override {{ cmd_prefix }} command to add --internal flag for switch, remove, and merge
     function {{ cmd_prefix }}
-        set -l subcommand $argv[1]
+        set -l use_dev false
+        set -l args
+        set -l saved_cmd $_WORKTRUNK_CMD
 
-        switch $subcommand
-            case switch remove merge
-                # Commands that need --internal for directory change support
-                _wt_exec --internal $subcommand $argv[2..-1]
-            case '*'
-                # All other commands pass through directly
-                command $_WORKTRUNK_CMD $argv
+        # Check for --dev flag and strip it
+        for arg in $argv
+            if test "$arg" = "--dev"
+                set use_dev true
+            else
+                set -a args $arg
+            end
         end
+
+        # If --dev was specified, build and use local debug binary
+        if test $use_dev = true
+            if not cargo build --quiet >/dev/null 2>&1
+                echo "Error: cargo build failed" >&2
+                set _WORKTRUNK_CMD $saved_cmd
+                return 1
+            end
+            set _WORKTRUNK_CMD ./target/debug/wt
+        end
+
+        # Dispatch based on subcommand
+        if test (count $args) -gt 0
+            set -l subcommand $args[1]
+
+            switch $subcommand
+                case switch remove merge
+                    # Commands that need --internal for directory change support
+                    _wt_exec --internal $args
+                case '*'
+                    # All other commands pass through directly
+                    command $_WORKTRUNK_CMD $args
+            end
+        else
+            # No arguments, just run the command
+            command $_WORKTRUNK_CMD
+        end
+
+        # Restore original command
+        set -l result $status
+        set _WORKTRUNK_CMD $saved_cmd
+        return $result
     end
 
     # Dynamic completion function

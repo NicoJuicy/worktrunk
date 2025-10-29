@@ -3,16 +3,19 @@
 # Only initialize if wt is available
 import shutil
 import os
+import sys
 if shutil.which("wt") is not None:
     # Use WORKTRUNK_BIN if set, otherwise default to 'wt'
     # This allows testing development builds: $WORKTRUNK_BIN = ./target/debug/wt
     _WORKTRUNK_CMD = os.environ.get('WORKTRUNK_BIN', 'wt')
 
-    def _wt_exec(args):
+    def _wt_exec(args, cmd=None):
         """Helper function to parse wt output and handle directives
         Directives are NUL-terminated to support multi-line commands"""
+        # Use provided command or default to _WORKTRUNK_CMD
+        command = cmd if cmd is not None else _WORKTRUNK_CMD
         # Capture full output including return code
-        result = ![@(_WORKTRUNK_CMD) @(args)]
+        result = ![@(command) @(args)]
         exec_cmd = ""
 
         # Split output on NUL bytes, process each chunk
@@ -41,20 +44,41 @@ if shutil.which("wt") is not None:
 
     def _{{ cmd_prefix }}_wrapper(args):
         """Override {{ cmd_prefix }} command to add --internal flag for switch, remove, and merge"""
-        if not args:
-            # No arguments, just run wt
-            ![@(_WORKTRUNK_CMD)]
+        use_dev = False
+        filtered_args = []
+
+        # Check for --dev flag and strip it
+        for arg in args:
+            if arg == "--dev":
+                use_dev = True
+            else:
+                filtered_args.append(arg)
+
+        # Determine which command to use
+        if use_dev:
+            # Build the project
+            build_result = !(cargo build --quiet)
+            if build_result.returncode != 0:
+                print("Error: cargo build failed", file=sys.stderr)
+                return 1
+            cmd = "./target/debug/wt"
+        else:
+            cmd = _WORKTRUNK_CMD
+
+        if not filtered_args:
+            # No arguments, just run the command
+            ![@(cmd)]
             return
 
-        subcommand = args[0]
+        subcommand = filtered_args[0]
 
         if subcommand in ["switch", "remove", "merge"]:
             # Commands that need --internal for directory change support
-            rest_args = args[1:]
-            return _wt_exec(["--internal", subcommand] + rest_args)
+            rest_args = filtered_args[1:]
+            return _wt_exec(["--internal", subcommand] + rest_args, cmd=cmd)
         else:
             # All other commands pass through directly
-            result = ![@(_WORKTRUNK_CMD) @(args)]
+            result = ![@(cmd) @(filtered_args)]
             return result.returncode
 
     # Register the alias

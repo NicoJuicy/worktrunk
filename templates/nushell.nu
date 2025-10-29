@@ -8,8 +8,9 @@ if (which wt | is-not-empty) {
 
     # Helper function to parse wt output and handle directives
     # Directives are NUL-terminated to support multi-line commands
-    export def --env _wt_exec [...args] {
-        let result = (do { ^$_WORKTRUNK_CMD ...$args } | complete)
+    export def --env _wt_exec [cmd?: string, ...args] {
+        let command = (if ($cmd | is-empty) { $_WORKTRUNK_CMD } else { $cmd })
+        let result = (do { ^$command ...$args } | complete)
         mut exec_cmd = ""
 
         # Split output on NUL bytes, process each chunk
@@ -41,19 +42,43 @@ if (which wt | is-not-empty) {
     # Override {{ cmd_prefix }} command to add --internal flag for switch, remove, and merge
     # Use --wrapped to pass through all flags without parsing them
     export def --env --wrapped {{ cmd_prefix }} [...rest] {
-        let subcommand = ($rest | get 0? | default "")
+        mut use_dev = false
+        mut filtered_args = []
+
+        # Check for --dev flag and strip it
+        for arg in $rest {
+            if $arg == "--dev" {
+                $use_dev = true
+            } else {
+                $filtered_args = ($filtered_args | append $arg)
+            }
+        }
+
+        # Determine which command to use
+        let cmd = if $use_dev {
+            let build_result = (do { cargo build --quiet } | complete)
+            if $build_result.exit_code != 0 {
+                print "Error: cargo build failed"
+                return 1
+            }
+            "./target/debug/wt"
+        } else {
+            $_WORKTRUNK_CMD
+        }
+
+        let subcommand = ($filtered_args | get 0? | default "")
 
         match $subcommand {
             "switch" | "remove" | "merge" => {
                 # Commands that need --internal for directory change support
-                let rest_args = ($rest | skip 1)
+                let rest_args = ($filtered_args | skip 1)
                 let internal_args = (["--internal", $subcommand] | append $rest_args)
-                let exit_code = (_wt_exec ...$internal_args)
+                let exit_code = (_wt_exec $cmd ...$internal_args)
                 return $exit_code
             }
             _ => {
                 # All other commands pass through directly
-                ^$_WORKTRUNK_CMD ...$rest
+                ^$cmd ...$filtered_args
             }
         }
     }

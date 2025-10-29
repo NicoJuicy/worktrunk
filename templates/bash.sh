@@ -54,19 +54,52 @@ if command -v wt >/dev/null 2>&1; then
 
     # Override {{ cmd_prefix }} command to add --internal flag for switch, remove, and merge
     {{ cmd_prefix }}() {
-        local subcommand="$1"
+        local use_dev=false
+        local args=()
+        local saved_cmd="$_WORKTRUNK_CMD"
 
-        case "$subcommand" in
-            switch|remove|merge)
-                # Commands that need --internal for directory change support
-                shift
-                _wt_exec --internal "$subcommand" "$@"
-                ;;
-            *)
-                # All other commands pass through directly
-                command "$_WORKTRUNK_CMD" "$@"
-                ;;
-        esac
+        # Check for --dev flag and strip it
+        for arg in "$@"; do
+            if [[ "$arg" == "--dev" ]]; then
+                use_dev=true
+            else
+                args+=("$arg")
+            fi
+        done
+
+        # If --dev was specified, build and use local debug binary
+        if [[ "$use_dev" == true ]]; then
+            if ! cargo build --quiet >/dev/null 2>&1; then
+                echo "Error: cargo build failed" >&2
+                _WORKTRUNK_CMD="$saved_cmd"
+                return 1
+            fi
+            _WORKTRUNK_CMD="./target/debug/wt"
+        fi
+
+        # Dispatch based on subcommand
+        if [[ ${{ '{' }}#args[@]} -gt 0 ]]; then
+            local subcommand="${args[0]}"
+
+            case "$subcommand" in
+                switch|remove|merge)
+                    # Commands that need --internal for directory change support
+                    _wt_exec --internal "${args[@]}"
+                    ;;
+                *)
+                    # All other commands pass through directly
+                    command "$_WORKTRUNK_CMD" "${args[@]}"
+                    ;;
+            esac
+        else
+            # No arguments, just run the command
+            command "$_WORKTRUNK_CMD"
+        fi
+
+        # Restore original command
+        local result=$?
+        _WORKTRUNK_CMD="$saved_cmd"
+        return $result
     }
 
     # Dynamic completion function

@@ -9,6 +9,7 @@ info:
     - wt
   env:
     CLICOLOR_FORCE: "1"
+    COLUMNS: "150"
     GIT_AUTHOR_DATE: "2025-01-01T00:00:00Z"
     GIT_COMMITTER_DATE: "2025-01-01T00:00:00Z"
     GIT_CONFIG_GLOBAL: /dev/null
@@ -17,7 +18,7 @@ info:
     LANG: C
     LC_ALL: C
     SOURCE_DATE_EPOCH: "1761609600"
-    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpKlCu0A/test-config.toml
+    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpI2Bq3O/test-config.toml
 ---
 success: true
 exit_code: 0
@@ -78,19 +79,52 @@ if command -v wt >/dev/null 2>&1; then
 
     # Override wt command to add --internal flag for switch, remove, and merge
     wt() {
-        local subcommand="$1"
+        local use_dev=false
+        local args=()
+        local saved_cmd="$_WORKTRUNK_CMD"
 
-        case "$subcommand" in
-            switch|remove|merge)
-                # Commands that need --internal for directory change support
-                shift
-                _wt_exec --internal "$subcommand" "$@"
-                ;;
-            *)
-                # All other commands pass through directly
-                command "$_WORKTRUNK_CMD" "$@"
-                ;;
-        esac
+        # Check for --dev flag and strip it
+        for arg in "$@"; do
+            if [[ "$arg" == "--dev" ]]; then
+                use_dev=true
+            else
+                args+=("$arg")
+            fi
+        done
+
+        # If --dev was specified, build and use local debug binary
+        if [[ "$use_dev" == true ]]; then
+            if ! cargo build --quiet >/dev/null 2>&1; then
+                echo "Error: cargo build failed" >&2
+                _WORKTRUNK_CMD="$saved_cmd"
+                return 1
+            fi
+            _WORKTRUNK_CMD="./target/debug/wt"
+        fi
+
+        # Dispatch based on subcommand
+        if [[ ${#args[@]} -gt 0 ]]; then
+            local subcommand="${args[0]}"
+
+            case "$subcommand" in
+                switch|remove|merge)
+                    # Commands that need --internal for directory change support
+                    _wt_exec --internal "${args[@]}"
+                    ;;
+                *)
+                    # All other commands pass through directly
+                    command "$_WORKTRUNK_CMD" "${args[@]}"
+                    ;;
+            esac
+        else
+            # No arguments, just run the command
+            command "$_WORKTRUNK_CMD"
+        fi
+
+        # Restore original command
+        local result=$?
+        _WORKTRUNK_CMD="$saved_cmd"
+        return $result
     }
 
     # Dynamic completion function
