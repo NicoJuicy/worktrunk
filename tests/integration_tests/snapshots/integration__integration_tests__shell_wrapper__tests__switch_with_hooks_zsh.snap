@@ -2,7 +2,6 @@
 source: tests/integration_tests/shell_wrapper.rs
 expression: output.normalized().as_ref()
 ---
-zsh:365: command not found: compdef
 Installing dependencies...
 Building project...
 🔄 [36mExecuting (post-create):[0m
