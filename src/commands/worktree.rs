@@ -643,11 +643,13 @@ pub fn handle_push(
         ])?;
         crate::output::progress(format!("{}\n", log_output.trim()))?;
 
-        // Show diff statistics with color
+        // Show diff statistics with color (use terminal width for proper formatting)
+        let term_width = crate::display::get_terminal_width();
         let diff_stat = repo.run_command(&[
             "diff",
             "--color=always",
             "--stat",
+            &format!("--stat-width={}", term_width),
             &format!("{}..HEAD", target_branch),
         ])?;
 
