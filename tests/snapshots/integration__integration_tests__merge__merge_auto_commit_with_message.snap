@@ -5,6 +5,8 @@ info:
   args:
     - merge
     - main
+    - "-m"
+    - Complete the user dashboard feature
   env:
     CLICOLOR_FORCE: "1"
     COLUMNS: "150"
@@ -16,7 +18,9 @@ info:
     LANG: C
     LC_ALL: C
     SOURCE_DATE_EPOCH: "1761609600"
-    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpJYa7yM/test-config.toml
+    WORKTRUNK_COMMIT_GENERATION__ARGS: "feat: complete user dashboard"
+    WORKTRUNK_COMMIT_GENERATION__COMMAND: echo
+    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpMMJ21f/test-config.toml
 ---
 success: true
 exit_code: 0
@@ -30,7 +34,7 @@ exit_code: 0
 🔄 [36mMerging 2 commits to [1m[36mmain[0m @ [SHA][0m
 
 * [SHA][33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature[m[33m)[m WIP: Auto-commit before merge
-* [SHA] feat: initial feature
+* [SHA] feat: start feature
 
  feature.txt | 1 [32m+[m
  1 file changed, 1 insertion(+)

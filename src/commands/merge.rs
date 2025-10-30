@@ -3,8 +3,7 @@ use worktrunk::git::{GitError, GitResultExt, Repository};
 use worktrunk::styling::{AnstyleStyle, CYAN, CYAN_BOLD, HINT, HINT_EMOJI, format_with_gutter};
 
 use super::command_executor::{CommandContext, prepare_project_commands};
-use super::worktree::handle_push;
-use super::worktree::handle_remove;
+use super::worktree::{handle_push, handle_remove, parse_diff_shortstat};
 use crate::output::execute_command_in_worktree;
 
 pub fn handle_merge(
@@ -213,7 +212,20 @@ fn commit_with_generated_message(
 ) -> Result<(), GitError> {
     let repo = Repository::current();
 
-    crate::output::progress(format!("🔄 {CYAN}{progress_msg}{CYAN:#}"))?;
+    // Get diff stats for staged changes
+    let diff_shortstat = repo
+        .run_command(&["diff", "--staged", "--shortstat"])
+        .unwrap_or_default();
+    let stats = parse_diff_shortstat(&diff_shortstat);
+    let stats_parts = stats.format_summary();
+
+    // Format progress message with stats
+    let full_progress_msg = match stats_parts.is_empty() {
+        true => progress_msg.to_string(),
+        false => format!("{} ({})", progress_msg, stats_parts.join(", ")),
+    };
+
+    crate::output::progress(format!("🔄 {CYAN}{full_progress_msg}{CYAN:#}"))?;
     crate::output::progress(format!("🔄 {CYAN}Generating commit message...{CYAN:#}"))?;
 
     let commit_message = crate::llm::generate_commit_message(commit_generation_config)?;
@@ -223,8 +235,21 @@ fn commit_with_generated_message(
     repo.run_command(&["commit", "-m", &commit_message])
         .git_context("Failed to commit")?;
 
+    // Get commit hash for display
+    let commit_hash = repo
+        .run_command(&["rev-parse", "--short", "HEAD"])?
+        .trim()
+        .to_string();
+
     use worktrunk::styling::{GREEN, SUCCESS_EMOJI};
-    crate::output::success(format!("{SUCCESS_EMOJI} {GREEN}Committed changes{GREEN:#}"))?;
+    let success_msg = match stats_parts.is_empty() {
+        true => format!("{SUCCESS_EMOJI} {GREEN}Committed changes @ {commit_hash}{GREEN:#}"),
+        false => format!(
+            "{SUCCESS_EMOJI} {GREEN}Committed changes ({}) @ {commit_hash}{GREEN:#}",
+            stats_parts.join(", ")
+        ),
+    };
+    crate::output::success(success_msg)?;
 
     Ok(())
 }
@@ -285,12 +310,24 @@ fn handle_squash(
     }
 
     // Either multiple commits OR single commit with staged changes - squash them
-    crate::output::progress(format!(
-        "🔄 {CYAN}Squashing {commit_count} commits into one...{CYAN:#}"
-    ))?;
+    // Get diff stats early for display in progress message
+    let range = format!("{}..HEAD", merge_base);
+    let diff_shortstat = repo
+        .run_command(&["diff", "--shortstat", &format!("{}..HEAD", merge_base)])
+        .unwrap_or_default();
+    let stats = parse_diff_shortstat(&diff_shortstat);
+    let stats_parts = stats.format_summary();
+
+    let squash_progress = match stats_parts.is_empty() {
+        true => format!("🔄 {CYAN}Squashing {commit_count} commits into 1...{CYAN:#}"),
+        false => format!(
+            "🔄 {CYAN}Squashing {commit_count} commits into 1 ({})...{CYAN:#}",
+            stats_parts.join(", ")
+        ),
+    };
+    crate::output::progress(squash_progress)?;
 
     // Get commit subjects for the squash message
-    let range = format!("{}..HEAD", merge_base);
     let subjects = repo.commit_subjects(&range)?;
 
     // Generate squash commit message
@@ -327,11 +364,24 @@ fn handle_squash(
     repo.run_command(&["commit", "-m", &commit_message])
         .git_context("Failed to create squash commit")?;
 
+    // Get commit hash for display
+    let commit_hash = repo
+        .run_command(&["rev-parse", "--short", "HEAD"])?
+        .trim()
+        .to_string();
+
     // Show success immediately after completing the squash
     use worktrunk::styling::{GREEN, SUCCESS_EMOJI};
-    crate::output::success(format!(
-        "{SUCCESS_EMOJI} {GREEN}Squashed {commit_count} commits into one{GREEN:#}"
-    ))?;
+    let success_msg = match stats_parts.is_empty() {
+        true => format!(
+            "{SUCCESS_EMOJI} {GREEN}Squashed {commit_count} commits into 1 @ {commit_hash}{GREEN:#}"
+        ),
+        false => format!(
+            "{SUCCESS_EMOJI} {GREEN}Squashed {commit_count} commits into 1 ({}) @ {commit_hash}{GREEN:#}",
+            stats_parts.join(", ")
+        ),
+    };
+    crate::output::success(success_msg)?;
 
     Ok(Some(commit_count))
 }

@@ -670,7 +670,6 @@ pub fn handle_push(
     // Build success message with statistics
     if commit_count > 0 {
         // Parse shortstat to extract files/insertions/deletions
-        // Example: " 3 files changed, 45 insertions(+), 12 deletions(-)"
         let stats = parse_diff_shortstat(&diff_shortstat);
 
         let mut summary_parts = vec![format!(
@@ -678,20 +677,7 @@ pub fn handle_push(
             commit_count,
             if commit_count == 1 { "" } else { "s" }
         )];
-
-        if let Some(files) = stats.files {
-            summary_parts.push(format!(
-                "{} file{}",
-                files,
-                if files == 1 { "" } else { "s" }
-            ));
-        }
-        if let Some(insertions) = stats.insertions {
-            summary_parts.push(format!("{ADDITION}+{insertions}{ADDITION:#}"));
-        }
-        if let Some(deletions) = stats.deletions {
-            summary_parts.push(format!("{DELETION}-{deletions}{DELETION:#}"));
-        }
+        summary_parts.extend(stats.format_summary());
 
         crate::output::progress(format!(
             "{SUCCESS_EMOJI} {GREEN}{verb} {GREEN_BOLD}{target_branch}{GREEN_BOLD:#} ({})  {GREEN:#}",
@@ -707,13 +693,36 @@ pub fn handle_push(
 }
 
 /// Parse git diff --shortstat output
-struct DiffStats {
-    files: Option<usize>,
-    insertions: Option<usize>,
-    deletions: Option<usize>,
+pub struct DiffStats {
+    pub files: Option<usize>,
+    pub insertions: Option<usize>,
+    pub deletions: Option<usize>,
 }
 
-fn parse_diff_shortstat(output: &str) -> DiffStats {
+impl DiffStats {
+    /// Format stats as a summary string (e.g., "3 files, +45, -12")
+    pub fn format_summary(&self) -> Vec<String> {
+        let mut parts = Vec::new();
+
+        if let Some(files) = self.files {
+            parts.push(format!(
+                "{} file{}",
+                files,
+                if files == 1 { "" } else { "s" }
+            ));
+        }
+        if let Some(insertions) = self.insertions {
+            parts.push(format!("{ADDITION}+{insertions}{ADDITION:#}"));
+        }
+        if let Some(deletions) = self.deletions {
+            parts.push(format!("{DELETION}-{deletions}{DELETION:#}"));
+        }
+
+        parts
+    }
+}
+
+pub fn parse_diff_shortstat(output: &str) -> DiffStats {
     let mut stats = DiffStats {
         files: None,
         insertions: None,
