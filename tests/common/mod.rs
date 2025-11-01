@@ -211,6 +211,32 @@ impl TestRepo {
             .expect("Failed to git commit");
     }
 
+    /// Create a commit with a custom message (useful for testing malicious messages)
+    pub fn commit_with_message(&self, message: &str) {
+        // Create a unique file to ensure there's something to commit
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let file_path = self.root.join(format!("file-{}.txt", timestamp));
+        std::fs::write(&file_path, "content").expect("Failed to write file");
+
+        let mut cmd = Command::new("git");
+        self.configure_git_cmd(&mut cmd);
+        cmd.args(["add", "."])
+            .current_dir(&self.root)
+            .output()
+            .expect("Failed to git add");
+
+        let mut cmd = Command::new("git");
+        self.configure_git_cmd(&mut cmd);
+        cmd.args(["commit", "-m", message])
+            .current_dir(&self.root)
+            .output()
+            .expect("Failed to git commit");
+    }
+
     /// Add a worktree with the given name and branch
     pub fn add_worktree(&mut self, name: &str, branch: &str) -> PathBuf {
         // Create worktree inside temp directory to ensure cleanup
