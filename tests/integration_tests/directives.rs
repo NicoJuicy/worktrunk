@@ -80,18 +80,7 @@ fn test_remove_internal_directive() {
             .arg("remove")
             .current_dir(repo.root_path());
 
-        assert_cmd_snapshot!(cmd, @r"
-        success: false
-        exit_code: 1
-        ----- stdout -----
-
-        ----- stderr -----
-        fatal: 'origin' does not appear to be a git repository
-        fatal: Could not read from remote repository.
-
-        Please make sure you have the correct access rights
-        and the repository exists.
-        ");
+        assert_cmd_snapshot!(cmd, @"success: true\nexit_code: 0\n----- stdout -----\n✅ \u{1b}[32mAlready on default branch \u{1b}[1m\u{1b}[32mmain\u{1b}[0m\u{1b}[0m\0\n----- stderr -----");
     });
 }
 
@@ -110,16 +99,12 @@ fn test_remove_without_internal() {
         cmd.arg("remove").current_dir(repo.root_path());
 
         assert_cmd_snapshot!(cmd, @r"
-        success: false
-        exit_code: 1
+        success: true
+        exit_code: 0
         ----- stdout -----
+        ✅ [32mAlready on default branch [1m[32mmain[0m[0m
 
         ----- stderr -----
-        fatal: 'origin' does not appear to be a git repository
-        fatal: Could not read from remote repository.
-
-        Please make sure you have the correct access rights
-        and the repository exists.
         ");
     });
 }

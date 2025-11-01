@@ -402,15 +402,82 @@ impl Repository {
     /// 1. Try local cache (`git rev-parse origin/HEAD`) first - fast, no network
     /// 2. If not cached, query remote (`git ls-remote`) - may take 100ms-2s depending on network
     /// 3. Cache the result (`git remote set-head`) for future invocations
+    /// 4. If no remote available, infer from local branches (no caching, shows hint)
     pub fn default_branch(&self) -> Result<String, GitError> {
-        let remote = self.primary_remote()?;
-        // Try local cache first (fast path)
-        self.get_local_default_branch(&remote).or_else(|_| {
+        // Try to get default branch from remote
+        if let Ok(remote) = self.primary_remote() {
+            // Try local cache first (fast path)
+            if let Ok(branch) = self.get_local_default_branch(&remote) {
+                return Ok(branch);
+            }
+
             // Query remote and cache it
-            let branch = self.query_remote_default_branch(&remote)?;
-            self.cache_default_branch(&remote, &branch)?;
-            Ok(branch)
-        })
+            if let Ok(branch) = self.query_remote_default_branch(&remote) {
+                let _ = self.cache_default_branch(&remote, &branch);
+                return Ok(branch);
+            }
+        }
+
+        // Fallback: No remote or remote query failed, try to infer locally
+        // TODO: Show message to user when using inference fallback:
+        //   "No remote configured. Using inferred default branch: {branch}"
+        //   "To cache the default branch, set up a remote and run: wt config refresh-cache"
+        // Problem: git.rs is in lib crate, output module is in binary.
+        // Options: (1) Return info about whether fallback was used, let callers show message
+        //          (2) Add messages in specific commands (merge.rs, worktree.rs)
+        //          (3) Move output abstraction to lib crate
+        self.infer_default_branch_locally()
+    }
+
+    /// Infer the default branch locally (without remote).
+    ///
+    /// Uses local heuristics when no remote is available:
+    /// 1. If only one local branch exists, use it
+    /// 2. Check what HEAD points to (current branch in main worktree)
+    /// 3. Check user's git config init.defaultBranch
+    /// 4. Look for common branch names (main, master, develop)
+    /// 5. Fail if none of the above work
+    fn infer_default_branch_locally(&self) -> Result<String, GitError> {
+        // 1. If there's only one local branch, use it
+        let branches = self.local_branches()?;
+        if branches.len() == 1 {
+            return Ok(branches[0].clone());
+        }
+
+        // 2. Use the branch HEAD points to (from main worktree)
+        // This is what the main worktree is currently on
+        if let Ok(current) = self.run_command(&["symbolic-ref", "--short", "HEAD"]) {
+            let branch = current.trim().to_string();
+            if !branch.is_empty() {
+                return Ok(branch);
+            }
+        }
+
+        // 3. Check git config init.defaultBranch
+        if let Ok(default) = self.run_command(&["config", "--get", "init.defaultBranch"]) {
+            let branch = default.trim().to_string();
+            if !branch.is_empty() && branches.contains(&branch) {
+                return Ok(branch);
+            }
+        }
+
+        // 4. Look for common branch names
+        for name in ["main", "master", "develop", "trunk"] {
+            if branches.contains(&name.to_string()) {
+                return Ok(name.to_string());
+            }
+        }
+
+        // 5. Give up - can't infer
+        Err(GitError::CommandFailed(
+            "Could not infer default branch. Please specify target branch explicitly or set up a remote.".to_string()
+        ))
+    }
+
+    /// List all local branches.
+    fn local_branches(&self) -> Result<Vec<String>, GitError> {
+        let stdout = self.run_command(&["branch", "--format=%(refname:short)"])?;
+        Ok(stdout.lines().map(|s| s.trim().to_string()).collect())
     }
 
     /// Get the git common directory (the actual .git directory for the repository).

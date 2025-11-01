@@ -65,9 +65,18 @@ fn test_get_default_branch_no_remote() {
     let repo = TestRepo::new();
     repo.commit("Initial commit");
 
-    // No remote configured, should fail
+    // No remote configured, should infer from local branches
+    // Since there's only one local branch, it should return that
     let result = Repository::at(repo.root_path()).default_branch();
-    assert!(result.is_err());
+    assert!(result.is_ok());
+
+    // The inferred branch should match the current branch
+    let inferred_branch = result.unwrap();
+    let current_branch = Repository::at(repo.root_path())
+        .current_branch()
+        .expect("Failed to get current branch")
+        .expect("Should have a current branch");
+    assert_eq!(inferred_branch, current_branch);
 }
 
 #[test]

@@ -294,3 +294,32 @@ fn test_push_error_with_merge_commits() {
         Some(&feature_wt),
     );
 }
+
+#[test]
+fn test_push_no_remote() {
+    let mut repo = TestRepo::new();
+    repo.commit("Initial commit");
+    // Deliberately NOT calling setup_remote to test the error case
+
+    // Create a feature worktree and make a commit
+    let feature_wt = repo.add_worktree("feature", "feature");
+    std::fs::write(feature_wt.join("feature.txt"), "feature content")
+        .expect("Failed to write file");
+
+    let mut cmd = Command::new("git");
+    repo.configure_git_cmd(&mut cmd);
+    cmd.args(["add", "feature.txt"])
+        .current_dir(&feature_wt)
+        .output()
+        .expect("Failed to add file");
+
+    let mut cmd = Command::new("git");
+    repo.configure_git_cmd(&mut cmd);
+    cmd.args(["commit", "-m", "Add feature file"])
+        .current_dir(&feature_wt)
+        .output()
+        .expect("Failed to commit");
+
+    // Try to push without specifying target (should fail - no remote to get default branch)
+    snapshot_push("push_no_remote", &repo, &[], Some(&feature_wt));
+}
