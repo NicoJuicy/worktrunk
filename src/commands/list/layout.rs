@@ -31,12 +31,14 @@ fn try_allocate(
     ideal_width // Return just the column width
 }
 
-/// Width information for diff columns (e.g., "+128 -147")
+/// Width information for two-part columns: diffs ("+128 -147") and arrows ("↑6 ↓1")
+/// - For diff columns: added_digits/deleted_digits refer to line change counts
+/// - For arrow columns: added_digits/deleted_digits refer to ahead/behind commit counts
 #[derive(Clone, Copy, Debug)]
 pub struct DiffWidths {
     pub total: usize,
-    pub added_digits: usize,
-    pub deleted_digits: usize,
+    pub added_digits: usize,   // First part: + for diffs, ↑ for arrows
+    pub deleted_digits: usize, // Second part: - for diffs, ↓ for arrows
 }
 
 impl DiffWidths {

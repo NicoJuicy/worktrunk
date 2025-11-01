@@ -579,4 +579,40 @@ mod tests {
             "Unicode and ASCII branches should pad to same visual width"
         );
     }
+
+    #[test]
+    fn test_arrow_column_alignment_invariant() {
+        // Test that arrow columns maintain consistent width regardless of values
+        // This ensures down arrows always appear at the same horizontal position
+        use super::super::layout::DiffWidths;
+        use super::format_arrow_column;
+        use worktrunk::styling::{ADDITION, DELETION};
+
+        let widths = DiffWidths {
+            total: 7, // "↑99 ↓99" = 1+2+1+1+2 = 7
+            added_digits: 2,
+            deleted_digits: 2,
+        };
+
+        let dim_deletion = DELETION.dimmed();
+
+        // All these cases should produce identical width (vertical alignment)
+        let test_cases = vec![
+            (0, 0, "both zero"),
+            (1, 0, "only ahead"),
+            (0, 1, "only behind"),
+            (1, 1, "both single digit"),
+            (99, 99, "both max digits"),
+            (5, 44, "mixed digits"),
+        ];
+
+        for (ahead, behind, description) in test_cases {
+            let result = format_arrow_column(ahead, behind, &widths, ADDITION, dim_deletion);
+            assert_eq!(
+                result.width(),
+                7,
+                "Arrow column ({ahead}, {behind}) [{description}] should always be width 7"
+            );
+        }
+    }
 }
