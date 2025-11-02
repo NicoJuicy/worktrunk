@@ -325,9 +325,10 @@ pub fn commit_with_generated_message(
         .trim()
         .to_string();
 
-    use worktrunk::styling::{GREEN, HINT, SUCCESS_EMOJI};
+    use worktrunk::styling::{GREEN, SUCCESS_EMOJI};
+    let green_dim = GREEN.dimmed();
     crate::output::success(format!(
-        "{SUCCESS_EMOJI} {GREEN}Committed changes{GREEN:#} @ {HINT}{commit_hash}{HINT:#}"
+        "{SUCCESS_EMOJI} {GREEN}Committed changes @ {green_dim}{commit_hash}{green_dim:#}{GREEN:#}"
     ))?;
 
     Ok(())

@@ -290,8 +290,9 @@ pub fn handle_dev_squash(
 
     // Show success immediately after completing the squash
     use worktrunk::styling::{GREEN, SUCCESS_EMOJI};
+    let green_dim = GREEN.dimmed();
     crate::output::success(format!(
-        "{SUCCESS_EMOJI} {GREEN}Squashed {commit_count} commits into 1{GREEN:#} @ {HINT}{commit_hash}{HINT:#}"
+        "{SUCCESS_EMOJI} {GREEN}Squashed {commit_count} commits into 1 @ {green_dim}{commit_hash}{green_dim:#}{GREEN:#}"
     ))?;
 
     Ok(Some(SquashInfo {

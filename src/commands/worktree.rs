@@ -104,8 +104,8 @@ use std::path::PathBuf;
 use worktrunk::config::{ProjectConfig, WorktrunkConfig};
 use worktrunk::git::{GitError, GitResultExt, Repository};
 use worktrunk::styling::{
-    ADDITION, AnstyleStyle, CYAN, CYAN_BOLD, DELETION, GREEN, GREEN_BOLD, HINT, SUCCESS_EMOJI,
-    WARNING, WARNING_EMOJI, format_bash_with_gutter,
+    ADDITION, AnstyleStyle, CYAN, CYAN_BOLD, DELETION, GREEN, GREEN_BOLD, SUCCESS_EMOJI, WARNING,
+    WARNING_EMOJI, format_bash_with_gutter,
 };
 
 use super::command_executor::{CommandContext, prepare_project_commands};
@@ -675,9 +675,10 @@ pub fn handle_push(
         }
 
         let operations_text = operations.join(", ");
+        let cyan_dim = CYAN.dimmed();
 
         crate::output::progress(format!(
-            "🔄 {CYAN}{verb_ing} {commit_count} {commit_text} to {CYAN_BOLD}{target_branch}{CYAN_BOLD:#}{CYAN:#} @ {HINT}{head_sha}{HINT:#} ({operations_text})\n"
+            "🔄 {CYAN}{verb_ing} {commit_count} {commit_text} to {CYAN_BOLD}{target_branch}{CYAN_BOLD:#} @ {cyan_dim}{head_sha}{cyan_dim:#}{CYAN:#} ({operations_text})\n"
         ))?;
 
         // Show the commit graph with color

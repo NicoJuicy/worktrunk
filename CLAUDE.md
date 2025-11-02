@@ -220,7 +220,7 @@ output.push_str(&format!("{}", anstyle::Reset));
 
 **Principle: Bold what answers the user's question, dim what provides context.**
 
-Style based on **user intent**, not data type. In messages, branch names are always bold. When a path is part of an action phrase (e.g., "changed directory to {path}"), it's bold because it answers "where?". When shown as supplementary metadata on a separate line (e.g., "Path: ..."), it's dimmed. Commit hashes are always dimmed (reference info).
+Style based on **user intent**, not data type. In messages, branch names are always bold. When a path is part of an action phrase (e.g., "changed directory to {path}"), it's bold because it answers "where?". When shown as supplementary metadata on a separate line (e.g., "Path: ..."), it's dimmed. Commit hashes are always dimmed in their surrounding color (reference info).
 
 Styled elements must maintain their surrounding color. Don't apply just `{bold}` or `{dim}` to elements in colored messages - compose the color with the style using `.bold()` or `.dimmed()` on the color style. Applying a style without color creates a color leak - the styled element loses its context color and appears in default terminal colors (black/white).
 
@@ -239,8 +239,9 @@ println!("✅ {green}Message {green_bold}{path}{green_bold:#}");
 let green_bold = GREEN.bold();
 println!("✅ {GREEN}Created worktree, changed directory to {green_bold}{}{green_bold:#}", path.display());
 
-// Commit hash as reference info (outside colored context - OK to use HINT directly)
-println!("✅ {GREEN}Committed changes{GREEN:#} @ {HINT}{hash}{HINT:#}");  // OK - hash is outside green
+// Commit hash as reference info - dimmed in surrounding color
+let green_dim = GREEN.dimmed();
+println!("✅ {GREEN}Committed changes @ {green_dim}{hash}{green_dim:#}{GREEN:#}");
 
 // Path as supplementary metadata (separate line) - dimmed in unstyled context
 let dim = AnstyleStyle::new().dimmed();
