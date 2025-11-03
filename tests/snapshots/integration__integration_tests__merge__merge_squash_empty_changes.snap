@@ -16,7 +16,7 @@ info:
     LANG: C
     LC_ALL: C
     SOURCE_DATE_EPOCH: "1761609600"
-    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpH8oAuT/test-config.toml
+    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpWF2f24/test-config.toml
 ---
 success: false
 exit_code: 1
@@ -24,12 +24,12 @@ exit_code: 1
 🔄 [36mSquashing 3 commits into 1...[0m
 🔄 [36mGenerating squash commit message...[0m
 💡 [2mUsing fallback commit message. Run 'wt config help' to configure LLM-generated messages[0m
-[40m [0m [1mSquash commits from main[0m
-[40m [0m 
-[40m [0m Combined commits:
-[40m [0m - Change 1
-[40m [0m - Change 2
-[40m [0m - Revert to initial
+[40m [0m  [1mSquash commits from main[0m
+[40m [0m  
+[40m [0m  Combined commits:
+[40m [0m  - Change 1
+[40m [0m  - Change 2
+[40m [0m  - Revert to initial
 
 
 ----- stderr -----

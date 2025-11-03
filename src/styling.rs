@@ -290,7 +290,8 @@ fn wrap_text_at_width(text: &str, max_width: usize) -> Vec<String> {
 /// * `left_margin` - Should always be "" (gutter provides all visual separation)
 /// * `max_width` - Optional maximum width (for testing). If None, auto-detects terminal width.
 ///
-/// The gutter appears at column 0, followed by 1 space, then the content at column 1.
+/// The gutter appears at column 0, followed by 2 spaces, then the content starts at column 3.
+/// This aligns with emoji messages where the emoji (2 columns) + space (1 column) also starts content at column 3.
 ///
 /// # Example
 /// ```ignore
@@ -304,9 +305,9 @@ pub fn format_with_gutter(content: &str, left_margin: &str, max_width: Option<us
     // Use provided width or detect terminal width (respects COLUMNS env var)
     let term_width = max_width.unwrap_or_else(get_terminal_width);
 
-    // Account for gutter (1) + space (1) + left_margin
+    // Account for gutter (1) + spaces (2) + left_margin
     let left_margin_width = left_margin.width();
-    let available_width = term_width.saturating_sub(2 + left_margin_width);
+    let available_width = term_width.saturating_sub(3 + left_margin_width);
 
     for line in content.lines() {
         // Wrap the line at word boundaries
@@ -314,7 +315,7 @@ pub fn format_with_gutter(content: &str, left_margin: &str, max_width: Option<us
 
         for wrapped_line in wrapped_lines {
             output.push_str(&format!(
-                "{left_margin}{gutter} {gutter:#} {wrapped_line}\n"
+                "{left_margin}{gutter} {gutter:#}  {wrapped_line}\n"
             ));
         }
     }
@@ -340,7 +341,7 @@ pub fn format_bash_with_gutter(content: &str, left_margin: &str) -> String {
     // Calculate available width for wrapping
     let term_width = get_terminal_width();
     let left_margin_width = left_margin.width();
-    let available_width = term_width.saturating_sub(2 + left_margin_width);
+    let available_width = term_width.saturating_sub(3 + left_margin_width);
 
     // Wrap lines at word boundaries
     let mut wrapped_lines = Vec::new();
@@ -389,7 +390,7 @@ pub fn format_bash_with_gutter(content: &str, left_margin: &str) -> String {
 
     // Process each wrapped line
     for line in &wrapped_lines {
-        output.push_str(&format!("{left_margin}{gutter} {gutter:#} "));
+        output.push_str(&format!("{left_margin}{gutter} {gutter:#}  "));
 
         // Highlight this line
         let Ok(highlights) = highlighter.highlight(&config, line.as_bytes(), None, |_| None) else {
@@ -503,7 +504,7 @@ pub fn format_toml(content: &str, left_margin: &str) -> String {
             let mut output = String::new();
             for line in content.lines() {
                 output.push_str(&format!(
-                    "{left_margin}{gutter} {gutter:#} {dim}{line}{dim:#}\n"
+                    "{left_margin}{gutter} {gutter:#}  {dim}{line}{dim:#}\n"
                 ));
             }
             return output;
@@ -519,7 +520,7 @@ pub fn format_toml(content: &str, left_margin: &str) -> String {
     // Render each line with appropriate styling
     for (y, line) in lines.iter().enumerate() {
         // Add left margin, gutter, and spacing
-        output.push_str(&format!("{left_margin}{gutter} {gutter:#} "));
+        output.push_str(&format!("{left_margin}{gutter} {gutter:#}  "));
 
         // Render each token with appropriate styling
         for token in highlighter.line(y, line) {
@@ -820,11 +821,11 @@ command = "npm install"
         let result = format_with_gutter(commit_msg, "", Some(80));
 
         insta::assert_snapshot!(result, @r"
-        [40m [0m This commit refactors the authentication system to use a more secure
-        [40m [0m token-based approach instead of the previous session-based system which had
-        [40m [0m several security vulnerabilities that were identified during the security
-        [40m [0m audit last month. The new implementation follows industry best practices and
-        [40m [0m includes proper token rotation and expiration handling.
+        [40m [0m  This commit refactors the authentication system to use a more secure
+        [40m [0m  token-based approach instead of the previous session-based system which had
+        [40m [0m  several security vulnerabilities that were identified during the security
+        [40m [0m  audit last month. The new implementation follows industry best practices and
+        [40m [0m  includes proper token rotation and expiration handling.
         ");
     }
 

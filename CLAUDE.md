@@ -359,10 +359,10 @@ print!("{}", format_with_gutter(&command));
 **Example output:**
 ```
 🔄 Executing (post-create):
- npm install
+  npm install
 ```
 
-The colored space at column 0 provides visual separation from surrounding text.
+The colored space at column 0 provides visual separation from surrounding text. Content starts at column 3 (gutter + 2 spaces) to align with emoji messages where the emoji (2 columns) + space (1 column) also starts content at column 3.
 
 ## Output System Architecture
 

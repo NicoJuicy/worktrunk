@@ -4,12 +4,12 @@ expression: output
 ---
 Exit code: 0
 🔄 [36mRunning pre-merge: [1mfirst[0m[0m
-[40m [0m [1m[34mecho[0m [32m'STDOUT-FROM-FIRST'[0m [36m&&[0m [1m[34mecho[0m [32m'STDERR-FROM-FIRST'[0m >&2[0m
+[40m [0m  [1m[34mecho[0m [32m'STDOUT-FROM-FIRST'[0m [36m&&[0m [1m[34mecho[0m [32m'STDERR-FROM-FIRST'[0m >&2[0m
 
 [0mSTDOUT-FROM-FIRST
 STDERR-FROM-FIRST
 🔄 [36mRunning pre-merge: [1msecond[0m[0m
-[40m [0m [1m[34mecho[0m [32m'STDOUT-FROM-SECOND'[0m [36m&&[0m [1m[34mecho[0m [32m'STDERR-FROM-SECOND'[0m >&2[0m
+[40m [0m  [1m[34mecho[0m [32m'STDOUT-FROM-SECOND'[0m [36m&&[0m [1m[34mecho[0m [32m'STDERR-FROM-SECOND'[0m >&2[0m
 
 [0mSTDOUT-FROM-SECOND
 STDERR-FROM-SECOND

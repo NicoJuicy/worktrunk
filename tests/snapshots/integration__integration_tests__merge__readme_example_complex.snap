@@ -16,31 +16,31 @@ info:
     GIT_EDITOR: ""
     LANG: C
     LC_ALL: C
-    PATH: "/private/var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpWSudxg/test-repo/.bin:/Users/maximilian/.cargo/bin:/Users/maximilian/.local/bin:/Users/maximilian/.bun/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    PATH: "/private/var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpavcSQw/test-repo/.bin:/Users/maximilian/.cargo/bin:/Users/maximilian/.local/bin:/Users/maximilian/.bun/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     SOURCE_DATE_EPOCH: "1761609600"
-    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpWSudxg/test-config.toml
+    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpavcSQw/test-config.toml
 ---
 success: true
 exit_code: 0
 ----- stdout -----
 🔄 [36mSquashing 3 commits into 1[0m (3 files, [32m+3[0m)...
 🔄 [36mGenerating squash commit message...[0m
-[40m [0m [1mfeat(auth): Implement JWT authentication system[0m
-[40m [0m 
-[40m [0m Add comprehensive JWT token handling including validation, refresh logic,
-[40m [0m and authentication tests. This establishes the foundation for secure
-[40m [0m API authentication.
-[40m [0m 
-[40m [0m - Implement token refresh mechanism with expiry handling
-[40m [0m - Add JWT encoding/decoding with signature verification
-[40m [0m - Create test suite covering all authentication flows
+[40m [0m  [1mfeat(auth): Implement JWT authentication system[0m
+[40m [0m  
+[40m [0m  Add comprehensive JWT token handling including validation, refresh logic,
+[40m [0m  and authentication tests. This establishes the foundation for secure
+[40m [0m  API authentication.
+[40m [0m  
+[40m [0m  - Implement token refresh mechanism with expiry handling
+[40m [0m  - Add JWT encoding/decoding with signature verification
+[40m [0m  - Create test suite covering all authentication flows
 
 ✅ [32mSquashed @ [2m[SHA][0m
 🔄 [36mRunning pre-merge: [1mlint[0m[0m
-[40m [0m [1m[34mcargo[0m clippy[0m
+[40m [0m  [1m[34mcargo[0m clippy[0m
 
 🔄 [36mRunning pre-merge: [1mtest[0m[0m
-[40m [0m [1m[34mcargo[0m test[0m
+[40m [0m  [1m[34mcargo[0m test[0m
 
 🔄 [36mMerging 1 commit to [1m[36mmain[0m @ [2m[SHA][0m (no rebasing needed)
 
@@ -55,7 +55,7 @@ exit_code: 0
 🔄 [36mCleaning up worktree...[0m
 ✅ [32mReturned to primary at [1m[32m[REPO][0m[0m
 🔄 [36mRunning post-merge: [1minstall[0m[0m
-[40m [0m [1m[34mcargo[0m install [36m--path[0m .[0m
+[40m [0m  [1m[34mcargo[0m install [36m--path[0m .[0m
 
 
 ----- stderr -----
