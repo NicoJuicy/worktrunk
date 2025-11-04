@@ -458,6 +458,26 @@ eval "$(wt init oil)"
 
 Worktrunk is in active development. The core features are stable and ready for use. While the project is pre-1.0, the CLI interface and major features are unlikely to change significantly.
 
+## Developing
+
+<details>
+<summary><b>Version Bumping</b></summary>
+
+Uses [cargo-release](https://github.com/crate-ci/cargo-release):
+
+```bash
+cargo install cargo-release
+
+# Bump version, commit, tag, and push
+cargo release patch --execute   # 0.1.0 -> 0.1.1
+cargo release minor --execute   # 0.1.0 -> 0.2.0
+cargo release major --execute   # 0.1.0 -> 1.0.0
+```
+
+Omit `--execute` for dry-run.
+
+</details>
+
 ## FAQ
 
 ### Installation fails with C compilation errors
