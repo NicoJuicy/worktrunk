@@ -239,7 +239,7 @@ pub fn format_all_states(item: &ListItem) -> String {
 }
 
 pub fn format_header_line(layout: &LayoutConfig) {
-    let style = Style::new();
+    let style = Style::new().bold();
     let mut line = StyledLine::new();
 
     for (i, column) in layout.columns.iter().enumerate() {
