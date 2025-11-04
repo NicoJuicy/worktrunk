@@ -27,7 +27,12 @@ pub struct WorktreeInfo {
     #[serde(flatten)]
     pub counts: AheadBehind,
     pub working_tree_diff: (usize, usize),
-    pub working_tree_diff_with_main: (usize, usize),
+    /// Diff between working tree and main branch.
+    /// `None` means "not computed" (optimization: skipped when trees differ).
+    /// `Some((0, 0))` means working tree matches main exactly.
+    /// `Some((a, d))` means a lines added, d deleted vs main.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub working_tree_diff_with_main: Option<(usize, usize)>,
     #[serde(flatten)]
     pub branch_diff: BranchDiffTotals,
     pub is_primary: bool,
@@ -318,11 +323,46 @@ impl WorktreeInfo {
         let base_branch = primary.branch.as_deref().filter(|_| !is_primary);
         let counts = AheadBehind::compute(&wt_repo, base_branch, &wt.head)?;
 
-        let working_tree_diff = wt_repo.working_tree_diff_stats()?;
-        let working_tree_diff_with_main = if let Some(base) = base_branch {
-            wt_repo.working_tree_diff_vs_ref(base)?
+        // Fast dirty check - only compute expensive numstat if working tree is dirty
+        let is_dirty = wt_repo
+            .run_command(&["diff-index", "--quiet", "HEAD", "--"])
+            .is_err(); // Exit code 1 = dirty
+
+        let working_tree_diff = if is_dirty {
+            wt_repo.working_tree_diff_stats()?
         } else {
-            (0, 0)
+            (0, 0) // Clean working tree
+        };
+
+        // Use tree equality check instead of expensive diff for "matches main"
+        let working_tree_diff_with_main = if let Some(base) = base_branch {
+            // Get tree hashes for HEAD and base branch
+            let head_tree = wt_repo
+                .run_command(&["rev-parse", "HEAD^{tree}"])?
+                .trim()
+                .to_string();
+            let base_tree = wt_repo
+                .run_command(&["rev-parse", &format!("{}^{{tree}}", base)])?
+                .trim()
+                .to_string();
+
+            if head_tree == base_tree {
+                // Trees are identical - check if working tree is also clean
+                if is_dirty {
+                    // Rare case: trees match but working tree has uncommitted changes
+                    // Need to compute actual diff to get accurate line counts
+                    Some(wt_repo.working_tree_diff_vs_ref(base)?)
+                } else {
+                    // Trees match and working tree is clean → matches main exactly
+                    Some((0, 0))
+                }
+            } else {
+                // Trees differ - skip the expensive scan
+                // Return None to indicate "not computed" (optimization)
+                None
+            }
+        } else {
+            Some((0, 0)) // Primary worktree always matches itself
         };
         let branch_diff = BranchDiffTotals::compute(&wt_repo, base_branch, &wt.head)?;
         let upstream = UpstreamStatus::calculate(&wt_repo, wt.branch.as_deref(), &wt.head)?;

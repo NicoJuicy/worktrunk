@@ -1,5 +1,6 @@
 ---
 source: tests/integration_tests/list.rs
+assertion_line: 73
 info:
   program: wt
   args:
@@ -16,7 +17,7 @@ info:
     LANG: C
     LC_ALL: C
     SOURCE_DATE_EPOCH: "1761609600"
-    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpE2ELVC/test-config.toml
+    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpTx0Jtg/test-config.toml
 ---
 success: true
 exit_code: 0
@@ -76,10 +77,6 @@ exit_code: 0
       1,
       1
     ],
-    "working_tree_diff_with_main": [
-      2,
-      1
-    ],
     "branch_diff": [
       1,
       0
@@ -113,10 +110,6 @@ exit_code: 0
     "working_tree_diff": [
       0,
       0
-    ],
-    "working_tree_diff_with_main": [
-      1,
-      1
     ],
     "branch_diff": [
       0,

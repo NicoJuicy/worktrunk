@@ -674,7 +674,7 @@ mod tests {
                 behind: 2,
             },
             working_tree_diff: (100, 50),
-            working_tree_diff_with_main: (0, 0),
+            working_tree_diff_with_main: Some((0, 0)),
             branch_diff: BranchDiffTotals { diff: (200, 30) },
             is_primary: false,
             upstream: UpstreamStatus::from_parts(Some("origin".to_string()), 4, 0),
@@ -748,7 +748,7 @@ mod tests {
                 behind: 10,
             },
             working_tree_diff: (100, 50),
-            working_tree_diff_with_main: (0, 0),
+            working_tree_diff_with_main: Some((0, 0)),
             branch_diff: BranchDiffTotals { diff: (200, 30) },
             is_primary: false,
             upstream: UpstreamStatus::from_parts(Some("origin".to_string()), 4, 2),
@@ -821,7 +821,7 @@ mod tests {
                 behind: 0,
             },
             working_tree_diff: (0, 0),
-            working_tree_diff_with_main: (0, 0),
+            working_tree_diff_with_main: Some((0, 0)),
             branch_diff: BranchDiffTotals { diff: (0, 0) },
             is_primary: true, // Primary worktree: no ahead/behind shown
             upstream: UpstreamStatus::default(),
@@ -895,7 +895,7 @@ mod tests {
                 behind: 0,
             },
             working_tree_diff: (0, 0), // Hidden: no dirty changes
-            working_tree_diff_with_main: (0, 0),
+            working_tree_diff_with_main: Some((0, 0)),
             branch_diff: BranchDiffTotals { diff: (0, 0) }, // Hidden: no diff
             is_primary: true,                               // Hidden: no ahead/behind for primary
             upstream: UpstreamStatus::default(),            // Hidden: no upstream

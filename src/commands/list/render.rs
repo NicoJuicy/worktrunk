@@ -207,7 +207,7 @@ pub fn format_all_states(item: &ListItem) -> String {
     if let Some(info) = item.worktree_info() {
         // State priority: "matches main" takes precedence over "no commits"
         // since it's more specific (working tree identical to main)
-        if !info.is_primary && info.working_tree_diff_with_main == (0, 0) {
+        if !info.is_primary && info.working_tree_diff_with_main == Some((0, 0)) {
             states.push("(matches main)".to_string());
         } else if !info.is_primary && item.counts().ahead == 0 && info.working_tree_diff == (0, 0) {
             // Only show "no commits" if working tree doesn't match main
@@ -270,7 +270,7 @@ fn optional_reason_state(label: &str, reason: Option<&str>) -> Option<String> {
 /// Dims when (using OR logic):
 /// - No commits AND clean working tree (ahead == 0 AND working_tree_diff == (0, 0)):
 ///   The worktree has no commits ahead and no uncommitted changes
-/// - Working tree matches main (working_tree_diff_with_main == (0, 0)):
+/// - Working tree matches main (working_tree_diff_with_main == Some((0, 0))):
 ///   The working tree contents are identical to main, regardless of commit history
 ///
 /// Either condition alone is sufficient to dim, as both indicate "no unique work here".
@@ -286,7 +286,7 @@ fn is_potentially_removable(item: &ListItem) -> bool {
         let no_commits_and_clean = counts.ahead == 0 && info.working_tree_diff == (0, 0);
 
         // Condition 2: Working tree matches main (regardless of commit history)
-        let matches_main = info.working_tree_diff_with_main == (0, 0);
+        let matches_main = info.working_tree_diff_with_main == Some((0, 0));
 
         no_commits_and_clean || matches_main
     } else {
