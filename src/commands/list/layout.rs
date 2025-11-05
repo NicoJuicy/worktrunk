@@ -291,6 +291,7 @@ pub struct LayoutConfig {
     pub columns: Vec<ColumnLayout>,
     pub common_prefix: PathBuf,
     pub max_message_len: usize,
+    pub hidden_nonempty_count: usize,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -541,6 +542,12 @@ pub fn calculate_responsive_layout(
 
     candidates.sort_by_key(|candidate| candidate.priority);
 
+    // Store which candidates have data for later calculation of hidden columns
+    let candidates_with_data: Vec<_> = candidates
+        .iter()
+        .map(|c| (c.spec.kind, column_has_data(c.spec.kind, &data_flags)))
+        .collect();
+
     const MIN_MESSAGE: usize = 20;
     const PREFERRED_MESSAGE: usize = 50;
     const MAX_MESSAGE: usize = 100;
@@ -629,10 +636,19 @@ pub fn calculate_responsive_layout(
         });
     }
 
+    // Count how many non-empty columns were hidden (not allocated)
+    let allocated_kinds: std::collections::HashSet<_> =
+        columns.iter().map(|col| col.kind).collect();
+    let hidden_nonempty_count = candidates_with_data
+        .iter()
+        .filter(|(kind, has_data)| !allocated_kinds.contains(kind) && *has_data)
+        .count();
+
     LayoutConfig {
         columns,
         common_prefix,
         max_message_len,
+        hidden_nonempty_count,
     }
 }
 

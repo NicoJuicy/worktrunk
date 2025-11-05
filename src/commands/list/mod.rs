@@ -113,14 +113,14 @@ pub fn handle_list(
             for item in &items {
                 format_list_item_line(item, &layout, current_worktree_path.as_ref());
             }
-            display_summary(&items, show_branches);
+            display_summary(&items, show_branches, &layout);
         }
     }
 
     Ok(())
 }
 
-fn display_summary(items: &[ListItem], include_branches: bool) {
+fn display_summary(items: &[ListItem], include_branches: bool, layout: &layout::LayoutConfig) {
     use anstyle::Style;
 
     if items.is_empty() {
@@ -162,6 +162,18 @@ fn display_summary(items: &[ListItem], include_branches: bool) {
 
     if metrics.behind_items > 0 {
         parts.push(format!("{} behind", metrics.behind_items));
+    }
+
+    if layout.hidden_nonempty_count > 0 {
+        let plural = if layout.hidden_nonempty_count == 1 {
+            "column"
+        } else {
+            "columns"
+        };
+        parts.push(format!(
+            "{} {} hidden",
+            layout.hidden_nonempty_count, plural
+        ));
     }
 
     let summary = parts.join(", ");
