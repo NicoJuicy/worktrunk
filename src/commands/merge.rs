@@ -139,7 +139,7 @@ pub fn handle_merge(
         use worktrunk::styling::GREEN;
         let green_bold = GREEN.bold();
         crate::output::success(format!(
-            "{GREEN}Already on {green_bold}{target_branch}{green_bold:#}, nothing to merge{GREEN:#}"
+            "{GREEN}Already on {green_bold}{target_branch}{green_bold:#}{GREEN}, nothing to merge{GREEN:#}"
         ))?;
         return Ok(());
     }

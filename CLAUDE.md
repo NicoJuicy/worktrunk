@@ -349,6 +349,14 @@ println!("✅ {GREEN}Created worktree, changed directory to {green_bold}{}{green
 let green_dim = GREEN.dimmed();
 println!("✅ {GREEN}Committed changes @ {green_dim}{hash}{green_dim:#}{GREEN:#}");
 
+// CRITICAL: Styled elements in the MIDDLE of messages
+// When a styled element appears mid-message with text after it, re-establish the outer color
+// because {styled:#} resets ALL attributes including the outer color
+let green_bold = GREEN.bold();
+println!("✅ {GREEN}Already on {green_bold}{branch}{green_bold:#}{GREEN}, nothing to merge{GREEN:#}");
+//                                                      ^^^^^^^ Re-establish GREEN here!
+// Without re-establishing GREEN, ", nothing to merge" would appear in default color (black/white)
+
 // Parenthesized suffixes - unstyled even in colored messages
 let cyan_dim = CYAN.dimmed();
 println!("🔄 {CYAN}Merging to main @ {cyan_dim}{hash}{cyan_dim:#}{CYAN:#} (no squashing needed)");

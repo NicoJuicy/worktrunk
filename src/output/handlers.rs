@@ -45,18 +45,25 @@ fn format_remove_message(result: &RemoveResult, branch: Option<&str>) -> String 
                 "Removed worktree & branch"
             };
 
-            let branch_suffix = branch
-                .or(Some(branch_name))
-                .map(|b| format!(" for {green_bold}{b}{green_bold:#}"))
-                .unwrap_or_default();
+            let branch_display = branch.or(Some(branch_name));
 
             if *changed_directory {
-                format!(
-                    "{GREEN}{action}{branch_suffix}, returned to primary at {green_bold}{}{green_bold:#}{GREEN:#}",
-                    primary_path.display()
-                )
+                if let Some(b) = branch_display {
+                    // Re-establish GREEN after each green_bold reset to prevent color leak
+                    format!(
+                        "{GREEN}{action} for {green_bold}{b}{green_bold:#}{GREEN}, returned to primary at {green_bold}{}{green_bold:#}{GREEN:#}",
+                        primary_path.display()
+                    )
+                } else {
+                    format!(
+                        "{GREEN}{action}, returned to primary at {green_bold}{}{green_bold:#}{GREEN:#}",
+                        primary_path.display()
+                    )
+                }
+            } else if let Some(b) = branch_display {
+                format!("{GREEN}{action} for {green_bold}{b}{green_bold:#}{GREEN:#}")
             } else {
-                format!("{GREEN}{action}{branch_suffix}{GREEN:#}")
+                format!("{GREEN}{action}{GREEN:#}")
             }
         }
         RemoveResult::SwitchedToDefault(branch) => {

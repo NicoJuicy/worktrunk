@@ -94,13 +94,17 @@ pub(crate) fn format_switch_success_message(
     } else {
         "Switched to worktree for"
     };
-    let base_suffix = base_branch
-        .map(|b| format!(" from {green_bold}{b}{green_bold:#}{GREEN}"))
-        .unwrap_or_default();
     let location = if use_past_tense { ":" } else { " at" };
 
-    format!(
-        "{GREEN}{action} {green_bold}{branch}{green_bold:#}{GREEN}{base_suffix}{location} {green_bold}{}{green_bold:#}{GREEN:#}",
-        path.display()
-    )
+    // Re-establish GREEN after each green_bold reset to prevent color leak
+    match base_branch {
+        Some(base) => format!(
+            "{GREEN}{action} {green_bold}{branch}{green_bold:#}{GREEN} from {green_bold}{base}{green_bold:#}{GREEN}{location} {green_bold}{}{green_bold:#}{GREEN:#}",
+            path.display()
+        ),
+        None => format!(
+            "{GREEN}{action} {green_bold}{branch}{green_bold:#}{GREEN}{location} {green_bold}{}{green_bold:#}{GREEN:#}",
+            path.display()
+        ),
+    }
 }
