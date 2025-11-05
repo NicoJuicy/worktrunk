@@ -222,7 +222,7 @@ pub fn handle_select() -> Result<(), GitError> {
 
             // Add status symbols for worktrees (fixed width)
             let status = if let Some(wt_info) = item.worktree_info() {
-                format!("{:^8}", wt_info.status_symbols)
+                format!("{:^8}", wt_info.status_symbols.render())
             } else {
                 "        ".to_string()
             };

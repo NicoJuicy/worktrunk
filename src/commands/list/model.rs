@@ -42,7 +42,7 @@ pub struct WorktreeInfo {
     pub pr_status: Option<PrStatus>,
     pub has_conflicts: bool,
     /// Git status symbols (=, ↑, ↓, ⇡, ⇣, ?, !, +, », ✘) indicating working tree state
-    pub status_symbols: String,
+    pub status_symbols: StatusSymbols,
     /// User-defined status from worktrunk.status git config
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_status: Option<String>,
@@ -355,16 +355,121 @@ fn read_user_status(repo: &Repository, branch: Option<&str>) -> Option<String> {
     read_branch_keyed_status(repo, branch)
 }
 
+/// Structured status symbols for aligned rendering
+///
+/// Symbols are categorized to enable vertical alignment in table output:
+/// - Position 0: Prefix symbols (=, ≡, ∅, ↻, ⋈, ◇, ⊠, ⚠)
+/// - Position 1: Main branch divergence (↑, ↓, or ↕)
+/// - Position 2: Remote/upstream divergence (⇡, ⇣, or ⇅)
+/// - Position 3+: Working tree symbols (?, !, +, », ✘)
+///
+/// ## Mutual Exclusivity
+///
+/// Symbols within each position may or may not be mutually exclusive:
+///
+/// **Mutually exclusive:**
+/// - ≡ vs ∅: Can't both match main AND have no commits
+/// - ↻ vs ⋈: Only one git operation at a time
+/// - ↑ vs ↓ vs ↕: Main divergence states (ahead, behind, or both)
+/// - ⇡ vs ⇣ vs ⇅: Upstream divergence states (ahead, behind, or both)
+///
+/// **NOT mutually exclusive (can co-occur):**
+/// - = with ↻/⋈: Can have conflicts during rebase/merge
+/// - ◇, ⊠, ⚠: Worktree can be bare+locked, bare+prunable, etc.
+/// - All working tree symbols (?!+»✘): Can have multiple types of changes
+///
+/// Current implementation uses semantic grouping (co-occurrence allowed) for
+/// compactness. True mutual exclusivity would require ~9 positions.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct StatusSymbols {
+    /// Blocking and state symbols: =, ≡, ∅, ↻, ⋈, ◇, ⊠, ⚠
+    /// Position 0 - NOT mutually exclusive (can combine like "=↻")
+    prefix: String,
+
+    /// Main branch divergence: ↑ (ahead) OR ↓ (behind) OR ↕ (diverged)
+    /// Position 1 - MUTUALLY EXCLUSIVE (single character)
+    main_divergence: String,
+
+    /// Remote/upstream divergence: ⇡ (ahead) OR ⇣ (behind) OR ⇅ (diverged)
+    /// Position 2 - MUTUALLY EXCLUSIVE (single character)
+    upstream_divergence: String,
+
+    /// Working tree changes: ?, !, +, », ✘
+    /// Position 3+ - NOT mutually exclusive (can have "?!+" etc.)
+    working_tree: String,
+}
+
+impl StatusSymbols {
+    /// Render symbols with full alignment
+    ///
+    /// Aligns all symbol types at fixed positions:
+    /// - Position 0: State symbols (=, ≡, ∅, etc.) OR space
+    /// - Position 1: Main divergence (↑ or ↓) OR space
+    /// - Position 2: Upstream divergence (⇡ or ⇣) OR space
+    /// - Position 3+: Working tree symbols (!, +, », ?, ✘)
+    ///
+    /// This ensures vertical scannability - each symbol type appears at the same
+    /// column position across all rows.
+    pub fn render(&self) -> String {
+        let mut result = String::with_capacity(10);
+
+        let has_any_content = !self.prefix.is_empty()
+            || !self.main_divergence.is_empty()
+            || !self.upstream_divergence.is_empty()
+            || !self.working_tree.is_empty();
+
+        if !has_any_content {
+            return result;
+        }
+
+        // Position 0: Prefix (state symbols)
+        if self.prefix.is_empty() {
+            result.push(' ');
+        } else {
+            result.push_str(&self.prefix);
+        }
+
+        // Position 1: Main divergence (↑ or ↓)
+        if self.main_divergence.is_empty() {
+            // Only add space if we have upstream or working_tree symbols
+            if !self.upstream_divergence.is_empty() || !self.working_tree.is_empty() {
+                result.push(' ');
+            }
+        } else {
+            result.push_str(&self.main_divergence);
+        }
+
+        // Position 2: Upstream divergence (⇡ or ⇣)
+        if self.upstream_divergence.is_empty() {
+            // Only add space if we have working_tree symbols
+            if !self.working_tree.is_empty() {
+                result.push(' ');
+            }
+        } else {
+            result.push_str(&self.upstream_divergence);
+        }
+
+        // Position 3+: Working tree symbols
+        result.push_str(&self.working_tree);
+
+        result
+    }
+
+    /// Check if symbols are empty
+    pub fn is_empty(&self) -> bool {
+        self.prefix.is_empty()
+            && self.main_divergence.is_empty()
+            && self.upstream_divergence.is_empty()
+            && self.working_tree.is_empty()
+    }
+}
+
 /// Git status information parsed from `git status --porcelain`
-// TODO: Consider using a struct with bool fields instead of String for symbols
-// (has_untracked, has_modified, has_staged, has_renamed, has_deleted, has_conflicts,
-//  main_ahead, main_behind, upstream_ahead, upstream_behind)
-// Would enable querying individual states, but currently only used for display.
 struct GitStatusInfo {
     /// Whether the working tree has any changes (staged or unstaged)
     is_dirty: bool,
-    /// Status symbols: · (branch only, no worktree), = (conflicts), ↑ (ahead of main), ↓ (behind main), ⇡ (ahead of remote), ⇣ (behind remote), ? (untracked), ! (modified), + (staged), » (renamed), ✘ (deleted)
-    symbols: String,
+    /// Status symbols (structured for alignment)
+    symbols: StatusSymbols,
 }
 
 /// Parse git status --porcelain output to determine dirty state and status symbols
@@ -435,41 +540,47 @@ fn parse_git_status(
         }
     }
 
-    let mut symbols = String::with_capacity(10);
+    // Build structured symbols for aligned rendering
+    let mut symbols = StatusSymbols::default();
 
-    // Symbol order: conflicts (blocking) → branch divergence → working tree changes
-    // = (conflicts), ↑↓ (vs main), ⇡⇣ (vs remote), ?!+»✘ (working tree state)
+    // Conflicts go in prefix (blocking indicator)
     if has_conflicts {
-        symbols.push('=');
+        symbols.prefix.push('=');
     }
-    // Main branch: simple arrows
-    if main_ahead > 0 {
-        symbols.push('↑');
+
+    // Main branch divergence (↑, ↓, or ↕ for both)
+    // Using single-character representation for mutual exclusivity
+    match (main_ahead > 0, main_behind > 0) {
+        (true, true) => symbols.main_divergence.push('↕'), // Diverged (both ahead and behind)
+        (true, false) => symbols.main_divergence.push('↑'), // Ahead only
+        (false, true) => symbols.main_divergence.push('↓'), // Behind only
+        (false, false) => {}                               // Up to date
     }
-    if main_behind > 0 {
-        symbols.push('↓');
+
+    // Upstream/remote divergence (⇡, ⇣, or ⇅ for both)
+    // Using single-character representation for mutual exclusivity
+    match (upstream_ahead > 0, upstream_behind > 0) {
+        (true, true) => symbols.upstream_divergence.push('⇅'), // Diverged (both ahead and behind)
+        (true, false) => symbols.upstream_divergence.push('⇡'), // Ahead only
+        (false, true) => symbols.upstream_divergence.push('⇣'), // Behind only
+        (false, false) => {}                                   // Up to date
     }
-    // Upstream/remote: double arrows
-    if upstream_ahead > 0 {
-        symbols.push('⇡');
-    }
-    if upstream_behind > 0 {
-        symbols.push('⇣');
-    }
+
+    // Working tree changes (position 3+)
     if has_untracked {
-        symbols.push('?');
+        symbols.working_tree.push('?');
     }
     if has_modified {
-        symbols.push('!');
+        symbols.working_tree.push('!');
     }
     if has_staged {
-        symbols.push('+');
+        symbols.working_tree.push('+');
     }
     if has_renamed {
-        symbols.push('»');
+        symbols.working_tree.push('»');
     }
     if has_deleted {
-        symbols.push('✘');
+        symbols.working_tree.push('✘');
     }
 
     Ok(GitStatusInfo { is_dirty, symbols })
@@ -564,22 +675,18 @@ impl WorktreeInfo {
             false
         };
 
-        // Build complete status symbols by appending state symbols
-        // Order: = ≡∅ ↻⋈ ◇⊠⚠ ↑↓ ⇡⇣ ?!+»✘
+        // Build complete status symbols by adding state symbols to prefix
+        // Order: = ≡∅ ↻⋈ ◇⊠⚠ | ↑↓ | ⇡⇣ | ?!+»✘
+        //        ^prefix^      ^main^ ^up^ ^working_tree^
         let mut symbols = status_info.symbols;
 
         // Add merge conflicts indicator if this branch has conflicts with base
-        // (different from git status conflicts which are already in symbols)
-        if has_conflicts && !symbols.contains('=') {
-            symbols.insert(0, '=');
+        // (different from git status conflicts which are already in symbols.prefix)
+        if has_conflicts && !symbols.prefix.contains('=') {
+            symbols.prefix.insert(0, '=');
         }
 
-        // State symbols (insert after conflicts but before branch divergence)
-        // Find insertion point (after '=' if present, otherwise at start)
-        let insert_pos = symbols
-            .find(|c| ['↑', '↓', '⇡', '⇣', '?', '!', '+', '»', '✘'].contains(&c))
-            .unwrap_or(symbols.len());
-
+        // Build state symbols to add to prefix
         let mut state_symbols = String::new();
 
         // ≡ matches main (working tree identical to main)
@@ -612,7 +719,8 @@ impl WorktreeInfo {
             state_symbols.push('⚠');
         }
 
-        symbols.insert_str(insert_pos, &state_symbols);
+        // Append state symbols to prefix (after any existing conflict marker)
+        symbols.prefix.push_str(&state_symbols);
 
         // Read user-defined status from git config (worktree-specific or branch-keyed)
         let user_status = read_user_status(&wt_repo, wt.branch.as_deref());
@@ -637,13 +745,14 @@ impl WorktreeInfo {
     }
 
     /// Combine git status symbols and user-defined status
-    /// Returns the combined string (no separator - tools can add spaces if needed)
+    /// Returns the combined string with aligned rendering
     pub fn combined_status(&self) -> String {
         if !self.status_symbols.is_empty() {
+            let rendered = self.status_symbols.render();
             if let Some(ref user_status) = self.user_status {
-                format!("{}{}", self.status_symbols, user_status)
+                format!("{}{}", rendered, user_status)
             } else {
-                self.status_symbols.clone()
+                rendered
             }
         } else if let Some(ref user_status) = self.user_status {
             user_status.clone()

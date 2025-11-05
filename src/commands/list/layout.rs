@@ -661,8 +661,8 @@ mod tests {
     #[test]
     fn test_column_width_calculation_with_unicode() {
         use crate::commands::list::model::{
-            AheadBehind, BranchDiffTotals, CommitDetails, DisplayFields, UpstreamStatus,
-            WorktreeInfo,
+            AheadBehind, BranchDiffTotals, CommitDetails, DisplayFields, StatusSymbols,
+            UpstreamStatus, WorktreeInfo,
         };
 
         let info1 = WorktreeInfo {
@@ -691,7 +691,7 @@ mod tests {
             worktree_state: None,
             pr_status: None,
             has_conflicts: false,
-            status_symbols: String::new(),
+            status_symbols: StatusSymbols::default(),
             user_status: None,
             display: DisplayFields::default(),
             working_diff_display: None,
@@ -736,8 +736,8 @@ mod tests {
     #[test]
     fn test_visible_columns_follow_gap_rule() {
         use crate::commands::list::model::{
-            AheadBehind, BranchDiffTotals, CommitDetails, DisplayFields, UpstreamStatus,
-            WorktreeInfo,
+            AheadBehind, BranchDiffTotals, CommitDetails, DisplayFields, StatusSymbols,
+            UpstreamStatus, WorktreeInfo,
         };
 
         // Create test data with specific widths to verify position calculation
@@ -767,7 +767,7 @@ mod tests {
             worktree_state: None,
             pr_status: None,
             has_conflicts: false,
-            status_symbols: String::new(),
+            status_symbols: StatusSymbols::default(),
             user_status: None,
             display: DisplayFields::default(),
             working_diff_display: None,
@@ -811,8 +811,8 @@ mod tests {
     #[test]
     fn test_column_positions_with_empty_columns() {
         use crate::commands::list::model::{
-            AheadBehind, BranchDiffTotals, CommitDetails, DisplayFields, UpstreamStatus,
-            WorktreeInfo,
+            AheadBehind, BranchDiffTotals, CommitDetails, DisplayFields, StatusSymbols,
+            UpstreamStatus, WorktreeInfo,
         };
 
         // Create minimal data - most columns will be empty
@@ -842,7 +842,7 @@ mod tests {
             worktree_state: None,
             pr_status: None,
             has_conflicts: false,
-            status_symbols: String::new(),
+            status_symbols: StatusSymbols::default(),
             user_status: None,
             display: DisplayFields::default(),
             working_diff_display: None,
@@ -875,8 +875,8 @@ mod tests {
     #[test]
     fn test_consecutive_empty_columns_have_low_priority() {
         use crate::commands::list::model::{
-            AheadBehind, BranchDiffTotals, CommitDetails, DisplayFields, UpstreamStatus,
-            WorktreeInfo,
+            AheadBehind, BranchDiffTotals, CommitDetails, DisplayFields, StatusSymbols,
+            UpstreamStatus, WorktreeInfo,
         };
 
         // Create data where multiple consecutive columns are empty:
@@ -908,7 +908,7 @@ mod tests {
             worktree_state: None,                           // Empty: no state
             pr_status: None,
             has_conflicts: false,
-            status_symbols: String::new(),
+            status_symbols: StatusSymbols::default(),
             user_status: None,
             display: DisplayFields::default(),
             working_diff_display: None,
