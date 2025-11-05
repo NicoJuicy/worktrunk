@@ -427,8 +427,26 @@ pub fn handle_dev_ask_approval(force: bool) -> Result<(), GitError> {
 
     // Show result
     if approved {
-        use worktrunk::styling::GREEN;
-        crate::output::success(format!("{GREEN}Commands approved!{GREEN:#}"))?;
+        use worktrunk::styling::{AnstyleStyle, GREEN};
+
+        if force {
+            // When using --force, commands aren't saved to config
+            crate::output::success(format!(
+                "{GREEN}Commands approved (not saved with --force){GREEN:#}"
+            ))?;
+        } else {
+            // Interactive approval - commands were saved to config
+            crate::output::success(format!(
+                "{GREEN}Commands approved and saved to config{GREEN:#}"
+            ))?;
+
+            // Show config path as supplementary metadata
+            if let Some(config_path) = worktrunk::config::get_config_path() {
+                use worktrunk::styling::println;
+                let dim = AnstyleStyle::new().dimmed();
+                println!("{dim}Config: {}{dim:#}", config_path.display());
+            }
+        }
     } else {
         let dim = worktrunk::styling::AnstyleStyle::new().dimmed();
         crate::output::info(format!("{dim}Commands declined{dim:#}"))?;

@@ -93,7 +93,7 @@ fn prompt_for_batch_approval(commands: &[&Command], project_id: &str) -> std::io
 
     eprintln!();
     eprintln!(
-        "{WARNING_EMOJI} {WARNING}{warning_bold}{project_name}{warning_bold:#}{WARNING:#} ({project_id}) {WARNING}wants to execute {warning_bold}{count}{warning_bold:#} command{plural}:{WARNING:#}"
+        "{WARNING_EMOJI} {WARNING}{warning_bold}{project_name}{warning_bold:#} wants to execute {warning_bold}{count}{warning_bold:#} command{plural}:{WARNING:#}"
     );
     eprintln!();
 
