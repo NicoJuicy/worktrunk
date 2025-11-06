@@ -10,24 +10,8 @@
 // This approach uses stable APIs and handles edge cases that clap's completion system
 // isn't designed for. See the extensive test suite in tests/integration_tests/completion.rs
 
-use clap::Command;
-use clap_complete::{Shell as CompletionShell, generate};
-use std::io;
 use worktrunk::git::{GitError, Repository};
-use worktrunk::shell::Shell;
 use worktrunk::styling::{ERROR, ERROR_EMOJI, println};
-
-pub fn handle_completion(shell: Shell, cli_cmd: &mut Command) {
-    let completion_shell = match shell {
-        Shell::Bash | Shell::Oil => CompletionShell::Bash,
-        Shell::Fish => CompletionShell::Fish,
-        Shell::Zsh => CompletionShell::Zsh,
-        _ => unreachable!(
-            "CLI parsing ensures only shells that support completion can be passed here"
-        ),
-    };
-    generate(completion_shell, cli_cmd, "wt", &mut io::stdout());
-}
 
 #[derive(Debug, PartialEq)]
 enum CompletionContext {

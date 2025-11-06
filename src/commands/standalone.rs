@@ -121,7 +121,7 @@ pub fn handle_standalone_commit(force: bool, no_verify: bool) -> Result<(), GitE
 pub fn handle_standalone_squash(
     target: Option<&str>,
     force: bool,
-    no_verify: bool,
+    skip_pre_commit: bool,
     auto_trust: bool,
 ) -> Result<bool, GitError> {
     let CommandEnv {
@@ -134,8 +134,8 @@ pub fn handle_standalone_squash(
     // Get target branch (default to default branch if not provided)
     let target_branch = repo.resolve_target_branch(target)?;
 
-    // Run pre-commit hook unless --no-verify was specified
-    if !no_verify && let Some(project_config) = load_project_config(&repo)? {
+    // Run pre-commit hook unless explicitly skipped
+    if !skip_pre_commit && let Some(project_config) = load_project_config(&repo)? {
         run_pre_commit_commands(
             &project_config,
             &current_branch,

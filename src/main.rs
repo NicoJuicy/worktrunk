@@ -17,11 +17,11 @@ pub use crate::cli::OutputFormat;
 use commands::handle_select;
 use commands::worktree::SwitchResult;
 use commands::{
-    ConfigAction, handle_complete, handle_completion, handle_config_help, handle_config_init,
-    handle_config_list, handle_config_refresh_cache, handle_configure_shell, handle_init,
-    handle_list, handle_merge, handle_remove, handle_standalone_ask_approvals,
-    handle_standalone_commit, handle_standalone_push, handle_standalone_rebase,
-    handle_standalone_run_hook, handle_standalone_squash, handle_switch,
+    ConfigAction, handle_complete, handle_config_help, handle_config_init, handle_config_list,
+    handle_config_refresh_cache, handle_configure_shell, handle_init, handle_list, handle_merge,
+    handle_remove, handle_standalone_ask_approvals, handle_standalone_commit,
+    handle_standalone_push, handle_standalone_rebase, handle_standalone_run_hook,
+    handle_standalone_squash, handle_switch,
 };
 use output::{execute_user_command, handle_remove_output, handle_switch_output};
 
@@ -300,11 +300,6 @@ fn main() {
             force,
             tracked_only,
         ),
-        Commands::Completion { shell } => {
-            let mut cli_cmd = Cli::command();
-            handle_completion(shell, &mut cli_cmd);
-            Ok(())
-        }
         Commands::Complete { args } => handle_complete(args),
     };
 

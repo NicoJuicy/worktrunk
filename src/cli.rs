@@ -73,18 +73,18 @@ pub enum StandaloneCommand {
         /// Hook type to run
         hook_type: HookType,
 
-        /// Skip command approval prompts
+        /// Auto-approve project commands without saving approvals.
         #[arg(short, long)]
         force: bool,
     },
 
     /// Commit changes with LLM-generated message
     Commit {
-        /// Skip command approval prompts
+        /// Auto-approve project commands without saving approvals.
         #[arg(short, long)]
         force: bool,
 
-        /// Skip all project hooks (pre-commit-command)
+        /// Skip pre-commit project hooks.
         #[arg(long)]
         no_verify: bool,
     },
@@ -94,11 +94,11 @@ pub enum StandaloneCommand {
         /// Target branch to squash against (defaults to default branch)
         target: Option<String>,
 
-        /// Skip command approval prompts
+        /// Auto-approve project commands without saving approvals.
         #[arg(short, long)]
         force: bool,
 
-        /// Skip all project hooks (pre-commit-command, pre-merge-command)
+        /// Skip pre-commit project hooks
         #[arg(long)]
         no_verify: bool,
     },
@@ -124,7 +124,7 @@ pub enum StandaloneCommand {
 
     /// Approve commands in the project config (shows unapproved by default)
     AskApprovals {
-        /// Skip command approval prompts
+        /// Auto-approve project commands without saving approvals.
         #[arg(short, long)]
         force: bool,
 
@@ -230,17 +230,17 @@ Rows are dimmed when no unique work (≡ matches main OR ∅ no commits)."#)]
     #[command(after_help = r#"BEHAVIOR:
 
 Switching to Existing Worktree:
-  - If worktree exists for branch, changes directory to it
+  - If worktree exists for branch, changes directory via shell integration
   - No hooks run
   - No branch creation
 
 Creating New Worktree (--create):
   1. Creates new branch (defaults to current default branch as base)
-  2. Creates worktree in parallel directory (../<branch>)
+  2. Creates worktree in configured location (default: ../{main-worktree}.{branch})
   3. Runs post-create hooks sequentially (blocking)
   4. Shows success message
   5. Spawns post-start hooks in background (non-blocking)
-  6. Changes directory to new worktree
+  6. Changes directory to new worktree via shell integration
 
 HOOKS:
 
@@ -291,11 +291,11 @@ Skip hooks during creation:
         #[arg(short = 'x', long)]
         execute: Option<String>,
 
-        /// Skip confirmation prompt
+        /// Auto-approve project commands without saving approvals.
         #[arg(short = 'f', long)]
         force: bool,
 
-        /// Skip all project hooks (post-create, post-start)
+        /// Skip all project hooks: post-create and post-start.
         #[arg(long)]
         no_verify: bool,
     },
@@ -419,29 +419,21 @@ Skip pre-merge commands:
         #[arg(long)]
         no_commit: bool,
 
-        /// Keep worktree after merging (don't remove)
+        /// Keep the worktree after merging.
         #[arg(long = "no-remove")]
         no_remove: bool,
 
-        /// Skip all project hooks (pre-merge-command)
+        /// Skip pre-merge project hooks.
         #[arg(long)]
         no_verify: bool,
 
-        /// Skip approval prompts for commands
+        /// Auto-approve project commands without saving approvals.
         #[arg(short, long)]
         force: bool,
 
         /// Only stage tracked files (git add -u) instead of all files (git add -A)
         #[arg(long)]
         tracked_only: bool,
-    },
-
-    /// Generate shell completion script (deprecated - use init instead)
-    #[command(hide = true)]
-    Completion {
-        /// Shell to generate completions for
-        #[arg(value_enum)]
-        shell: Shell,
     },
 
     /// Internal completion helper (hidden)

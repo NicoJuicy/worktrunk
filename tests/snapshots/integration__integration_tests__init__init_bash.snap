@@ -15,7 +15,7 @@ info:
     LANG: C
     LC_ALL: C
     SOURCE_DATE_EPOCH: "1761609600"
-    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpYm4xND/test-config.toml
+    WORKTRUNK_CONFIG_PATH: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmpbBYDwj/test-config.toml
 ---
 success: true
 exit_code: 0
@@ -150,9 +150,6 @@ _wt() {
             wt,complete)
                 cmd="wt__complete"
                 ;;
-            wt,completion)
-                cmd="wt__completion"
-                ;;
             wt,config)
                 cmd="wt__config"
                 ;;
@@ -214,7 +211,7 @@ _wt() {
 
     case "${cmd}" in
         wt)
-            opts="-v -h -V --verbose --help --version init config beta list switch remove merge completion complete"
+            opts="-v -h -V --verbose --help --version init config beta list switch remove merge complete"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -341,20 +338,6 @@ _wt() {
             ;;
         wt__complete)
             opts="-v -h --verbose --help [ARGS]..."
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        wt__completion)
-            opts="-v -h --verbose --help bash elvish fish nushell oil powershell xonsh zsh"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

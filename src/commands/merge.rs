@@ -36,11 +36,10 @@ impl<'a> MergeCommandCollector<'a> {
         // Collect original commands (not expanded) for approval
         // Expansion happens later in prepare_project_commands during execution
 
-        // Collect pre-commit commands if we'll commit (direct or via squash) and not skipping verification
+        // Collect pre-commit commands if we'll commit (direct or via squash)
         // These run before: (1) direct commit (line 179), or (2) squash commit (line 194 → handle_dev_squash)
         if !self.no_commit
             && self.repo.is_dirty()?
-            && !self.no_verify
             && let Some(pre_commit_config) = &project_config.pre_commit_command
         {
             all_commands.extend(pre_commit_config.commands_with_phase(CommandPhase::PreCommit));
@@ -132,7 +131,6 @@ pub fn handle_merge(
             // Commit immediately when not squashing
             let mut options = CommitOptions::new(&repo, &config, &worktree_path, &current_branch);
             options.target_branch = Some(&target_branch);
-            options.no_verify = no_verify;
             options.force = force;
             options.tracked_only = tracked_only;
             options.auto_trust = true; // commands already approved in merge batch
@@ -148,7 +146,7 @@ pub fn handle_merge(
 
     // Squash commits if enabled - track whether squashing occurred
     let squashed = if squash_enabled {
-        handle_squash(&target_branch, no_verify, force)?
+        handle_squash(&target_branch, force)?
     } else {
         false
     };
@@ -278,9 +276,9 @@ fn handle_merge_summary_output(primary_path: Option<&std::path::Path>) -> Result
     Ok(())
 }
 
-fn handle_squash(target_branch: &str, no_verify: bool, force: bool) -> Result<bool, GitError> {
+fn handle_squash(target_branch: &str, force: bool) -> Result<bool, GitError> {
     // Delegate to the shared standalone implementation (auto_trust=true: commands approved in batch)
-    super::standalone::handle_standalone_squash(Some(target_branch), force, no_verify, true)
+    super::standalone::handle_standalone_squash(Some(target_branch), force, false, true)
 }
 
 /// Run pre-merge commands sequentially (blocking, fail-fast)
