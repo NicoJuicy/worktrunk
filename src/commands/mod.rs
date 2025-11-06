@@ -1,6 +1,6 @@
-pub mod beta;
 pub mod command_approval;
 mod command_executor;
+pub mod commit;
 pub mod completion;
 pub mod config;
 pub mod configure_shell;
@@ -13,12 +13,9 @@ pub mod process;
 pub mod project_config;
 #[cfg(unix)]
 pub mod select;
+pub mod standalone;
 pub mod worktree;
 
-pub use beta::{
-    handle_beta_ask_approvals, handle_beta_commit, handle_beta_push, handle_beta_rebase,
-    handle_beta_run_hook, handle_beta_squash,
-};
 pub use completion::{handle_complete, handle_completion};
 pub use config::{
     handle_config_help, handle_config_init, handle_config_list, handle_config_refresh_cache,
@@ -29,6 +26,10 @@ pub use list::handle_list;
 pub use merge::handle_merge;
 #[cfg(unix)]
 pub use select::handle_select;
+pub use standalone::{
+    handle_standalone_ask_approvals, handle_standalone_commit, handle_standalone_push,
+    handle_standalone_rebase, handle_standalone_run_hook, handle_standalone_squash,
+};
 pub use worktree::{handle_remove, handle_switch};
 
 // Re-export Shell from the canonical location

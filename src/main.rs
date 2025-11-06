@@ -17,15 +17,15 @@ pub use crate::cli::OutputFormat;
 use commands::handle_select;
 use commands::worktree::SwitchResult;
 use commands::{
-    ConfigAction, handle_beta_ask_approvals, handle_beta_commit, handle_beta_push,
-    handle_beta_rebase, handle_beta_run_hook, handle_beta_squash, handle_complete,
-    handle_completion, handle_config_help, handle_config_init, handle_config_list,
-    handle_config_refresh_cache, handle_configure_shell, handle_init, handle_list, handle_merge,
-    handle_remove, handle_switch,
+    ConfigAction, handle_complete, handle_completion, handle_config_help, handle_config_init,
+    handle_config_list, handle_config_refresh_cache, handle_configure_shell, handle_init,
+    handle_list, handle_merge, handle_remove, handle_standalone_ask_approvals,
+    handle_standalone_commit, handle_standalone_push, handle_standalone_rebase,
+    handle_standalone_run_hook, handle_standalone_squash, handle_switch,
 };
 use output::{execute_user_command, handle_remove_output, handle_switch_output};
 
-use cli::{BetaCommand, Cli, Commands, ConfigCommand};
+use cli::{Cli, Commands, ConfigCommand, StandaloneCommand};
 
 fn main() {
     let cli = Cli::parse();
@@ -156,22 +156,30 @@ fn main() {
                     .git_err()
             }
         },
-        Commands::Beta { action } => match action {
-            BetaCommand::RunHook { hook_type, force } => handle_beta_run_hook(hook_type, force),
-            BetaCommand::Commit { force, no_verify } => handle_beta_commit(force, no_verify),
-            BetaCommand::Squash {
+        Commands::Standalone { action } => match action {
+            StandaloneCommand::RunHook { hook_type, force } => {
+                handle_standalone_run_hook(hook_type, force)
+            }
+            StandaloneCommand::Commit { force, no_verify } => {
+                handle_standalone_commit(force, no_verify)
+            }
+            StandaloneCommand::Squash {
                 target,
                 force,
                 no_verify,
-            } => handle_beta_squash(target.as_deref(), force, no_verify, false).map(|_| ()),
-            BetaCommand::Push {
+            } => handle_standalone_squash(target.as_deref(), force, no_verify, false).map(|_| ()),
+            StandaloneCommand::Push {
                 target,
                 allow_merge_commits,
-            } => handle_beta_push(target.as_deref(), allow_merge_commits),
-            BetaCommand::Rebase { target } => handle_beta_rebase(target.as_deref()).map(|_| ()),
-            BetaCommand::AskApprovals { force, all } => handle_beta_ask_approvals(force, all),
+            } => handle_standalone_push(target.as_deref(), allow_merge_commits),
+            StandaloneCommand::Rebase { target } => {
+                handle_standalone_rebase(target.as_deref()).map(|_| ())
+            }
+            StandaloneCommand::AskApprovals { force, all } => {
+                handle_standalone_ask_approvals(force, all)
+            }
             #[cfg(unix)]
-            BetaCommand::Select => handle_select(),
+            StandaloneCommand::Select => handle_select(),
         },
         Commands::List {
             format,

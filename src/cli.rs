@@ -67,7 +67,7 @@ pub enum ConfigCommand {
 }
 
 #[derive(Subcommand)]
-pub enum BetaCommand {
+pub enum StandaloneCommand {
     /// Run a project hook for testing
     RunHook {
         /// Hook type to run
@@ -157,10 +157,10 @@ pub enum Commands {
     },
 
     /// Development and testing utilities
-    #[command(hide = true)]
-    Beta {
+    #[command(name = "beta", hide = true)]
+    Standalone {
         #[command(subcommand)]
-        action: BetaCommand,
+        action: StandaloneCommand,
     },
 
     /// List worktrees and optionally branches

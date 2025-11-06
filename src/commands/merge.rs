@@ -1,13 +1,10 @@
-use std::path::Path;
 use worktrunk::HookType;
 use worktrunk::config::{Command, CommandPhase, ProjectConfig, WorktrunkConfig};
 use worktrunk::git::{GitError, GitResultExt, Repository};
-use worktrunk::styling::{
-    AnstyleStyle, CYAN, CYAN_BOLD, ERROR, ERROR_EMOJI, GREEN_BOLD, HINT, HINT_EMOJI, WARNING,
-    format_with_gutter,
-};
+use worktrunk::styling::{CYAN, CYAN_BOLD, ERROR, ERROR_EMOJI, GREEN_BOLD, HINT, HINT_EMOJI};
 
 use super::command_approval::approve_command_batch;
+use super::commit::{CommitOptions, commit_changes, warn_untracked_auto_stage};
 use super::context::CommandEnv;
 use super::hooks::{HookFailureStrategy, HookPipeline};
 use super::project_config::load_project_config;
@@ -66,42 +63,6 @@ impl<'a> MergeCommandCollector<'a> {
     }
 }
 
-/// Extract untracked files from git status --porcelain output
-fn get_untracked_files(status_output: &str) -> Vec<String> {
-    let mut untracked = Vec::new();
-
-    for line in status_output.lines() {
-        // Git status --porcelain format: XY filename
-        // Untracked files have "??" status
-        if let Some(filename) = line.strip_prefix("?? ") {
-            untracked.push(filename.to_string());
-        }
-    }
-
-    untracked
-}
-
-/// Warn about untracked files being auto-staged
-fn show_untracked_warning(repo: &Repository) -> Result<(), GitError> {
-    let status = repo
-        .run_command(&["status", "--porcelain"])
-        .git_context("Failed to get status")?;
-    let untracked = get_untracked_files(&status);
-
-    if untracked.is_empty() {
-        return Ok(());
-    }
-
-    // Format file list (comma-separated)
-    let file_list = untracked.join(", ");
-
-    crate::output::warning(format!(
-        "{WARNING}Auto-staging untracked files: {file_list}{WARNING:#}"
-    ))?;
-
-    Ok(())
-}
-
 pub fn handle_merge(
     target: Option<&str>,
     squash_enabled: bool,
@@ -156,7 +117,7 @@ pub fn handle_merge(
         if squash_enabled {
             // Warn about untracked files before staging
             if !tracked_only {
-                show_untracked_warning(&repo)?;
+                warn_untracked_auto_stage(&repo)?;
             }
 
             if tracked_only {
@@ -169,16 +130,16 @@ pub fn handle_merge(
             false // Staged but didn't commit (will squash later)
         } else {
             // Commit immediately when not squashing
-            handle_commit_changes(
-                &repo,
-                &config,
-                &worktree_path,
-                &current_branch,
-                Some(&target_branch),
-                no_verify,
-                force,
-                tracked_only,
-            )?;
+            let mut options = CommitOptions::new(&repo, &config, &worktree_path, &current_branch);
+            options.target_branch = Some(&target_branch);
+            options.no_verify = no_verify;
+            options.force = force;
+            options.tracked_only = tracked_only;
+            options.auto_trust = true; // commands already approved in merge batch
+            options.warn_about_untracked = !tracked_only;
+            options.show_no_squash_note = true;
+
+            commit_changes(options)?;
             true // Committed directly
         }
     } else {
@@ -194,7 +155,7 @@ pub fn handle_merge(
 
     // Rebase onto target (skip if --no-commit) - track whether rebasing occurred
     let rebased = if !no_commit {
-        super::beta::handle_beta_rebase(Some(&target_branch))?
+        super::standalone::handle_standalone_rebase(Some(&target_branch))?
     } else {
         false
     };
@@ -317,146 +278,9 @@ fn handle_merge_summary_output(primary_path: Option<&std::path::Path>) -> Result
     Ok(())
 }
 
-/// Format a commit message with the first line in bold, ready for gutter display
-pub fn format_commit_message_for_display(message: &str) -> String {
-    let bold = AnstyleStyle::new().bold();
-    let lines: Vec<&str> = message.lines().collect();
-
-    if lines.is_empty() {
-        return String::new();
-    }
-
-    // Format first line in bold
-    let mut result = format!("{bold}{}{bold:#}", lines[0]);
-
-    // Add remaining lines without bold
-    if lines.len() > 1 {
-        for line in &lines[1..] {
-            result.push('\n');
-            result.push_str(line);
-        }
-    }
-
-    result
-}
-
-/// Show hint if no LLM command is configured
-pub fn show_llm_config_hint_if_needed(
-    commit_generation_config: &worktrunk::config::CommitGenerationConfig,
-) -> Result<(), GitError> {
-    if !commit_generation_config.is_configured() {
-        crate::output::hint(format!(
-            "{HINT}Using fallback commit message. Run 'wt config help' to configure LLM-generated messages{HINT:#}"
-        ))?;
-    }
-    Ok(())
-}
-
-/// Commit already-staged changes with LLM-generated or fallback message
-pub fn commit_staged_changes(
-    commit_generation_config: &worktrunk::config::CommitGenerationConfig,
-    show_no_squash_note: bool,
-) -> Result<(), GitError> {
-    let repo = Repository::current();
-
-    // Get diff stats for staged changes
-    let stats_parts = repo.diff_stats_summary(&["diff", "--staged", "--shortstat"]);
-
-    // Format progress message based on whether we're using LLM or fallback
-    let action = if commit_generation_config.is_configured() {
-        "Generating commit message and committing..."
-    } else {
-        "Committing with default message..."
-    };
-
-    // Build the progress message with optional squash status
-    let mut parts = vec![];
-    if !stats_parts.is_empty() {
-        parts.extend(stats_parts);
-    }
-    if show_no_squash_note {
-        parts.push("no squashing needed".to_string());
-    }
-
-    let full_progress_msg = if parts.is_empty() {
-        format!("{CYAN}{action}{CYAN:#}")
-    } else {
-        format!("{CYAN}{action}{CYAN:#} ({})", parts.join(", "))
-    };
-
-    crate::output::progress(full_progress_msg)?;
-
-    show_llm_config_hint_if_needed(commit_generation_config)?;
-    let commit_message = crate::llm::generate_commit_message(commit_generation_config)?;
-
-    let formatted_message = format_commit_message_for_display(&commit_message);
-    crate::output::gutter(format_with_gutter(&formatted_message, "", None))?;
-
-    repo.run_command(&["commit", "-m", &commit_message])
-        .git_context("Failed to commit")?;
-
-    // Get commit hash for display
-    let commit_hash = repo
-        .run_command(&["rev-parse", "--short", "HEAD"])?
-        .trim()
-        .to_string();
-
-    use worktrunk::styling::GREEN;
-    let green_dim = GREEN.dimmed();
-    crate::output::success(format!(
-        "{GREEN}Committed changes @ {green_dim}{commit_hash}{green_dim:#}{GREEN:#}"
-    ))?;
-
-    Ok(())
-}
-
-/// Commit uncommitted changes with LLM-generated message.
-#[allow(clippy::too_many_arguments)]
-fn handle_commit_changes(
-    repo: &Repository,
-    config: &WorktrunkConfig,
-    worktree_path: &Path,
-    current_branch: &str,
-    target_branch: Option<&str>,
-    no_verify: bool,
-    force: bool,
-    tracked_only: bool,
-) -> Result<(), GitError> {
-    if !no_verify && let Some(project_config) = load_project_config(repo)? {
-        run_pre_commit_commands(
-            &project_config,
-            current_branch,
-            worktree_path,
-            repo,
-            config,
-            force,
-            target_branch,
-            true, // auto_trust: commands already approved in merge batch
-        )?;
-    }
-
-    // Warn about untracked files before staging (only if using git add -A)
-    if !tracked_only {
-        show_untracked_warning(repo)?;
-    }
-
-    // Stage changes
-    if tracked_only {
-        repo.run_command(&["add", "-u"])
-            .git_context("Failed to stage tracked changes")?;
-    } else {
-        repo.run_command(&["add", "-A"])
-            .git_context("Failed to stage changes")?;
-    }
-
-    // Show "no squashing needed" since we're committing directly (not in squash mode)
-    commit_staged_changes(&config.commit_generation, true)
-}
-
 fn handle_squash(target_branch: &str, no_verify: bool, force: bool) -> Result<bool, GitError> {
-    // Delegate to the atomic beta command
-    // auto_trust=true because commands already approved in merge batch
-    super::beta::handle_beta_squash(Some(target_branch), force, no_verify, true)
+    // Delegate to the shared standalone implementation (auto_trust=true: commands approved in batch)
+    super::standalone::handle_standalone_squash(Some(target_branch), force, no_verify, true)
 }
 
 /// Run pre-merge commands sequentially (blocking, fail-fast)
@@ -530,48 +354,5 @@ pub fn execute_post_merge_commands(
         &[("target", target_branch)],
         "post-merge",
         HookFailureStrategy::Warn,
-    )
-}
-
-/// Run pre-commit commands sequentially (blocking, fail-fast)
-#[allow(clippy::too_many_arguments)]
-pub fn run_pre_commit_commands(
-    project_config: &ProjectConfig,
-    current_branch: &str,
-    worktree_path: &std::path::Path,
-    repo: &Repository,
-    config: &WorktrunkConfig,
-    force: bool,
-    target_branch: Option<&str>,
-    auto_trust: bool,
-) -> Result<(), GitError> {
-    let Some(pre_commit_config) = &project_config.pre_commit_command else {
-        return Ok(());
-    };
-
-    let repo_root = repo.worktree_base()?;
-    let pipeline = HookPipeline::new(
-        repo,
-        config,
-        current_branch,
-        worktree_path,
-        &repo_root,
-        force,
-    );
-
-    let extra_vars: Vec<(&str, &str)> = target_branch
-        .into_iter()
-        .map(|target| ("target", target))
-        .collect();
-
-    pipeline.run_sequential(
-        pre_commit_config,
-        CommandPhase::PreCommit,
-        auto_trust,
-        &extra_vars,
-        "pre-commit",
-        HookFailureStrategy::FailFast {
-            hook_type: HookType::PreCommit,
-        },
     )
 }

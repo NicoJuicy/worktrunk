@@ -4,16 +4,17 @@ use worktrunk::styling::{
     AnstyleStyle, CYAN, CYAN_BOLD, GREEN_BOLD, HINT, HINT_EMOJI, eprintln, format_with_gutter,
 };
 
-use super::context::CommandEnv;
-use super::merge::{
-    commit_staged_changes, execute_post_merge_commands, format_commit_message_for_display,
-    run_pre_commit_commands, run_pre_merge_commands, show_llm_config_hint_if_needed,
+use super::commit::{
+    CommitOptions, commit_changes, commit_staged_changes, format_commit_message_for_display,
+    run_pre_commit_commands, show_llm_config_hint_if_needed,
 };
+use super::context::CommandEnv;
+use super::merge::{execute_post_merge_commands, run_pre_merge_commands};
 use super::project_config::{load_project_config, require_project_config};
 use super::worktree::{execute_post_create_commands, execute_post_start_commands_sequential};
 
 /// Handle `wt beta run-hook` command
-pub fn handle_beta_run_hook(hook_type: HookType, force: bool) -> Result<(), GitError> {
+pub fn handle_standalone_run_hook(hook_type: HookType, force: bool) -> Result<(), GitError> {
     // Derive context from current environment
     let CommandEnv {
         repo,
@@ -94,7 +95,7 @@ fn check_hook_configured<T>(hook: &Option<T>, hook_type: HookType) -> Result<(),
 }
 
 /// Handle `wt beta commit` command
-pub fn handle_beta_commit(force: bool, no_verify: bool) -> Result<(), GitError> {
+pub fn handle_standalone_commit(force: bool, no_verify: bool) -> Result<(), GitError> {
     let CommandEnv {
         repo,
         branch: current_branch,
@@ -102,26 +103,13 @@ pub fn handle_beta_commit(force: bool, no_verify: bool) -> Result<(), GitError> 
         worktree_path,
     } = CommandEnv::current()?;
 
-    // Run pre-commit hook unless --no-verify was specified
-    if !no_verify && let Some(project_config) = load_project_config(&repo)? {
-        // No target branch context for standalone commits
-        run_pre_commit_commands(
-            &project_config,
-            &current_branch,
-            &worktree_path,
-            &repo,
-            &config,
-            force,
-            None,
-            false, // auto_trust: standalone command, needs approval
-        )?;
-    }
+    let mut options = CommitOptions::new(&repo, &config, &worktree_path, &current_branch);
+    options.no_verify = no_verify;
+    options.force = force;
+    options.auto_trust = false;
+    options.show_no_squash_note = false;
 
-    // Stage all changes including untracked files
-    repo.run_command(&["add", "-A"])
-        .git_context("Failed to stage changes")?;
-
-    commit_staged_changes(&config.commit_generation, false)
+    commit_changes(options)
 }
 
 /// Handle `wt beta squash` command
@@ -130,7 +118,7 @@ pub fn handle_beta_commit(force: bool, no_verify: bool) -> Result<(), GitError> 
 /// * `auto_trust` - If true, skip approval prompts for pre-commit commands (already approved in batch)
 ///
 /// Returns true if a commit or squash operation occurred, false if nothing needed to be done
-pub fn handle_beta_squash(
+pub fn handle_standalone_squash(
     target: Option<&str>,
     force: bool,
     no_verify: bool,
@@ -274,13 +262,16 @@ pub fn handle_beta_squash(
 }
 
 /// Handle `wt beta push` command
-pub fn handle_beta_push(target: Option<&str>, allow_merge_commits: bool) -> Result<(), GitError> {
+pub fn handle_standalone_push(
+    target: Option<&str>,
+    allow_merge_commits: bool,
+) -> Result<(), GitError> {
     super::worktree::handle_push(target, allow_merge_commits, "Pushed to", None, None, None)
 }
 
 /// Handle `wt beta rebase` command
 /// Returns true if rebasing occurred, false if already up-to-date
-pub fn handle_beta_rebase(target: Option<&str>) -> Result<bool, GitError> {
+pub fn handle_standalone_rebase(target: Option<&str>) -> Result<bool, GitError> {
     let repo = Repository::current();
 
     // Get target branch (default to default branch if not provided)
@@ -347,7 +338,7 @@ pub fn handle_beta_rebase(target: Option<&str>) -> Result<bool, GitError> {
 }
 
 /// Handle `wt beta ask-approvals` command - approve all commands in the project
-pub fn handle_beta_ask_approvals(force: bool, show_all: bool) -> Result<(), GitError> {
+pub fn handle_standalone_ask_approvals(force: bool, show_all: bool) -> Result<(), GitError> {
     use super::command_approval::approve_command_batch;
     use worktrunk::config::{CommandPhase, WorktrunkConfig};
 
