@@ -2,6 +2,8 @@ use std::path::PathBuf;
 use worktrunk::config::WorktrunkConfig;
 use worktrunk::git::{GitError, GitResultExt, Repository};
 
+use super::command_executor::CommandContext;
+
 /// Shared execution context for command handlers that operate on the current worktree.
 ///
 /// Centralizes the common “repo + branch + config + cwd” setup so individual handlers
@@ -17,6 +19,7 @@ pub struct CommandEnv {
     pub branch: String,
     pub config: WorktrunkConfig,
     pub worktree_path: PathBuf,
+    pub repo_root: PathBuf,
 }
 
 impl CommandEnv {
@@ -31,12 +34,26 @@ impl CommandEnv {
             .git_context("Failed to get current branch")?
             .ok_or(GitError::DetachedHead)?;
         let config = WorktrunkConfig::load().git_context("Failed to load config")?;
+        let repo_root = repo.worktree_base()?;
 
         Ok(Self {
             repo,
             branch,
             config,
             worktree_path,
+            repo_root,
         })
+    }
+
+    /// Build a `CommandContext` tied to this environment.
+    pub fn context(&self, force: bool) -> CommandContext<'_> {
+        CommandContext::new(
+            &self.repo,
+            &self.config,
+            &self.branch,
+            &self.worktree_path,
+            &self.repo_root,
+            force,
+        )
     }
 }

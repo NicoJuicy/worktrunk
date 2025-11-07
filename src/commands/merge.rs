@@ -67,12 +67,10 @@ pub fn handle_merge(
     force: bool,
     tracked_only: bool,
 ) -> Result<(), GitError> {
-    let CommandEnv {
-        repo,
-        branch: current_branch,
-        config,
-        worktree_path,
-    } = CommandEnv::current()?;
+    let env = CommandEnv::current()?;
+    let repo = &env.repo;
+    let config = &env.config;
+    let current_branch = env.branch.clone();
 
     // Validate --no-commit: requires clean working tree
     if no_commit && repo.is_dirty()? {
@@ -97,7 +95,7 @@ pub fn handle_merge(
 
     // Collect and approve all commands upfront for batch permission request
     let (all_commands, project_id) = MergeCommandCollector {
-        repo: &repo,
+        repo,
         no_commit,
         no_verify,
     }
@@ -105,22 +103,14 @@ pub fn handle_merge(
 
     // Approve all commands in a single batch
     // Commands collected here are not yet expanded - expansion happens later in prepare_project_commands
-    approve_command_batch(&all_commands, &project_id, &config, force, false)?;
+    approve_command_batch(&all_commands, &project_id, config, force, false)?;
 
     // Handle uncommitted changes (skip if --no-commit) - track whether commit occurred
     let committed = if !no_commit && repo.is_dirty()? {
         if squash_enabled {
             false // Squash path handles staging and committing
         } else {
-            let repo_root = repo.worktree_base()?;
-            let ctx = CommandContext::new(
-                &repo,
-                &config,
-                &current_branch,
-                &worktree_path,
-                &repo_root,
-                force,
-            );
+            let ctx = env.context(force);
             let mut options = CommitOptions::new(&ctx);
             options.target_branch = Some(&target_branch);
             options.no_verify = no_verify;
@@ -159,16 +149,8 @@ pub fn handle_merge(
 
     // Run pre-merge checks unless --no-verify was specified
     // Do this after commit/squash/rebase to validate the final state that will be pushed
-    if !no_verify && let Some(project_config) = load_project_config(&repo)? {
-        let repo_root = repo.worktree_base()?;
-        let ctx = CommandContext::new(
-            &repo,
-            &config,
-            &current_branch,
-            &worktree_path,
-            &repo_root,
-            force,
-        );
+    if !no_verify && let Some(project_config) = load_project_config(repo)? {
+        let ctx = env.context(force);
         run_pre_merge_commands(&project_config, &ctx, &target_branch)?;
     }
 
@@ -224,12 +206,13 @@ pub fn handle_merge(
     // This runs after cleanup so the context is clear to the user
     // Create a fresh Repository instance at the primary worktree (the old repo may be invalid)
     let primary_repo = Repository::at(&primary_worktree_dir);
+    let primary_repo_root = primary_worktree_dir.clone();
     let ctx = CommandContext::new(
         &primary_repo,
-        &config,
+        config,
         &current_branch,
         &primary_worktree_dir,
-        &primary_worktree_dir, // For primary worktree, worktree_path == repo_root
+        &primary_repo_root,
         force,
     );
     execute_post_merge_commands(&ctx, &target_branch)?;

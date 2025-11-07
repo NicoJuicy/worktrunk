@@ -4,7 +4,6 @@ use worktrunk::styling::{
     AnstyleStyle, CYAN, CYAN_BOLD, GREEN_BOLD, HINT, HINT_EMOJI, eprintln, format_with_gutter,
 };
 
-use super::command_executor::CommandContext;
 use super::commit::{
     CommitOptions, commit_changes, commit_staged_changes, format_commit_message_for_display,
     run_pre_commit_commands, show_llm_config_hint_if_needed, warn_untracked_auto_stage,
@@ -19,15 +18,12 @@ use super::worktree::{execute_post_create_commands, execute_post_start_commands_
 /// Handle `wt beta run-hook` command
 pub fn handle_standalone_run_hook(hook_type: HookType, force: bool) -> Result<(), GitError> {
     // Derive context from current environment
-    let CommandEnv {
-        repo,
-        branch,
-        config,
-        worktree_path,
-    } = CommandEnv::current()?;
+    let env = CommandEnv::current()?;
+    let repo = &env.repo;
+    let ctx = env.context(force);
 
     // Load project config (show helpful error if missing)
-    let project_config = require_project_config(&repo)?;
+    let project_config = require_project_config(repo)?;
 
     // TODO: Add support for custom variable overrides (e.g., --var key=value)
     // This would allow testing hooks with different contexts without being in that context
@@ -36,25 +32,16 @@ pub fn handle_standalone_run_hook(hook_type: HookType, force: bool) -> Result<()
     match hook_type {
         HookType::PostCreate => {
             check_hook_configured(&project_config.post_create_command, hook_type)?;
-            let repo_root = repo.worktree_base()?;
-            let ctx =
-                CommandContext::new(&repo, &config, &branch, &worktree_path, &repo_root, force);
             execute_post_create_commands(&ctx)
         }
         HookType::PostStart => {
             check_hook_configured(&project_config.post_start_command, hook_type)?;
-            let repo_root = repo.worktree_base()?;
-            let ctx =
-                CommandContext::new(&repo, &config, &branch, &worktree_path, &repo_root, force);
             execute_post_start_commands_sequential(&ctx)
         }
         HookType::PreCommit => {
             check_hook_configured(&project_config.pre_commit_command, hook_type)?;
             // Pre-commit hook can optionally use target branch context
             let target_branch = repo.default_branch().ok();
-            let repo_root = repo.worktree_base()?;
-            let ctx =
-                CommandContext::new(&repo, &config, &branch, &worktree_path, &repo_root, force);
             run_pre_commit_commands(
                 &project_config,
                 &ctx,
@@ -65,17 +52,11 @@ pub fn handle_standalone_run_hook(hook_type: HookType, force: bool) -> Result<()
         HookType::PreMerge => {
             check_hook_configured(&project_config.pre_merge_command, hook_type)?;
             let target_branch = repo.default_branch().unwrap_or_else(|_| "main".to_string());
-            let repo_root = repo.worktree_base()?;
-            let ctx =
-                CommandContext::new(&repo, &config, &branch, &worktree_path, &repo_root, force);
             run_pre_merge_commands(&project_config, &ctx, &target_branch)
         }
         HookType::PostMerge => {
             check_hook_configured(&project_config.post_merge_command, hook_type)?;
             let target_branch = repo.default_branch().unwrap_or_else(|_| "main".to_string());
-            let repo_root = repo.worktree_base()?;
-            let ctx =
-                CommandContext::new(&repo, &config, &branch, &worktree_path, &repo_root, force);
             execute_post_merge_commands(&ctx, &target_branch)
         }
     }
@@ -96,15 +77,7 @@ fn check_hook_configured<T>(hook: &Option<T>, hook_type: HookType) -> Result<(),
 /// Handle `wt beta commit` command
 pub fn handle_standalone_commit(force: bool, no_verify: bool) -> Result<(), GitError> {
     let env = CommandEnv::current()?;
-    let repo_root = env.repo.worktree_base()?;
-    let ctx = CommandContext::new(
-        &env.repo,
-        &env.config,
-        &env.branch,
-        &env.worktree_path,
-        &repo_root,
-        force,
-    );
+    let ctx = env.context(force);
     let mut options = CommitOptions::new(&ctx);
     options.no_verify = no_verify;
     options.auto_trust = false;
@@ -129,19 +102,17 @@ pub fn handle_squash(
     tracked_only: bool,
     warn_about_untracked: bool,
 ) -> Result<bool, GitError> {
-    let CommandEnv {
-        repo,
-        branch: current_branch,
-        config,
-        worktree_path,
-    } = CommandEnv::current()?;
+    let env = CommandEnv::current()?;
+    let repo = &env.repo;
+    let current_branch = env.branch.clone();
+    let ctx = env.context(force);
 
     // Get target branch (default to default branch if not provided)
     let target_branch = repo.resolve_target_branch(target)?;
 
     // Auto-stage changes before running pre-commit hooks so both beta and merge paths behave identically
     if warn_about_untracked && !tracked_only {
-        warn_untracked_auto_stage(&repo)?;
+        warn_untracked_auto_stage(repo)?;
     }
 
     if tracked_only {
@@ -153,16 +124,7 @@ pub fn handle_squash(
     }
 
     // Run pre-commit hook unless explicitly skipped
-    if !skip_pre_commit && let Some(project_config) = load_project_config(&repo)? {
-        let repo_root = repo.worktree_base()?;
-        let ctx = CommandContext::new(
-            &repo,
-            &config,
-            &current_branch,
-            &worktree_path,
-            &repo_root,
-            force,
-        );
+    if !skip_pre_commit && let Some(project_config) = load_project_config(repo)? {
         run_pre_commit_commands(&project_config, &ctx, Some(&target_branch), auto_trust)?;
     }
 
@@ -183,7 +145,7 @@ pub fn handle_squash(
 
     if commit_count == 0 && has_staged {
         // Just staged changes, no commits - commit them directly (no squashing needed)
-        commit_staged_changes(&config.commit_generation, true)?;
+        commit_staged_changes(&env.config.commit_generation, true)?;
         return Ok(true);
     }
 
@@ -224,7 +186,7 @@ pub fn handle_squash(
     // Generate squash commit message
     crate::output::progress(format!("{CYAN}Generating squash commit message...{CYAN:#}"))?;
 
-    show_llm_config_hint_if_needed(&config.commit_generation)?;
+    show_llm_config_hint_if_needed(&env.config.commit_generation)?;
 
     // Get current branch and repo name for template variables
     let repo_root = repo.worktree_root()?;
@@ -238,7 +200,7 @@ pub fn handle_squash(
         &subjects,
         &current_branch,
         repo_name,
-        &config.commit_generation,
+        &env.config.commit_generation,
     )
     .git_context("Failed to generate commit message")?;
 
