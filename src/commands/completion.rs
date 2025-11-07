@@ -73,10 +73,10 @@ fn parse_completion_context(args: &[String]) -> CompletionContext {
         }
     }
 
-    // Handle dev subcommand
-    if subcommand == "dev" && args.len() >= 3 {
-        let dev_subcommand = &args[2];
-        if dev_subcommand == "run-hook" {
+    // Handle beta subcommand
+    if subcommand == "beta" && args.len() >= 3 {
+        let beta_subcommand = &args[2];
+        if beta_subcommand == "run-hook" {
             // Complete hook types for the positional argument
             return CompletionContext::DevRunHook;
         }
@@ -270,8 +270,8 @@ mod tests {
 
     #[test]
     fn test_parse_completion_context_dev_run_hook() {
-        // "wt dev run-hook <cursor>"
-        let args = vec!["wt".to_string(), "dev".to_string(), "run-hook".to_string()];
+        // "wt beta run-hook <cursor>"
+        let args = vec!["wt".to_string(), "beta".to_string(), "run-hook".to_string()];
         assert_eq!(
             parse_completion_context(&args),
             CompletionContext::DevRunHook
@@ -280,10 +280,10 @@ mod tests {
 
     #[test]
     fn test_parse_completion_context_dev_run_hook_partial() {
-        // "wt dev run-hook po<cursor>"
+        // "wt beta run-hook po<cursor>"
         let args = vec![
             "wt".to_string(),
-            "dev".to_string(),
+            "beta".to_string(),
             "run-hook".to_string(),
             "po".to_string(),
         ];
@@ -295,8 +295,8 @@ mod tests {
 
     #[test]
     fn test_parse_completion_context_dev_only() {
-        // "wt dev <cursor>" - should not complete
-        let args = vec!["wt".to_string(), "dev".to_string()];
+        // "wt beta <cursor>" - should not complete
+        let args = vec!["wt".to_string(), "beta".to_string()];
         assert_eq!(parse_completion_context(&args), CompletionContext::Unknown);
     }
 }

@@ -710,12 +710,12 @@ fn test_complete_dev_run_hook_shows_hook_types() {
     let temp = TestRepo::new();
     temp.commit("initial");
 
-    // Test completion for dev run-hook
+    // Test completion for beta run-hook
     let mut cmd = wt_command();
     temp.clean_cli_env(&mut cmd);
     let output = cmd
         .current_dir(temp.root_path())
-        .args(["complete", "wt", "dev", "run-hook", ""])
+        .args(["complete", "wt", "beta", "run-hook", ""])
         .output()
         .unwrap();
 
@@ -742,7 +742,7 @@ fn test_complete_dev_run_hook_with_partial_input() {
     temp.clean_cli_env(&mut cmd);
     let output = cmd
         .current_dir(temp.root_path())
-        .args(["complete", "wt", "dev", "run-hook", "po"])
+        .args(["complete", "wt", "beta", "run-hook", "po"])
         .output()
         .unwrap();
 
