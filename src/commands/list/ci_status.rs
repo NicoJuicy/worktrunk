@@ -30,30 +30,27 @@ impl PrStatus {
     /// Detect CI status for a branch using gh/glab CLI
     /// First tries to find PR/MR status, then falls back to workflow/pipeline runs
     /// Returns None if no CI found or CLI tools unavailable
-    pub fn detect(branch: &str, local_head: &str) -> Option<Self> {
-        // Get GitHub repo for gh commands (from git remote)
-        let github_repo = Self::get_github_repo();
-
+    ///
+    /// # Fork Support
+    /// Runs gh commands from the repository directory to enable auto-detection of
+    /// upstream repositories for forks. This ensures PRs opened against upstream
+    /// repos are properly detected.
+    ///
+    /// # Requirements
+    /// The `repo_path` parameter must be a valid git repository (enforced by caller).
+    pub fn detect(branch: &str, local_head: &str, repo_path: &std::path::Path) -> Option<Self> {
         // Get git repo root directory for setting working directory
-        let repo_root = Self::get_repo_root();
+        // We always run gh commands from the repo directory to let gh auto-detect the correct repo
+        // (including upstream repos for forks)
+        let repo_root = Self::get_repo_root(repo_path);
 
         // Try GitHub PR first
-        if let Some(status) = Self::detect_github(
-            branch,
-            local_head,
-            github_repo.as_deref(),
-            repo_root.as_deref(),
-        ) {
+        if let Some(status) = Self::detect_github(branch, local_head, &repo_root) {
             return Some(status);
         }
 
         // Try GitHub workflow runs (for branches without PRs)
-        if let Some(status) = Self::detect_github_workflow(
-            branch,
-            local_head,
-            github_repo.as_deref(),
-            repo_root.as_deref(),
-        ) {
+        if let Some(status) = Self::detect_github_workflow(branch, local_head, &repo_root) {
             return Some(status);
         }
 
@@ -67,66 +64,30 @@ impl PrStatus {
     }
 
     /// Get git repository root directory
-    fn get_repo_root() -> Option<String> {
+    ///
+    /// # Panics
+    /// Panics if repo_path is not a valid git repository. This should never happen
+    /// since repo_path comes from Repository::worktree_root() which validates it.
+    fn get_repo_root(repo_path: &std::path::Path) -> String {
         let output = Command::new("git")
             .args(["rev-parse", "--show-toplevel"])
+            .current_dir(repo_path)
             .output()
-            .ok()?;
+            .expect("failed to run git rev-parse");
 
-        if !output.status.success() {
-            return None;
-        }
+        assert!(
+            output.status.success(),
+            "git rev-parse failed - repo_path {:?} is not a valid git repository",
+            repo_path
+        );
 
-        Some(String::from_utf8(output.stdout).ok()?.trim().to_string())
+        String::from_utf8(output.stdout)
+            .unwrap_or_else(|e| panic!("git output is not valid UTF-8 from {:?}: {}", repo_path, e))
+            .trim()
+            .to_string()
     }
 
-    /// Extract GitHub repository owner/name from git remote URL
-    /// Returns None if not a GitHub repo or if git command fails
-    fn get_github_repo() -> Option<String> {
-        let output = Command::new("git")
-            .args(["remote", "get-url", "origin"])
-            .output()
-            .ok()?;
-
-        if !output.status.success() {
-            return None;
-        }
-
-        let url = String::from_utf8(output.stdout).ok()?.trim().to_string();
-
-        // Parse GitHub URL - handles both HTTPS and SSH formats
-        // HTTPS: https://github.com/owner/repo.git
-        // SSH: git@github.com:owner/repo.git
-        if !url.contains("github.com") {
-            return None;
-        }
-
-        // Find the part after "github.com:" or "github.com/"
-        let after_github = if let Some(pos) = url.find("github.com:") {
-            &url[pos + "github.com:".len()..]
-        } else if let Some(pos) = url.find("github.com/") {
-            &url[pos + "github.com/".len()..]
-        } else {
-            return None;
-        };
-
-        // Remove .git suffix if present
-        let repo_part = after_github.strip_suffix(".git").unwrap_or(after_github);
-
-        // Extract owner/repo (should be of form "owner/repo")
-        if repo_part.split('/').count() >= 2 {
-            Some(repo_part.to_string())
-        } else {
-            None
-        }
-    }
-
-    fn detect_github(
-        branch: &str,
-        local_head: &str,
-        repo: Option<&str>,
-        repo_root: Option<&str>,
-    ) -> Option<Self> {
+    fn detect_github(branch: &str, local_head: &str, repo_root: &str) -> Option<Self> {
         // Check if gh is available and authenticated
         if !Command::new("gh")
             .args(["auth", "status"])
@@ -153,13 +114,9 @@ impl PrStatus {
         cmd.env("NO_COLOR", "1");
         cmd.env("CLICOLOR", "0");
 
-        if let Some(r) = repo {
-            cmd.args(["--repo", r]);
-        }
-
-        if let Some(root) = repo_root {
-            cmd.current_dir(root);
-        }
+        // Always set working directory and let gh auto-detect the repo
+        // This handles forks correctly (gh will detect upstream repo from git context)
+        cmd.current_dir(repo_root);
 
         let output = cmd.output().ok()?;
 
@@ -242,12 +199,7 @@ impl PrStatus {
         })
     }
 
-    fn detect_github_workflow(
-        branch: &str,
-        local_head: &str,
-        repo: Option<&str>,
-        repo_root: Option<&str>,
-    ) -> Option<Self> {
+    fn detect_github_workflow(branch: &str, local_head: &str, repo_root: &str) -> Option<Self> {
         // Check if gh is available and authenticated
         if !Command::new("gh")
             .args(["auth", "status"])
@@ -279,13 +231,9 @@ impl PrStatus {
         cmd.env("NO_COLOR", "1");
         cmd.env("CLICOLOR", "0");
 
-        if let Some(r) = repo {
-            cmd.args(["--repo", r]);
-        }
-
-        if let Some(root) = repo_root {
-            cmd.current_dir(root);
-        }
+        // Always set working directory and let gh auto-detect the repo
+        // This handles forks correctly (gh will detect upstream repo from git context)
+        cmd.current_dir(repo_root);
 
         let output = cmd.output().ok()?;
 

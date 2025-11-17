@@ -351,7 +351,9 @@ impl BranchInfo {
         let upstream = UpstreamStatus::calculate(repo, Some(branch), &head)?;
 
         let pr_status = if fetch_ci {
-            PrStatus::detect(branch, &head)
+            // Use worktree_root() which returns an absolute path
+            let repo_path = repo.worktree_root()?;
+            PrStatus::detect(branch, &head, &repo_path)
         } else {
             None
         };
@@ -954,7 +956,7 @@ impl WorktreeInfo {
         let pr_status = if fetch_ci {
             wt.branch
                 .as_deref()
-                .and_then(|branch| PrStatus::detect(branch, &wt.head))
+                .and_then(|branch| PrStatus::detect(branch, &wt.head, &wt.path))
         } else {
             None
         };
