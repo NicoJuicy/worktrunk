@@ -44,7 +44,7 @@ fn main() {
 
         // Replace this process with the target command.
         // If execvp returns, it failed.
-        let _ = execvp(&prog, &cargs);
+        let _ = execvp(prog.as_c_str(), &cargs);
         eprintln!("dev-detach: execvp failed");
         process::exit(127);
     }

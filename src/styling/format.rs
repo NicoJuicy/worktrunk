@@ -201,25 +201,29 @@ pub fn format_bash_with_gutter(content: &str, left_margin: &str) -> String {
         "constant", // Constants/flags
     ];
 
-    let bash_language = tree_sitter_bash::language();
+    let bash_language = tree_sitter_bash::LANGUAGE.into();
     let bash_highlights = tree_sitter_bash::HIGHLIGHT_QUERY;
 
-    let mut config = HighlightConfiguration::new(
+    let mut config = match HighlightConfiguration::new(
         bash_language,
+        "bash", // language name
         bash_highlights,
         "", // injections query
         "", // locals query
-    )
-    .unwrap_or_else(|_| {
-        // Fallback: if tree-sitter fails, use plain gutter formatting
-        HighlightConfiguration::new(
-            bash_language,
-            "", // empty query
-            "",
-            "",
-        )
-        .unwrap()
-    });
+    ) {
+        Ok(config) => config,
+        Err(_) => {
+            // Fallback: if tree-sitter fails, use plain gutter formatting
+            HighlightConfiguration::new(
+                tree_sitter_bash::LANGUAGE.into(),
+                "bash", // language name
+                "",     // empty query
+                "",
+                "",
+            )
+            .unwrap()
+        }
+    };
 
     config.configure(&highlight_names);
 
