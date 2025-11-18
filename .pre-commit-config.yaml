@@ -33,6 +33,7 @@ repos:
         types: [markdown]
         exclude: ^\.claude-plugin/skills/worktrunk/README\.md$
         args:
+          - --config=.config/lychee.toml
           - --include=^(https://(github\.com/worktrunk|worktrunk\.dev)|file://)
           - --no-progress
       # Comprehensive mode - check all links with full config
