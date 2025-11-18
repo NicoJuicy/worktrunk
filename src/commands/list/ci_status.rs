@@ -18,10 +18,30 @@ pub enum CiStatus {
     NoCI,
 }
 
+/// Source of CI status
+///
+/// TODO: Current visual distinction (● for PR, ○ for branch) means main branch
+/// always shows hollow circle when running branch CI. This may not be ideal.
+/// Possible improvements:
+/// - Use different symbols entirely (e.g., ● vs ◎ double circle, ● vs ⊙ circled dot)
+/// - Add a third state for "primary branch" (main/master)
+/// - Use different shape families (e.g., ● circle vs ■ square, ● vs ◆ diamond)
+/// - Consider directional symbols for branch CI (e.g., ▶ right arrow)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CiSource {
+    /// Pull request or merge request
+    PullRequest,
+    /// Branch workflow/pipeline (no PR/MR)
+    Branch,
+}
+
 /// PR/MR status including CI state and staleness
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrStatus {
     pub ci_status: CiStatus,
+    /// Source of the CI status (PR/MR or branch workflow)
+    pub source: CiSource,
     /// True if local HEAD differs from PR HEAD (unpushed changes)
     pub is_stale: bool,
     /// URL to the PR/MR (if available)
@@ -156,6 +176,7 @@ impl PrStatus {
 
         Some(PrStatus {
             ci_status,
+            source: CiSource::PullRequest,
             is_stale,
             url: pr_info.url.clone(),
         })
@@ -206,8 +227,11 @@ impl PrStatus {
 
         Some(PrStatus {
             ci_status,
+            source: CiSource::PullRequest,
             is_stale,
-            url: None, // GitLab MR URL not currently fetched
+            // TODO: Fetch GitLab MR URL from glab output to enable clickable links
+            // Currently only GitHub PRs have clickable underlined indicators
+            url: None,
         })
     }
 
@@ -268,6 +292,7 @@ impl PrStatus {
 
         Some(PrStatus {
             ci_status,
+            source: CiSource::Branch,
             is_stale,
             url: None, // Workflow runs don't have a PR URL
         })
@@ -310,8 +335,10 @@ impl PrStatus {
 
         Some(PrStatus {
             ci_status,
+            source: CiSource::Branch,
             is_stale,
-            url: None, // GitLab pipeline URL not currently fetched
+            // TODO: Fetch GitLab pipeline URL to enable clickable links
+            url: None,
         })
     }
 }

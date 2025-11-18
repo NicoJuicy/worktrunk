@@ -3,7 +3,7 @@ use anstyle::{AnsiColor, Color, Style};
 use std::path::Path;
 use worktrunk::styling::{CURRENT, StyledLine, println};
 
-use super::ci_status::{CiStatus, PrStatus};
+use super::ci_status::{CiSource, CiStatus, PrStatus};
 use super::columns::{ColumnKind, DiffVariant};
 use super::layout::{
     ColumnFormat, ColumnLayout, DiffColumnConfig, DiffDisplayConfig, LayoutConfig,
@@ -81,10 +81,24 @@ impl PrStatus {
         }
     }
 
+    /// Get indicator symbol and style for rendering
+    fn indicator_and_style(&self) -> (&'static str, Style) {
+        let indicator = match self.source {
+            CiSource::PullRequest => "●",
+            CiSource::Branch => "○",
+        };
+
+        let style = if self.url.is_some() {
+            self.style().underline()
+        } else {
+            self.style()
+        };
+
+        (indicator, style)
+    }
+
     /// Format CI status as plain text with ANSI colors (for json-pretty)
     pub fn format_plain(&self) -> String {
-        let style = self.style();
-
         let status_str = match self.ci_status {
             CiStatus::Passed => "passed",
             CiStatus::Running => "running",
@@ -93,10 +107,10 @@ impl PrStatus {
             CiStatus::NoCI => "no-ci",
         };
 
-        // Create base text
-        let text = format!("● {}", status_str);
+        let (indicator, style) = self.indicator_and_style();
 
-        // Wrap with hyperlink if URL is available
+        let text = format!("{} {}", indicator, status_str);
+
         let content = if let Some(ref url) = self.url {
             use worktrunk::styling::hyperlink;
             hyperlink(&text, url)
@@ -109,21 +123,19 @@ impl PrStatus {
 
     fn render_indicator(&self) -> StyledLine {
         let mut segment = StyledLine::new();
-        let indicator = "●";
+        let (indicator, style) = self.indicator_and_style();
 
-        // If we have a URL, wrap the indicator with an OSC 8 hyperlink
         if let Some(ref url) = self.url {
             use worktrunk::styling::hyperlink;
-            // Create styled indicator with hyperlink
             let styled_indicator = format!(
                 "{}{}{}",
-                self.style(),
+                style,
                 hyperlink(indicator, url),
-                self.style().render_reset()
+                style.render_reset()
             );
             segment.push_raw(styled_indicator);
         } else {
-            segment.push_styled(indicator.to_string(), self.style());
+            segment.push_styled(indicator.to_string(), style);
         }
 
         segment
