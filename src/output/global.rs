@@ -82,16 +82,29 @@ pub fn progress(message: impl Into<String>) -> io::Result<()> {
     })
 }
 
-/// Emit a hint message (only shown in interactive mode)
+/// Display a hint message
 ///
-/// Hints are suggestions for interactive users, like "To enable automatic cd, run: wt config shell"
-/// They are shown in interactive mode but suppressed in directive mode (where they don't apply).
+/// Hints are suggestions for users, like "Backup created @ \<sha\>" or "Using fallback commit message"
 pub fn hint(message: impl Into<String>) -> io::Result<()> {
     OUTPUT_CONTEXT.with(|ctx| {
         let msg = message.into();
         match &mut *ctx.borrow_mut() {
             OutputHandler::Interactive(i) => i.hint(msg),
             OutputHandler::Directive(d) => d.hint(msg),
+        }
+    })
+}
+
+/// Display a shell integration hint (suppressed in directive mode)
+///
+/// Shell integration hints like "To enable automatic cd, run: wt config shell" are only
+/// shown in interactive mode since directive mode users already have shell integration
+pub fn shell_integration_hint(message: impl Into<String>) -> io::Result<()> {
+    OUTPUT_CONTEXT.with(|ctx| {
+        let msg = message.into();
+        match &mut *ctx.borrow_mut() {
+            OutputHandler::Interactive(i) => i.shell_integration_hint(msg),
+            OutputHandler::Directive(d) => d.shell_integration_hint(msg),
         }
     })
 }

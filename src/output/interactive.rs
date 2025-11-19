@@ -43,6 +43,13 @@ impl InteractiveOutput {
         Ok(())
     }
 
+    pub fn shell_integration_hint(&mut self, message: String) -> io::Result<()> {
+        // Shell integration hints work the same as regular hints in interactive mode
+        println!("{HINT_EMOJI} {message}");
+        stdout().flush()?;
+        Ok(())
+    }
+
     pub fn info(&mut self, message: String) -> io::Result<()> {
         // Info messages automatically include the ⚪ emoji
         println!("{INFO_EMOJI} {message}");

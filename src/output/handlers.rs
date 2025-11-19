@@ -111,7 +111,7 @@ pub fn handle_switch_output(
     // If no execute command provided: show shell integration hint
     // (suppressed in directive mode since user already has integration)
     if !has_execute_command {
-        super::hint(shell_integration_hint())?;
+        super::shell_integration_hint(shell_integration_hint())?;
     }
 
     // Flush output (important for directive mode)

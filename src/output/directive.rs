@@ -37,7 +37,7 @@
 
 use std::io::{self, Write};
 use std::path::Path;
-use worktrunk::styling::{INFO_EMOJI, PROGRESS_EMOJI, SUCCESS_EMOJI, WARNING_EMOJI};
+use worktrunk::styling::{HINT_EMOJI, INFO_EMOJI, PROGRESS_EMOJI, SUCCESS_EMOJI, WARNING_EMOJI};
 
 /// Directive output mode for shell integration
 ///
@@ -63,8 +63,14 @@ impl DirectiveOutput {
         io::stderr().flush()
     }
 
-    pub fn hint(&mut self, _message: String) -> io::Result<()> {
-        // Hints are only for interactive mode - suppress in directive mode
+    pub fn hint(&mut self, message: String) -> io::Result<()> {
+        // Hint messages go to stderr for real-time streaming (not buffered by shell wrapper)
+        writeln!(io::stderr(), "{HINT_EMOJI} {message}")?;
+        io::stderr().flush()
+    }
+
+    pub fn shell_integration_hint(&mut self, _message: String) -> io::Result<()> {
+        // Shell integration hints are suppressed in directive mode
         // When users run through shell wrapper, they already have integration
         Ok(())
     }
