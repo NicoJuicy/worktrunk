@@ -46,6 +46,8 @@ $ wt merge
 # Shell back in main
 ```
 
+See [`wt merge`](#wt-merge-target) for all options.
+
 **See all active worktrees:**
 
 <!-- Output from: tests/snapshots/integration__integration_tests__list__readme_example_simple_list.snap -->
@@ -60,12 +62,16 @@ feature-x  +       ↑      +5 ↑3  ./feature-x           7fd821aa  10 months a
 ⚪ Showing 3 worktrees, 1 with changes, 2 ahead
 ```
 
+See [`wt list`](#wt-list) for all options.
+
 ## Installation
 
 ```bash
 cargo install worktrunk
 wt config shell  # Sets up shell integration
 ```
+
+See [Shell Integration](#shell-integration) for details.
 
 ## Design Philosophy
 
@@ -252,7 +258,7 @@ Commit Messages](#llm-authored-commit-messages).
 
 **Environment setup with hooks** - Use `post-create-command` (or
 `post-start-command` for non-blocking) to run setup for that
-path:
+path. See [Project Hooks](#project-hooks) for details:
 
 ```toml
 # In .config/wt.toml
