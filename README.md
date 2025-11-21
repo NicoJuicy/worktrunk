@@ -267,7 +267,7 @@ shows `🤖` in `wt list`. When waiting for input, it shows `💬`. Setup
 instructions: [Custom Worktree Status](#custom-worktree-status).
 
 **Auto-generated commit messages** - Simon Willison's
-[llm](https://llm.datasette.io/) tool integrates seamlessly with worktrunk's
+[llm](https://llm.datasette.io/) tool works with worktrunk's
 commit generation. Install it, configure the command, and `wt merge` will
 automatically generate contextual commit messages. Setup guide: [LLM-Authored
 Commit Messages](#llm-authored-commit-messages).
@@ -817,7 +817,7 @@ approved-commands = ["npm install", "npm test"]
 
 ### Custom Worktree Status
 
-Add emoji status markers to branches that appear in `wt list`. Perfect for tracking work-in-progress states, CI status, or team coordination.
+Add emoji status markers to branches that appear in `wt list`.
 
 ```bash
 # Set status for current branch
