@@ -442,8 +442,7 @@ pub fn collect(
     show_progress: bool,
     render_table: bool,
 ) -> anyhow::Result<Option<super::model::ListData>> {
-    use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-    use std::time::Duration;
+    use super::progressive_table::ProgressiveTable;
 
     let worktrees = repo.list_worktrees()?;
     if worktrees.worktrees.is_empty() {
@@ -518,69 +517,9 @@ pub fn collect(
     let layout = super::layout::calculate_layout_from_basics(&all_items, show_full, fetch_ci);
 
     // Single-line invariant: use safe width to prevent line wrapping
-    // (which breaks indicatif's line-based cursor math).
     let max_width = super::layout::get_safe_list_width();
 
-    // Clamp helper to keep progress output single-line in narrow terminals.
-    // truncate_visible already returns early if no truncation needed, avoiding redundant work.
-    let clamp = |s: &str| -> String { crate::display::truncate_visible(s, max_width, "…") };
-
-    // Create MultiProgress with explicit draw target and cursor mode
-    // Use stderr for progress bars so they don't interfere with stdout directives
-    let multi = if show_progress {
-        let mp = MultiProgress::with_draw_target(indicatif::ProgressDrawTarget::stderr_with_hz(10));
-        mp.set_move_cursor(true); // Stable since bar count is fixed
-        mp
-    } else {
-        MultiProgress::new()
-    };
-
-    let message_style = ProgressStyle::with_template("{msg}").unwrap();
-
-    // Create header progress bar (part of transient UI, cleared with finish_and_clear)
-    let header_pb = if show_progress {
-        let pb = multi.add(ProgressBar::hidden());
-        pb.set_style(message_style.clone());
-        pb.set_message(clamp(&layout.format_header_line()));
-        Some(pb)
-    } else {
-        None
-    };
-
-    // Create progress bars for all items (worktrees + branches)
-    let progress_bars: Vec<_> = all_items
-        .iter()
-        .map(|item| {
-            let pb = multi.add(ProgressBar::new_spinner());
-            if show_progress {
-                pb.set_style(message_style.clone());
-
-                // Render skeleton immediately with clamping
-                let skeleton = if item.worktree_data().is_some() {
-                    // Worktree skeleton - show known data (branch, path, commit)
-                    let is_current = item
-                        .worktree_path()
-                        .and_then(|p| current_worktree_path.as_ref().map(|cp| p == cp))
-                        .unwrap_or(false);
-                    layout.format_skeleton_row(item, is_current)
-                } else {
-                    // Branch skeleton - use full item rendering
-                    layout.format_list_item_line(item, current_worktree_path.as_ref())
-                };
-                pb.set_message(clamp(&skeleton));
-                pb.enable_steady_tick(Duration::from_millis(100));
-            }
-            pb
-        })
-        .collect();
-
-    // Cache last rendered (unclamped) message per row to avoid redundant updates.
-    // TODO(list-progressive): if we change clamping/detection strategy, keep a test case
-    // for off-screen CI column updates to ensure we still refresh rows.
-    let mut last_rendered_lines: Vec<String> = vec![String::new(); all_items.len()];
-
-    // Footer progress bar with loading status
-    // Uses determinate bar (no spinner) with {wide_msg} to prevent clearing artifacts
+    // Build initial footer message
     let total_cells = all_items.len() * layout.columns.len();
     let num_worktrees = all_items
         .iter()
@@ -597,34 +536,42 @@ pub fn collect(
         format!("Showing {} worktree{}", num_worktrees, plural)
     };
 
-    // Spacer: single-line blank between the table rows and the footer (no multiline messages)
-    let spacer_style = ProgressStyle::with_template("{wide_msg}").unwrap();
-    let spacer_pb = if show_progress {
-        let gap = multi.add(ProgressBar::new(1));
-        gap.set_style(spacer_style.clone());
-        gap.set_message(" "); // padded blank line
-        Some(gap)
-    } else {
-        None
-    };
-
-    // Footer is single-line; no '\n'. Will be replaced with final summary on finish.
-    let footer_style = ProgressStyle::with_template("{wide_msg}").unwrap();
-
-    let footer_pb = if show_progress {
+    // Create progressive table if showing progress
+    let mut progressive_table = if show_progress {
         use anstyle::Style;
         let dim = Style::new().dimmed();
 
-        // Footer with determinate bar (no spinner/tick)
-        let footer = multi.add(ProgressBar::new(total_cells as u64));
-        footer.set_style(footer_style);
-        footer.set_message(format!(
-            "{INFO_EMOJI} {dim}{footer_base} (0/{total_cells} cells loaded){dim:#}"
-        ));
-        Some(footer)
+        // Build skeleton rows
+        let skeletons: Vec<String> = all_items
+            .iter()
+            .map(|item| {
+                if item.worktree_data().is_some() {
+                    let is_current = item
+                        .worktree_path()
+                        .and_then(|p| current_worktree_path.as_ref().map(|cp| p == cp))
+                        .unwrap_or(false);
+                    layout.format_skeleton_row(item, is_current)
+                } else {
+                    layout.format_list_item_line(item, current_worktree_path.as_ref())
+                }
+            })
+            .collect();
+
+        let initial_footer =
+            format!("{INFO_EMOJI} {dim}{footer_base} (0/{total_cells} cells loaded){dim:#}");
+
+        Some(ProgressiveTable::new(
+            layout.format_header_line(),
+            skeletons,
+            initial_footer,
+            max_width,
+        )?)
     } else {
         None
     };
+
+    // Cache last rendered (unclamped) message per row to avoid redundant updates.
+    let mut last_rendered_lines: Vec<String> = vec![String::new(); all_items.len()];
 
     // Create channel for cell updates
     let (tx, rx) = chan::unbounded();
@@ -714,122 +661,74 @@ pub fn collect(
             );
 
             // Progressive mode only: update UI
-            if show_progress {
+            if let Some(ref mut table) = progressive_table {
                 use anstyle::Style;
                 let dim = Style::new().dimmed();
 
                 completed_cells += 1;
 
                 // Update footer progress
-                if let Some(pb) = footer_pb.as_ref() {
-                    pb.set_position(completed_cells as u64);
-                    pb.set_message(format!(
+                let footer_msg = format!(
                     "{INFO_EMOJI} {dim}{footer_base} ({completed_cells}/{total_cells} cells loaded){dim:#}"
-                ));
+                );
+                if let Err(e) = table.update_footer(footer_msg) {
+                    log::debug!("Progressive footer update failed: {}", e);
                 }
 
-                // Re-render the row with caching and clamping (now includes status if computed)
-                if let Some(pb) = progress_bars.get(item_idx) {
-                    let rendered =
-                        layout.format_list_item_line(item, current_worktree_path.as_ref());
-                    let clamped = clamp(&rendered);
+                // Re-render the row with caching (now includes status if computed)
+                let rendered = layout.format_list_item_line(item, current_worktree_path.as_ref());
 
-                    // Compare using full line so changes beyond the clamp (e.g., CI) still refresh.
-                    if rendered != last_rendered_lines[item_idx] {
-                        last_rendered_lines[item_idx] = rendered;
-                        pb.set_message(clamped);
+                // Compare using full line so changes beyond the clamp (e.g., CI) still refresh.
+                if rendered != last_rendered_lines[item_idx] {
+                    last_rendered_lines[item_idx] = rendered.clone();
+                    if let Err(e) = table.update_row(item_idx, rendered) {
+                        log::debug!("Progressive row update failed: {}", e);
                     }
                 }
             }
         },
     );
 
-    // Finalize progress bars: no clearing race; footer morphs into summary on TTY
-    if show_progress {
-        use std::io::IsTerminal;
-        let is_tty = std::io::stderr().is_terminal(); // Check stderr, not stdout ✅
-
-        // Build final summary string once using helper function
+    // Finalize progressive table or render buffered output
+    if let Some(mut table) = progressive_table {
+        // Build final summary string
         let final_msg =
             super::format_summary_message(&all_items, show_branches, layout.hidden_nonempty_count);
 
-        if is_tty {
-            // Interactive: morph footer → summary, keep rows in place
-            // Do a final render pass to ensure all data is displayed
-            // (progressive updates may have been clamped or timing-delayed)
-            for (item_idx, pb) in progress_bars.iter().enumerate() {
-                let rendered = layout
-                    .format_list_item_line(&all_items[item_idx], current_worktree_path.as_ref());
-                let clamped = clamp(&rendered);
-                pb.set_message(clamped);
-            }
-
-            if let Some(pb) = spacer_pb.as_ref() {
-                pb.finish(); // leave the blank line
-            }
-            if let Some(pb) = footer_pb.as_ref() {
-                pb.finish_with_message(final_msg.clone());
-            }
-            if let Some(pb) = header_pb {
-                pb.finish();
-            }
-            for pb in progress_bars {
-                pb.finish();
-            }
-        } else {
-            // Non-TTY: clear progress bars and print final table to stderr
-            if let Some(pb) = spacer_pb {
-                pb.finish_and_clear();
-            }
-            if let Some(pb) = footer_pb {
-                pb.finish_and_clear();
-            }
-            if let Some(pb) = header_pb {
-                pb.finish_and_clear();
-            }
-            for pb in progress_bars {
-                pb.finish_and_clear();
-            }
-            // Ensure atomicity w.r.t. indicatif's draw thread
-            multi.suspend(|| {
-                // Redraw static table
-                crate::output::raw_terminal(layout.format_header_line())?;
-                for item in &all_items {
-                    crate::output::raw_terminal(
-                        layout.format_list_item_line(item, current_worktree_path.as_ref()),
-                    )?;
+        if table.is_tty() {
+            // Interactive: do final render pass and update footer to summary
+            for (item_idx, item) in all_items.iter().enumerate() {
+                let rendered = layout.format_list_item_line(item, current_worktree_path.as_ref());
+                if let Err(e) = table.update_row(item_idx, rendered) {
+                    log::debug!("Final row update failed: {}", e);
                 }
-                // Blank line + summary (rendered here in non-tty mode)
-                crate::output::raw_terminal("")?;
-                crate::output::raw_terminal(final_msg.clone())
-            })?;
-        }
-    } else {
-        // Buffered mode (no progress bars shown)
-        for pb in progress_bars {
-            pb.finish();
-        }
-
-        // Render final table if requested (table format), otherwise just return data (JSON format)
-        if render_table {
-            // Build final summary string
-            let final_msg = super::format_summary_message(
-                &all_items,
-                show_branches,
-                layout.hidden_nonempty_count,
-            );
-
-            // Render complete table
-            crate::output::raw_terminal(layout.format_header_line())?;
-            for item in &all_items {
-                crate::output::raw_terminal(
-                    layout.format_list_item_line(item, current_worktree_path.as_ref()),
-                )?;
             }
-            // Blank line + summary
-            crate::output::raw_terminal("")?;
-            crate::output::raw_terminal(final_msg)?;
+            table.finalize_tty(final_msg)?;
+        } else {
+            // Non-TTY: print final static table
+            let mut final_lines = Vec::new();
+            final_lines.push(layout.format_header_line());
+            for item in &all_items {
+                final_lines
+                    .push(layout.format_list_item_line(item, current_worktree_path.as_ref()));
+            }
+            final_lines.push(String::new()); // Spacer
+            final_lines.push(final_msg);
+            table.finalize_non_tty(final_lines)?;
         }
+    } else if render_table {
+        // Buffered mode: render final table
+        let final_msg =
+            super::format_summary_message(&all_items, show_branches, layout.hidden_nonempty_count);
+
+        crate::output::raw_terminal(layout.format_header_line())?;
+        for item in &all_items {
+            crate::output::raw_terminal(
+                layout.format_list_item_line(item, current_worktree_path.as_ref()),
+            )?;
+        }
+        crate::output::raw_terminal("")?;
+        crate::output::raw_terminal(final_msg)?;
     }
 
     // Status symbols are now computed during data collection (both modes), no fallback needed

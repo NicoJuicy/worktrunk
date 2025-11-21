@@ -81,6 +81,7 @@ mod columns;
 mod layout;
 pub mod model;
 pub mod progressive;
+mod progressive_table;
 mod render;
 
 #[cfg(test)]
