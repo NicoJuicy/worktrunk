@@ -3,34 +3,23 @@
 //! # Status Column Structure
 //!
 //! The Status column uses a unified position-based grid system for all status
-//! indicators including user-defined status:
-//!
-//! ```text
-//! Status Column = Dynamic Grid [Position 0a...Position 4]
-//! ```
+//! indicators including user-defined status.
 //!
 //! ## Unified Position Grid
 //!
-//! All status indicators use position-based alignment with selective rendering:
-//! - Position 0a: Conflicts (=)
-//! - Position 0b: Branch state (≡, ∅)
-//! - Position 0c: Git operation (↻, ⋈)
-//! - Position 0d: Worktree attributes (⊠, ⚠)
-//! - Position 1: Main divergence (↑, ↓, ↕)
-//! - Position 2: Upstream divergence (⇡, ⇣, ⇅)
-//! - Position 3: Working tree (?, !, +, », ✘)
-//! - Position 4: User status (custom labels, emoji)
+//! All status indicators use position-based alignment with selective rendering.
+//! See [`super::model::StatusSymbols`] for the complete symbol list and categories.
 //!
 //! Only positions used by at least one row are included (position mask):
 //! - Within those positions, symbols align vertically for scannability
 //! - Empty positions render as single space for grid alignment
 //! - No leading spaces before the first symbol
 //!
-//! Example with positions 0b, 3, and 4 used:
+//! Example with branch_state, working_tree, and user_status used:
 //! ```text
-//! Row 1: "≡   🤖"   (0b=≡, 3=space, 4=🤖)
-//! Row 2: "≡?!   "   (0b=≡, 3=?!, 4=space)
-//! Row 3: "  💬"     (0b=space, 3=space, 4=💬)
+//! Row 1: "≡   🤖"   (branch=≡, working=space, user=🤖)
+//! Row 2: "≡?!   "   (branch=≡, working=?!, user=space)
+//! Row 3: "  💬"     (branch=space, working=space, user=💬)
 //! ```
 //!
 //! ## Width Calculation

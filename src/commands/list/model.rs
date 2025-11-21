@@ -473,12 +473,12 @@ impl PositionMask {
 /// Structured status symbols for aligned rendering
 ///
 /// Symbols are categorized to enable vertical alignment in table output:
-/// - Position 0a: Conflicts or branch state (✖, ⚠, ≡, ∅) - mutually exclusive
-/// - Position 0c: Git operation (↻, ⋈)
-/// - Item attributes: ⎇ for branches, ⌫⊠ for worktrees (priority-only)
+/// - Working tree: ?, !, +, », ✘
+/// - Branch state: ✖, ⚠, ≡, ∅ (mutually exclusive)
+/// - Git operation: ↻, ⋈
 /// - Main divergence: ↑, ↓, ↕
 /// - Upstream divergence: ⇡, ⇣, ⇅
-/// - Working tree: ?, !, +, », ✘
+/// - Item attributes: ⎇ for branches, ⌫⊠ for worktrees (priority-only)
 /// - User status: custom labels, emoji
 ///
 /// ## Mutual Exclusivity
@@ -498,12 +498,10 @@ impl PositionMask {
 #[derive(Debug, Clone, Default)]
 pub struct StatusSymbols {
     /// Branch state including conflicts (mutually exclusive)
-    /// Position 0a - BranchState enum
     /// Priority: Conflicts (✖) > MergeTreeConflicts (⚠) > MatchesMain (≡) > NoCommits (∅)
     pub(crate) branch_state: BranchState,
 
-    /// Git operation in progress
-    /// Position 0c - MUTUALLY EXCLUSIVE (enforced by enum)
+    /// Git operation in progress (mutually exclusive)
     pub(crate) git_operation: GitOperation,
 
     /// Item type attributes: ⎇ for branches, ⌫⊠ for worktrees (priority-only: prunable > locked)
@@ -517,20 +515,16 @@ pub struct StatusSymbols {
     /// Worktree prunable status - None for branches, Some("reason") or None for worktrees
     pub(crate) prunable: Option<String>,
 
-    /// Main branch divergence state
-    /// Position 1 - MUTUALLY EXCLUSIVE (enforced by enum)
+    /// Main branch divergence state (mutually exclusive)
     pub(crate) main_divergence: MainDivergence,
 
-    /// Remote/upstream divergence state
-    /// Position 2 - MUTUALLY EXCLUSIVE (enforced by enum)
+    /// Remote/upstream divergence state (mutually exclusive)
     pub(crate) upstream_divergence: UpstreamDivergence,
 
-    /// Working tree changes: ?, !, +, », ✘
-    /// Position 3+ - NOT mutually exclusive (can have "?!+" etc.)
+    /// Working tree changes: ?, !, +, », ✘ (NOT mutually exclusive, can have multiple)
     pub(crate) working_tree: String,
 
-    /// User-defined status annotation
-    /// Position 4 - Custom labels (e.g., 💬, 🤖)
+    /// User-defined status annotation (custom labels, e.g., 💬, 🤖)
     pub(crate) user_status: Option<String>,
 }
 
@@ -547,18 +541,11 @@ impl StatusSymbols {
 
     /// Render symbols with selective alignment based on position mask
     ///
-    /// Aligns all symbol types at fixed positions, but only includes positions
-    /// that are present in the mask:
-    /// - Position 0a: Conflicts or branch state (✖, ⚠, ≡, ∅)
-    /// - Position 0c: Git operation (↻, ⋈, or space)
-    /// - Position 0d: Worktree attributes (⊠⚠ or space)
-    /// - Position 1: Main divergence (↑, ↓, ↕, or space)
-    /// - Position 2: Upstream divergence (⇡, ⇣, ⇅, or space)
-    /// - Position 3: Working tree symbols (?, !, +, », ✘)
-    /// - Position 4: User status (custom labels, emoji)
+    /// Only includes positions present in the mask. This ensures vertical
+    /// scannability - each symbol type appears at the same column position
+    /// across all rows, while minimizing wasted space.
     ///
-    /// This ensures vertical scannability - each symbol type appears at the same
-    /// column position across all rows, while minimizing wasted space.
+    /// See [`StatusSymbols`] struct doc for symbol categories.
     pub fn render_with_mask(&self, mask: &PositionMask) -> String {
         use unicode_width::UnicodeWidthStr;
         use worktrunk::styling::{CYAN, ERROR, HINT, WARNING};
