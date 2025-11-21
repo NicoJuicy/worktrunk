@@ -604,18 +604,18 @@ exit 1
     /// Must call `setup_mock_gh()` first. Prepends the mock bin directory to PATH
     /// so gh/glab commands are intercepted.
     ///
-    /// Note: This sets PATH explicitly (which will be captured in snapshots). We use
-    /// a clean, minimal PATH with only system paths to avoid leaking user-specific
-    /// paths like ~/.cargo/bin into version control. This hardcoded PATH works on
-    /// macOS and Linux but may need adjustment for other environments.
+    /// Metadata redactions keep PATH private in snapshots, so we can reuse the
+    /// caller's PATH instead of a hardcoded minimal list.
     pub fn configure_mock_commands(&self, cmd: &mut Command) {
         if let Some(mock_bin) = &self.mock_bin_path {
-            // Use clean, minimal PATH to avoid capturing user-specific paths in snapshots
-            let clean_path = format!(
-                "{}:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
-                mock_bin.display()
-            );
-            cmd.env("PATH", clean_path);
+            let mut paths: Vec<PathBuf> = std::env::var_os("PATH")
+                .as_deref()
+                .map(|p| std::env::split_paths(p).collect())
+                .unwrap_or_default();
+            paths.insert(0, mock_bin.clone());
+            let new_path =
+                std::env::join_paths(paths).expect("Failed to join PATH components for tests");
+            cmd.env("PATH", new_path);
         }
     }
 }
@@ -663,19 +663,22 @@ pub fn setup_snapshot_settings(repo: &TestRepo) -> insta::Settings {
     );
 
     // Normalize WORKTRUNK_CONFIG_PATH temp paths in stdout/stderr output
-    // NOTE: This filter only applies to output content, not the info/env section.
-    // The env section paths cannot be normalized due to insta-cmd architecture
-    // (it calls set_info() which bypasses filters). This means env paths will vary
-    // between test runs, but this doesn't affect test functionality.
+    // (metadata is handled via redactions below)
     settings.add_filter(r".*/\.tmp[^/]+/test-config\.toml", "[TEST_CONFIG]");
 
-    // Normalize HOME temp directory in snapshots
+    // Normalize HOME temp directory in snapshots (stdout/stderr content)
     // Matches any temp directory path (without trailing filename)
     // Examples:
     //   macOS: HOME: /var/folders/.../T/.tmpXXX
     //   Linux: HOME: /tmp/.tmpXXX
     //   Windows: HOME: C:\Users\...\Temp\.tmpXXX (after backslash normalization)
     settings.add_filter(r"HOME: .*/\.tmp[^/\s]+", "HOME: [TEST_HOME]");
+
+    // Redact volatile metadata captured by insta-cmd (applies to the `info` block)
+    settings.add_redaction(".env.WORKTRUNK_CONFIG_PATH", "[TEST_CONFIG]");
+    settings.add_redaction(".env.HOME", "[TEST_HOME]");
+    settings.add_redaction(".env.XDG_CONFIG_HOME", "[TEST_CONFIG_HOME]");
+    settings.add_redaction(".env.PATH", "[PATH]");
 
     // Normalize timestamps in log filenames (format: YYYYMMDD-HHMMSS)
     // The SHA filter runs first, so we match: post-start-NAME-[SHA]-HHMMSS.log

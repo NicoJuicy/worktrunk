@@ -135,8 +135,5 @@ fn test_config_status_unset_all_empty() {
         .output()
         .unwrap();
     assert!(output.status.success());
-    assert_snapshot!(String::from_utf8_lossy(&output.stdout), @r###"
-    ⚪ No statuses to clear
-
-    "###);
+    assert_snapshot!(String::from_utf8_lossy(&output.stdout), @"⚪ No statuses to clear");
 }
