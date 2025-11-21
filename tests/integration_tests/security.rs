@@ -373,6 +373,8 @@ fn test_commit_message_with_directive_not_executed() {
 #[cfg(unix)]
 #[test]
 fn test_path_with_directive_not_executed() {
+    use crate::common::setup_snapshot_settings;
+
     let repo = TestRepo::new();
     repo.commit("Initial commit");
 
@@ -382,8 +384,7 @@ fn test_path_with_directive_not_executed() {
         .join("__WORKTRUNK_EXEC__echo PWNED > /tmp/hacked5");
     std::fs::create_dir_all(&malicious_dir).expect("Failed to create malicious directory");
 
-    let mut settings = Settings::clone_current();
-    settings.set_snapshot_path("../snapshots");
+    let settings = setup_snapshot_settings(&repo);
 
     // Run a command that might display this path
     settings.bind(|| {

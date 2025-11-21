@@ -277,6 +277,8 @@ pub enum MainDivergence {
     /// Up to date with main branch
     #[default]
     None,
+    /// This is the main/default branch itself
+    IsMain,
     /// Ahead of main (has commits main doesn't have)
     Ahead,
     /// Behind main (missing commits from main)
@@ -289,6 +291,7 @@ impl std::fmt::Display for MainDivergence {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::None => Ok(()),
+            Self::IsMain => write!(f, "^"),
             Self::Ahead => write!(f, "↑"),
             Self::Behind => write!(f, "↓"),
             Self::Diverged => write!(f, "↕"),
@@ -448,7 +451,7 @@ impl PositionMask {
             5, // WORKING_TREE: ?!+»✘ (max 5 symbols)
             1, // BRANCH_STATE: ✖⚠≡∅ (1 char, mutually exclusive)
             1, // GIT_OPERATION: ↻ or ⋈ (1 char)
-            1, // MAIN_DIVERGENCE: ↑, ↓, ↕ (1 char)
+            1, // MAIN_DIVERGENCE: ^, ↑, ↓, ↕ (1 char)
             1, // UPSTREAM_DIVERGENCE: ⇡, ⇣, ⇅ (1 char)
             1, // ITEM_ATTRS: ⎇ for branches, ⌫⊠ for worktrees (priority-only: prunable > locked)
             2, // USER_STATUS: single emoji or two chars (allocate 2)
@@ -467,7 +470,7 @@ impl PositionMask {
 /// - Working tree: ?, !, +, », ✘
 /// - Branch state: ✖, ⚠, ≡, ∅ (mutually exclusive)
 /// - Git operation: ↻, ⋈
-/// - Main divergence: ↑, ↓, ↕
+/// - Main divergence: ^, ↑, ↓, ↕
 /// - Upstream divergence: ⇡, ⇣, ⇅
 /// - Item attributes: ⎇ for branches, ⌫⊠ for worktrees (priority-only)
 /// - User status: custom labels, emoji
@@ -477,7 +480,7 @@ impl PositionMask {
 /// **Mutually exclusive (enforced by type system):**
 /// - ✖ vs ⚠ vs ≡ vs ∅: BranchState enum (combined position)
 /// - ↻ vs ⋈: Git operation (GitOperation enum)
-/// - ↑ vs ↓ vs ↕: Main divergence (MainDivergence enum)
+/// - ^ vs ↑ vs ↓ vs ↕: Main divergence (MainDivergence enum)
 /// - ⇡ vs ⇣ vs ⇅: Upstream divergence (UpstreamDivergence enum)
 ///
 /// **Priority-only (can co-occur but only highest priority shown):**
@@ -741,6 +744,7 @@ impl serde::Serialize for StatusSymbols {
 
         let main_divergence_variant = match self.main_divergence {
             MainDivergence::None => "",
+            MainDivergence::IsMain => "IsMain",
             MainDivergence::Ahead => "Ahead",
             MainDivergence::Behind => "Behind",
             MainDivergence::Diverged => "Diverged",

@@ -262,6 +262,13 @@ fn compute_item_status_symbols(
                 branch_state
             };
 
+            // Override main_divergence for the main worktree
+            let main_divergence = if data.is_main {
+                MainDivergence::IsMain
+            } else {
+                main_divergence
+            };
+
             item.status_symbols = Some(StatusSymbols {
                 branch_state,
                 git_operation,
