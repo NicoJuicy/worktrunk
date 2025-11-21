@@ -533,7 +533,13 @@ worktree-path = "{{ branch }}"
         );
     }
 
-    // Verify feature worktree was removed
+    // Wait for background removal to complete
+    for _ in 0..50 {
+        if !feature_worktree.exists() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
     assert!(
         !feature_worktree.exists(),
         "Feature worktree should be removed after merge"

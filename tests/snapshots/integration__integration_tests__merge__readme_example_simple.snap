@@ -26,7 +26,6 @@ exit_code: 0
 [107m [0m   auth.rs | 13 [32m+++++++++++++[m
 [107m [0m   1 file changed, 13 insertions(+)
 ✅ [32mMerged to [1m[32mmain[0m[0m (1 commit, 1 file, [32m+13[0m)
-🔄 [36mRemoving worktree & branch...[0m
-✅ [32mRemoved worktree & branch for [1m[32mfix-auth[0m[32m, changed directory to [1m[32m[REPO][0m[0m
+🔄 [36mRemoving [1m[36mfix-auth[0m[36m worktree & branch in background[0m
 
 ----- stderr -----

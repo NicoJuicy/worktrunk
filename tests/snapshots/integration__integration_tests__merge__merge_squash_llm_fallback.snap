@@ -37,7 +37,6 @@ exit_code: 0
 [107m [0m   file2.txt | 1 [32m+[m
 [107m [0m   2 files changed, 2 insertions(+)
 ✅ [32mMerged to [1m[32mmain[0m[0m (1 commit, 2 files, [32m+2[0m)
-🔄 [36mRemoving worktree & branch...[0m
-✅ [32mRemoved worktree & branch for [1m[32mfeature[0m[32m, changed directory to [1m[32m[REPO][0m[0m
+🔄 [36mRemoving [1m[36mfeature[0m[36m worktree & branch in background[0m
 
 ----- stderr -----

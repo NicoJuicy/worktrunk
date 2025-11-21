@@ -2,7 +2,7 @@ use worktrunk::HookType;
 use worktrunk::config::{Command, CommandPhase, ProjectConfig};
 use worktrunk::git::Repository;
 use worktrunk::path::format_path_for_display;
-use worktrunk::styling::{CYAN, ERROR, ERROR_EMOJI, GREEN_BOLD, HINT, HINT_EMOJI};
+use worktrunk::styling::{ERROR, ERROR_EMOJI, GREEN_BOLD, HINT, HINT_EMOJI};
 
 use super::command_approval::approve_command_batch;
 use super::command_executor::CommandContext;
@@ -188,7 +188,6 @@ pub fn handle_merge(
         repo.ensure_clean_working_tree()?;
 
         // STEP 2: Remove worktree via shared remove output handler so final message matches wt remove
-        crate::output::progress(format!("{CYAN}Removing worktree & branch...{CYAN:#}"))?;
         let worktree_root = repo.worktree_root()?;
         let remove_result = RemoveResult::RemovedWorktree {
             main_path: destination_path.clone(),
@@ -199,7 +198,7 @@ pub fn handle_merge(
             force_delete: false,
             target_branch: Some(target_branch.clone()),
         };
-        crate::output::handle_remove_output(&remove_result, Some(&current_branch), true, false)?;
+        crate::output::handle_remove_output(&remove_result, Some(&current_branch), true, true)?;
     } else {
         // Print comprehensive summary (worktree preserved)
         handle_merge_summary_output(None)?;
