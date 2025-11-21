@@ -30,7 +30,7 @@ struct TaskContext {
     repo_path: PathBuf,
     commit_sha: String,
     branch: Option<String>,
-    base_branch: Option<String>,
+    default_branch: Option<String>,
     item_idx: usize,
 }
 
@@ -75,7 +75,7 @@ fn spawn_ahead_behind<'scope>(
     ctx: &TaskContext,
     tx: Sender<CellUpdate>,
 ) {
-    if let Some(base) = ctx.base_branch.as_deref() {
+    if let Some(base) = ctx.default_branch.as_deref() {
         let item_idx = ctx.item_idx;
         let sha = ctx.commit_sha.clone();
         let path = ctx.repo_path.clone();
@@ -103,7 +103,7 @@ fn spawn_branch_diff<'scope>(
     ctx: &TaskContext,
     tx: Sender<CellUpdate>,
 ) {
-    if let Some(base) = ctx.base_branch.as_deref() {
+    if let Some(base) = ctx.default_branch.as_deref() {
         let item_idx = ctx.item_idx;
         let sha = ctx.commit_sha.clone();
         let path = ctx.repo_path.clone();
@@ -133,7 +133,7 @@ fn spawn_working_tree_diff<'scope>(
 ) {
     let item_idx = ctx.item_idx;
     let path = ctx.repo_path.clone();
-    let base = ctx.base_branch.clone();
+    let base = ctx.default_branch.clone();
     s.spawn(move || {
         let repo = Repository::at(&path);
         let status_output = match repo.run_command(&["status", "--porcelain"]) {
@@ -190,7 +190,7 @@ fn spawn_merge_tree_conflicts<'scope>(
     tx: Sender<CellUpdate>,
 ) {
     let item_idx = ctx.item_idx;
-    if check_merge_tree_conflicts && let Some(base) = ctx.base_branch.as_deref() {
+    if check_merge_tree_conflicts && let Some(base) = ctx.default_branch.as_deref() {
         let sha = ctx.commit_sha.clone();
         let path = ctx.repo_path.clone();
         let base = base.to_string();
@@ -353,7 +353,7 @@ fn spawn_ci_status<'scope>(
 pub fn collect_worktree_progressive(
     wt: &Worktree,
     item_idx: usize,
-    base_branch: &str,
+    default_branch: &str,
     options: &CollectOptions,
     tx: Sender<CellUpdate>,
 ) {
@@ -361,7 +361,7 @@ pub fn collect_worktree_progressive(
         repo_path: wt.path.clone(),
         commit_sha: wt.head.clone(),
         branch: wt.branch.clone(),
-        base_branch: Some(base_branch.to_string()),
+        default_branch: Some(default_branch.to_string()),
         item_idx,
     };
 
@@ -470,7 +470,7 @@ pub fn collect_branch_progressive(
     commit_sha: &str,
     repo_path: &std::path::Path,
     item_idx: usize,
-    base_branch: &str,
+    default_branch: &str,
     options: &CollectOptions,
     tx: Sender<CellUpdate>,
 ) {
@@ -478,7 +478,7 @@ pub fn collect_branch_progressive(
         repo_path: repo_path.to_path_buf(),
         commit_sha: commit_sha.to_string(),
         branch: Some(branch_name.to_string()),
-        base_branch: Some(base_branch.to_string()),
+        default_branch: Some(default_branch.to_string()),
         item_idx,
     };
 

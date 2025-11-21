@@ -174,12 +174,12 @@ fn compute_divergences(
 /// - `BranchState::None` otherwise
 fn determine_worktree_branch_state(
     is_main: bool,
-    base_branch: Option<&str>,
+    default_branch: Option<&str>,
     ahead: usize,
     working_tree_diff: Option<&LineDiff>,
     working_tree_diff_with_main: &Option<Option<LineDiff>>,
 ) -> BranchState {
-    if is_main || base_branch.is_none() {
+    if is_main || default_branch.is_none() {
         return BranchState::None;
     }
 
@@ -211,7 +211,7 @@ fn determine_worktree_branch_state(
 // differs from the branch name we associate with it (e.g., worktree exists but on another branch).
 fn compute_item_status_symbols(
     item: &mut ListItem,
-    base_branch: Option<&str>,
+    default_branch: Option<&str>,
     has_merge_tree_conflicts: bool,
     user_status: Option<String>,
 ) {
@@ -225,7 +225,7 @@ fn compute_item_status_symbols(
     match &item.kind {
         ItemKind::Worktree(data) => {
             // Full status computation for worktrees
-            // Use base_branch directly (None for main worktree)
+            // Use default_branch directly (None for main worktree)
 
             // Item attributes - priority: prunable > locked (1 char max)
             let item_attrs = if data.prunable.is_some() {
@@ -239,7 +239,7 @@ fn compute_item_status_symbols(
             // Determine branch state (only for non-main worktrees with base branch)
             let branch_state = determine_worktree_branch_state(
                 data.is_main,
-                base_branch,
+                default_branch,
                 counts.ahead,
                 data.working_tree_diff.as_ref(),
                 &data.working_tree_diff_with_main,
@@ -453,12 +453,12 @@ pub fn collect(
         return Ok(None);
     }
 
-    let base_branch = repo.default_branch()?;
+    let default_branch = repo.default_branch()?;
     // Main worktree is the worktree on the default branch (if exists), else first worktree
     let main_worktree = worktrees
         .worktrees
         .iter()
-        .find(|wt| wt.branch.as_deref() == Some(base_branch.as_str()))
+        .find(|wt| wt.branch.as_deref() == Some(default_branch.as_str()))
         .cloned()
         .unwrap_or_else(|| worktrees.worktrees[0].clone());
     let current_worktree_path = repo.worktree_root().ok();
@@ -646,18 +646,18 @@ pub fn collect(
     // Spawn worktree collection in background thread
     let sorted_worktrees_clone = sorted_worktrees.clone();
     let tx_worktrees = tx.clone();
-    let base_branch_clone = base_branch.clone();
+    let default_branch_clone = default_branch.clone();
     std::thread::spawn(move || {
         sorted_worktrees_clone
             .par_iter()
             .enumerate()
             .for_each(|(idx, wt)| {
-                // Always pass base_branch for ahead/behind/diff computation
+                // Always pass default_branch for ahead/behind/diff computation
                 // Status symbols will filter based on is_main flag
                 super::collect_progressive_impl::collect_worktree_progressive(
                     wt,
                     idx,
-                    &base_branch_clone,
+                    &default_branch_clone,
                     &options,
                     tx_worktrees.clone(),
                 );
@@ -669,7 +669,7 @@ pub fn collect(
         let branches_clone = branches_without_worktrees.clone();
         let main_path = main_worktree.path.clone();
         let tx_branches = tx.clone();
-        let base_branch_clone = base_branch.clone();
+        let default_branch_clone = default_branch.clone();
         std::thread::spawn(move || {
             branches_clone
                 .par_iter()
@@ -681,7 +681,7 @@ pub fn collect(
                         commit_sha,
                         &main_path,
                         item_idx,
-                        &base_branch_clone,
+                        &default_branch_clone,
                         &options,
                         tx_branches.clone(),
                     );
@@ -702,14 +702,14 @@ pub fn collect(
         |item_idx, info, has_merge_tree_conflicts, user_status| {
             // Compute/recompute status symbols as data arrives (both modes)
             // This is idempotent and updates status as new data (like upstream) arrives
-            let item_base_branch = if info.is_main() {
+            let item_default_branch = if info.is_main() {
                 None
             } else {
-                Some(base_branch.as_str())
+                Some(default_branch.as_str())
             };
             compute_item_status_symbols(
                 info,
-                item_base_branch,
+                item_default_branch,
                 has_merge_tree_conflicts,
                 user_status,
             );

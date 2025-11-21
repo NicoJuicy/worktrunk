@@ -20,10 +20,7 @@ impl DiffDisplayConfig {
             return None;
         }
 
-        let (positive_symbol, negative_symbol) = match self.variant {
-            DiffVariant::Signs => ("+", "-"),
-            DiffVariant::Arrows => ("↑", "↓"),
-        };
+        let symbols = self.variant.symbols();
 
         let mut parts = Vec::with_capacity(2);
 
@@ -31,7 +28,7 @@ impl DiffDisplayConfig {
             parts.push(format!(
                 "{}{}{}{}",
                 self.positive_style,
-                positive_symbol,
+                symbols.positive,
                 positive,
                 self.positive_style.render_reset()
             ));
@@ -41,7 +38,7 @@ impl DiffDisplayConfig {
             parts.push(format!(
                 "{}{}{}{}",
                 self.negative_style,
-                negative_symbol,
+                symbols.negative,
                 negative,
                 self.negative_style.render_reset()
             ));
@@ -120,21 +117,21 @@ impl PrStatus {
 }
 
 #[derive(Clone, Copy)]
-struct DiffRenderConfig {
-    positive_symbol: &'static str,
-    negative_symbol: &'static str,
+struct DiffSymbols {
+    positive: &'static str,
+    negative: &'static str,
 }
 
 impl DiffVariant {
-    fn render_config(self) -> DiffRenderConfig {
+    fn symbols(self) -> DiffSymbols {
         match self {
-            DiffVariant::Signs => DiffRenderConfig {
-                positive_symbol: "+",
-                negative_symbol: "-",
+            DiffVariant::Signs => DiffSymbols {
+                positive: "+",
+                negative: "-",
             },
-            DiffVariant::Arrows => DiffRenderConfig {
-                positive_symbol: "↑",
-                negative_symbol: "↓",
+            DiffVariant::Arrows => DiffSymbols {
+                positive: "↑",
+                negative: "↓",
             },
         }
     }
@@ -221,7 +218,7 @@ impl DiffColumnConfig {
     }
 
     fn render_segment(&self, positive: usize, negative: usize) -> StyledLine {
-        let render_config = self.display.variant.render_config();
+        let symbols = self.display.variant.symbols();
         let mut segment = StyledLine::new();
 
         // Check for overflow
@@ -249,7 +246,7 @@ impl DiffColumnConfig {
         if Self::should_render(positive, self.display.always_show_zeros) {
             Self::render_subcolumn(
                 &mut segment,
-                render_config.positive_symbol,
+                symbols.positive,
                 positive,
                 positive_width,
                 self.display.positive_style,
@@ -268,7 +265,7 @@ impl DiffColumnConfig {
         if Self::should_render(negative, self.display.always_show_zeros) {
             Self::render_subcolumn(
                 &mut segment,
-                render_config.negative_symbol,
+                symbols.negative,
                 negative,
                 negative_width,
                 self.display.negative_style,
