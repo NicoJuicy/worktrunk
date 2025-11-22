@@ -127,10 +127,6 @@ edition = "2021"
 
 [workspace]
 CARGO
-  cat >"$DEMO_REPO/rust-toolchain.toml" <<'TOOLCHAIN'
-[toolchain]
-channel = "stable"
-TOOLCHAIN
   mkdir -p "$DEMO_REPO/src"
   cat >"$DEMO_REPO/src/lib.rs" <<'RUST'
 pub fn add(a: i32, b: i32) -> i32 {
@@ -153,7 +149,7 @@ mod tests {
 }
 RUST
   echo "/target" >"$DEMO_REPO/.gitignore"
-  git -C "$DEMO_REPO" add .gitignore Cargo.toml rust-toolchain.toml src/
+  git -C "$DEMO_REPO" add .gitignore Cargo.toml src/
   commit_dated "$DEMO_REPO" "Add Rust project with tests" "6d"
   # Pre-build to create Cargo.lock and cache dependencies
   (cd "$DEMO_REPO" && cargo build --release -q 2>/dev/null)

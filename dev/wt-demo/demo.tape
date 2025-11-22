@@ -60,7 +60,7 @@ Type "wt list --branches --full"
 Enter
 Sleep 1.5s
 
-Sleep 3s
+Sleep 4.5s
 Type "exit"
 Enter
 Sleep 700ms
