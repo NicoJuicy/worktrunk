@@ -105,14 +105,12 @@ Creates [2m~/.config/worktrunk/config.toml[0m with the following content:
   [2m# squash-template-file = "~/.config/worktrunk/squash-template.txt"[0m
   [2m[0m
   [2m# Custom Prompt Templates (Advanced)[0m
-  [2m# NOTE: The commented templates below match src/llm.rs constants:[0m
-  [2m# - DEFAULT_TEMPLATE (lines 41-76)[0m
-  [2m# - DEFAULT_SQUASH_TEMPLATE (lines 109-118)[0m
-  [2m# When changing these constants, update the commented sections here to match.[0m
+  [2m# NOTE: Templates are synced from src/llm.rs by `cargo test readme_sync`[0m
   [2m[0m
   [2m# Optional: Custom prompt template (inline) - Uses minijinja syntax[0m
   [2m# Available variables: {{ git_diff }}, {{ branch }}, {{ recent_commits }}, {{ repo }}[0m
   [2m# If not specified, uses the default template shown below:[0m
+  [2m# <!-- DEFAULT_TEMPLATE_START -->[0m
   [2m# template = """[0m
   [2m# Format[0m
   [2m# - First line: <50 chars, present tense, describes WHAT and WHY (not HOW).[0m
@@ -149,6 +147,7 @@ Creates [2m~/.config/worktrunk/config.toml[0m with the following content:
   [2m# {% endif %}[0m
   [2m# </git-info>[0m
   [2m# """[0m
+  [2m# <!-- DEFAULT_TEMPLATE_END -->[0m
   [2m#[0m
   [2m# Example alternative template with different style:[0m
   [2m# template = """[0m
@@ -177,6 +176,7 @@ Creates [2m~/.config/worktrunk/config.toml[0m with the following content:
   [2m# Optional: Custom squash commit message template (inline) - Uses minijinja syntax[0m
   [2m# Available variables: {{ commits }}, {{ target_branch }}, {{ branch }}, {{ repo }}[0m
   [2m# If not specified, uses the default template:[0m
+  [2m# <!-- DEFAULT_SQUASH_TEMPLATE_START -->[0m
   [2m# squash-template = """[0m
   [2m# Generate a commit message that combines these changes into one cohesive message. Output only the commit message without any explanation.[0m
   [2m#[0m
@@ -193,6 +193,7 @@ Creates [2m~/.config/worktrunk/config.toml[0m with the following content:
   [2m# - {{ commit }}[0m
   [2m# {% endfor %}[0m
   [2m# """[0m
+  [2m# <!-- DEFAULT_SQUASH_TEMPLATE_END -->[0m
   [2m#[0m
   [2m# Example alternative template:[0m
   [2m# squash-template = """[0m

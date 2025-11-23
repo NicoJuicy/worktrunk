@@ -1,7 +1,8 @@
-//! README synchronization test
+//! README and config synchronization tests
 //!
 //! Verifies that README.md examples stay in sync with their source snapshots and help output.
-//! Automatically updates help sections when out of sync.
+//! Also syncs default templates from src/llm.rs to dev/config.example.toml.
+//! Automatically updates sections when out of sync.
 //!
 //! Run with: `cargo test --test integration readme_sync`
 
@@ -48,6 +49,26 @@ static TMPDIR_REGEX: LazyLock<Regex> =
 /// Regex for REPO placeholder
 static REPO_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\[REPO\]").expect("Invalid REPO regex"));
+
+/// Regex to find DEFAULT_TEMPLATE marker
+static DEFAULT_TEMPLATE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?s)(# <!-- DEFAULT_TEMPLATE_START -->\n).*?(# <!-- DEFAULT_TEMPLATE_END -->)")
+        .expect("Invalid DEFAULT_TEMPLATE marker regex")
+});
+
+/// Regex to find DEFAULT_SQUASH_TEMPLATE marker
+static SQUASH_TEMPLATE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?s)(# <!-- DEFAULT_SQUASH_TEMPLATE_START -->\n).*?(# <!-- DEFAULT_SQUASH_TEMPLATE_END -->)",
+    )
+    .expect("Invalid DEFAULT_SQUASH_TEMPLATE marker regex")
+});
+
+/// Regex to extract Rust raw string constants (single pound)
+static RUST_RAW_STRING_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r##"(?s)const (DEFAULT_TEMPLATE|DEFAULT_SQUASH_TEMPLATE): &str = r#"(.*?)"#;"##)
+        .expect("Invalid Rust raw string regex")
+});
 
 /// Strip ANSI escape codes from text
 fn strip_ansi(text: &str) -> String {
@@ -272,6 +293,99 @@ fn update_readme_section(
         Ok((result, updated, total))
     } else {
         Err(errors)
+    }
+}
+
+/// Convert a template to commented TOML format
+fn comment_template(template: &str) -> String {
+    template
+        .lines()
+        .map(|line| {
+            if line.is_empty() {
+                String::from("#")
+            } else {
+                format!("# {line}")
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Extract templates from llm.rs source
+fn extract_templates(content: &str) -> std::collections::HashMap<String, String> {
+    RUST_RAW_STRING_PATTERN
+        .captures_iter(content)
+        .map(|cap| {
+            let name = cap.get(1).unwrap().as_str().to_string();
+            let template = cap.get(2).unwrap().as_str().to_string();
+            (name, template)
+        })
+        .collect()
+}
+
+#[test]
+fn test_config_example_templates_are_in_sync() {
+    let project_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let llm_rs_path = project_root.join("src/llm.rs");
+    let config_path = project_root.join("dev/config.example.toml");
+
+    let llm_content = fs::read_to_string(&llm_rs_path).expect("Failed to read src/llm.rs");
+    let config_content =
+        fs::read_to_string(&config_path).expect("Failed to read config.example.toml");
+
+    // Extract templates from llm.rs
+    let templates = extract_templates(&llm_content);
+    assert!(
+        templates.contains_key("DEFAULT_TEMPLATE"),
+        "DEFAULT_TEMPLATE not found in src/llm.rs"
+    );
+    assert!(
+        templates.contains_key("DEFAULT_SQUASH_TEMPLATE"),
+        "DEFAULT_SQUASH_TEMPLATE not found in src/llm.rs"
+    );
+
+    let mut updated_content = config_content.clone();
+    let mut updated_count = 0;
+
+    // Helper to replace a template section
+    let mut replace_template = |pattern: &Regex, name: &str, key: &str| {
+        if let Some(cap) = pattern.captures(&updated_content.clone()) {
+            let full_match = cap.get(0).unwrap();
+            let prefix = cap.get(1).unwrap().as_str();
+            let suffix = cap.get(2).unwrap().as_str();
+
+            let template = templates
+                .get(name)
+                .unwrap_or_else(|| panic!("{name} not found in src/llm.rs"));
+            let commented = comment_template(template);
+
+            let replacement = format!(
+                r#"{prefix}# {key} = """
+{commented}
+# """
+{suffix}"#
+            );
+
+            if full_match.as_str() != replacement {
+                updated_content = updated_content.replace(full_match.as_str(), &replacement);
+                updated_count += 1;
+            }
+        }
+    };
+
+    replace_template(&DEFAULT_TEMPLATE_PATTERN, "DEFAULT_TEMPLATE", "template");
+    replace_template(
+        &SQUASH_TEMPLATE_PATTERN,
+        "DEFAULT_SQUASH_TEMPLATE",
+        "squash-template",
+    );
+
+    if updated_count > 0 {
+        fs::write(&config_path, &updated_content).expect("Failed to write config.example.toml");
+        println!(
+            "✅ Updated {} template sections in config.example.toml",
+            updated_count
+        );
     }
 }
 

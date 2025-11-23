@@ -69,14 +69,12 @@ command = "npm install"
 # squash-template-file = "~/.config/worktrunk/squash-template.txt"
 
 # Custom Prompt Templates (Advanced)
-# NOTE: The commented templates below match src/llm.rs constants:
-# - DEFAULT_TEMPLATE (lines 41-76)
-# - DEFAULT_SQUASH_TEMPLATE (lines 109-118)
-# When changing these constants, update the commented sections here to match.
+# NOTE: Templates are synced from src/llm.rs by `cargo test readme_sync`
 
 # Optional: Custom prompt template (inline) - Uses minijinja syntax
 # Available variables: {{ git_diff }}, {{ branch }}, {{ recent_commits }}, {{ repo }}
 # If not specified, uses the default template shown below:
+# <!-- DEFAULT_TEMPLATE_START -->
 # template = """
 # Format
 # - First line: <50 chars, present tense, describes WHAT and WHY (not HOW).
@@ -113,6 +111,7 @@ command = "npm install"
 # {% endif %}
 # </git-info>
 # """
+# <!-- DEFAULT_TEMPLATE_END -->
 #
 # Example alternative template with different style:
 # template = """
@@ -141,6 +140,7 @@ command = "npm install"
 # Optional: Custom squash commit message template (inline) - Uses minijinja syntax
 # Available variables: {{ commits }}, {{ target_branch }}, {{ branch }}, {{ repo }}
 # If not specified, uses the default template:
+# <!-- DEFAULT_SQUASH_TEMPLATE_START -->
 # squash-template = """
 # Generate a commit message that combines these changes into one cohesive message. Output only the commit message without any explanation.
 #
@@ -157,6 +157,7 @@ command = "npm install"
 # - {{ commit }}
 # {% endfor %}
 # """
+# <!-- DEFAULT_SQUASH_TEMPLATE_END -->
 #
 # Example alternative template:
 # squash-template = """
