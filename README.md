@@ -418,9 +418,7 @@ wt remove @                              # Remove current worktree
 
 </details>
 
-<a id="wt-merge"></a>
-
-<details>
+<details id="wt-merge">
 <summary><strong><code>wt merge [target]</code></strong> - Merge, push, and cleanup</summary>
 
 <!-- README:help:wt merge --help-md -->
@@ -609,9 +607,7 @@ wt remove  # (when already in main worktree)
 
 </details>
 
-<a id="wt-list"></a>
-
-<details>
+<details id="wt-list">
 <summary><strong><code>wt list</code></strong> - Show all worktrees and branches</summary>
 
 <!-- README:help:wt list --help-md -->
