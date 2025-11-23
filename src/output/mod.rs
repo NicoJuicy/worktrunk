@@ -59,6 +59,7 @@ pub mod directive;
 pub mod global;
 pub mod handlers;
 pub mod interactive;
+mod traits;
 
 // Re-export the public API
 pub use global::{
