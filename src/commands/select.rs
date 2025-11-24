@@ -3,7 +3,7 @@ use skim::prelude::*;
 use std::borrow::Cow;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use worktrunk::config::WorktrunkConfig;
 use worktrunk::git::Repository;
 
@@ -78,11 +78,9 @@ impl Drop for PreviewState {
 /// Wrapper to implement SkimItem for ListItem
 struct WorktreeSkimItem {
     display_text: String,
+    display_text_with_ansi: String,
     branch_name: String,
     item: Arc<ListItem>,
-    preview_working_tree: OnceLock<String>,
-    preview_history: OnceLock<String>,
-    preview_branch_diff: OnceLock<String>,
 }
 
 impl SkimItem for WorktreeSkimItem {
@@ -90,41 +88,41 @@ impl SkimItem for WorktreeSkimItem {
         Cow::Borrowed(&self.display_text)
     }
 
+    fn display<'a>(&'a self, _context: skim::DisplayContext<'a>) -> skim::AnsiString<'a> {
+        skim::AnsiString::parse(&self.display_text_with_ansi)
+    }
+
     fn output(&self) -> Cow<'_, str> {
         Cow::Borrowed(&self.branch_name)
     }
 
-    fn preview(&self, _context: PreviewContext<'_>) -> ItemPreview {
+    fn preview(&self, context: PreviewContext<'_>) -> ItemPreview {
         let mode = PreviewMode::read_from_state();
-        let result = self.preview_for_mode(mode);
-        ItemPreview::AnsiText(result.clone())
+        let result = self.preview_for_mode(mode, context.width);
+        ItemPreview::AnsiText(result)
     }
 }
 
 impl WorktreeSkimItem {
-    /// Lazily render each preview mode and cache the result so redraws reuse it.
-    fn preview_for_mode(&self, mode: PreviewMode) -> &String {
+    /// Render preview for the given mode with specified width
+    fn preview_for_mode(&self, mode: PreviewMode, width: usize) -> String {
         match mode {
-            PreviewMode::WorkingTree => self
-                .preview_working_tree
-                .get_or_init(|| self.render_working_tree_preview()),
-            PreviewMode::History => self
-                .preview_history
-                .get_or_init(|| self.render_history_preview()),
-            PreviewMode::BranchDiff => self
-                .preview_branch_diff
-                .get_or_init(|| self.render_branch_diff_preview()),
+            PreviewMode::WorkingTree => self.render_working_tree_preview(width),
+            PreviewMode::History => self.render_history_preview(width),
+            PreviewMode::BranchDiff => self.render_branch_diff_preview(width),
         }
     }
 
     /// Common diff rendering pattern: check stat, show stat + full diff if non-empty
-    fn render_diff_preview(&self, args: &[&str], no_changes_msg: &str) -> String {
+    fn render_diff_preview(&self, args: &[&str], no_changes_msg: &str, width: usize) -> String {
         let mut output = String::new();
         let repo = Repository::current();
 
         // Check stat output first
         let mut stat_args = args.to_vec();
         stat_args.push("--stat");
+        let stat_width_arg = format!("--stat-width={}", width);
+        stat_args.push(&stat_width_arg);
 
         if let Ok(stat) = repo.run_command(&stat_args)
             && !stat.trim().is_empty()
@@ -151,28 +149,32 @@ impl WorktreeSkimItem {
 
     /// Render Mode 1: Working tree preview (uncommitted changes vs HEAD)
     /// Matches `wt list` "HEAD±" column
-    fn render_working_tree_preview(&self) -> String {
+    fn render_working_tree_preview(&self, width: usize) -> String {
         let Some(wt_info) = self.item.worktree_data() else {
             return "No worktree (branch only)\n".to_string();
         };
 
         let path = wt_info.path.display().to_string();
-        self.render_diff_preview(&["-C", &path, "diff", "HEAD"], "No uncommitted changes")
+        self.render_diff_preview(
+            &["-C", &path, "diff", "HEAD"],
+            "No uncommitted changes",
+            width,
+        )
     }
 
     /// Render Mode 3: Branch diff preview (line diffs in commits ahead of main)
     /// Matches `wt list` "main…± (--full)" column
-    fn render_branch_diff_preview(&self) -> String {
+    fn render_branch_diff_preview(&self, width: usize) -> String {
         if self.item.counts().ahead == 0 {
             return "No commits ahead of main\n".to_string();
         }
 
         let merge_base = format!("main...{}", self.item.head());
-        self.render_diff_preview(&["diff", &merge_base], "No changes vs main")
+        self.render_diff_preview(&["diff", &merge_base], "No changes vs main", width)
     }
 
     /// Render Mode 2: History preview
-    fn render_history_preview(&self) -> String {
+    fn render_history_preview(&self, _width: usize) -> String {
         const HISTORY_LIMIT: &str = "10";
 
         let mut output = String::new();
@@ -286,27 +288,37 @@ pub fn handle_select() -> anyhow::Result<()> {
             let commit_msg = commit_details.commit_message.lines().next().unwrap_or("");
 
             // Build display text with aligned columns
+            // We need two versions: one with ANSI codes for display, one stripped for matching
             let mut display_text = format!("{:<width$}", branch_name, width = max_branch_len);
+            let mut display_text_with_ansi = display_text.clone();
 
-            // Add status symbols (fixed width)
-            let status = if let Some(ref status_symbols) = item.status_symbols {
-                format!("{:<8}", status_symbols.render())
-            } else {
-                "        ".to_string()
-            };
-            display_text.push_str(&status);
+            // Add status symbols
+            // For the styled version, we need to pad based on visible width, not byte length
+            let (status_plain, status_styled) =
+                if let Some(ref status_symbols) = item.status_symbols {
+                    let rendered = status_symbols.render();
+                    let stripped = worktrunk::styling::strip_ansi_codes(&rendered);
+                    let visible_width = worktrunk::styling::visual_width(&stripped);
+                    let padding_needed = 8usize.saturating_sub(visible_width);
+                    let styled_with_padding = format!("{}{}", rendered, " ".repeat(padding_needed));
+                    (format!("{:<8}", stripped), styled_with_padding)
+                } else {
+                    ("        ".to_string(), "        ".to_string())
+                };
+            display_text.push_str(&status_plain);
+            display_text_with_ansi.push_str(&status_styled);
 
             // Add commit message
             display_text.push_str("  ");
             display_text.push_str(commit_msg);
+            display_text_with_ansi.push_str("  ");
+            display_text_with_ansi.push_str(commit_msg);
 
             Arc::new(WorktreeSkimItem {
                 display_text,
+                display_text_with_ansi,
                 branch_name,
                 item: Arc::new(item),
-                preview_working_tree: OnceLock::new(),
-                preview_history: OnceLock::new(),
-                preview_branch_diff: OnceLock::new(),
             }) as Arc<dyn SkimItem>
         })
         .collect();
