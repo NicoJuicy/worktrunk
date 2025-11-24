@@ -157,9 +157,9 @@ fn test_isolated_config_safety() {
     let config_path = temp_dir.path().join("isolated.toml");
 
     // Read user's actual config before test (if it exists)
-    use directories::ProjectDirs;
-    let user_config_path = if let Some(proj_dirs) = ProjectDirs::from("", "", "worktrunk") {
-        proj_dirs.config_dir().join("config.toml")
+    use etcetera::base_strategy::{BaseStrategy, choose_base_strategy};
+    let user_config_path = if let Ok(strategy) = choose_base_strategy() {
+        strategy.config_dir().join("worktrunk").join("config.toml")
     } else {
         // Fallback for platforms where config dir can't be determined
         std::env::var("HOME")

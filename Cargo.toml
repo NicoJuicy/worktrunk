@@ -45,10 +45,8 @@ clap_complete = { version = "4.5", features = ["unstable-dynamic"] }
 config = "0.15"
 crossbeam-channel = "0.5"
 crossterm = "0.29"
-directories = "6.0"
 env_logger = "0.11"
 indexmap = { version = "2.12", features = ["serde"] }
-once_cell = "1.21"
 etcetera = "0.11"
 log = "0.4"
 minijinja = "2.12"
@@ -61,7 +59,7 @@ strum = { version = "0.27", features = ["derive"] }
 synoptic = "2"
 terminal_size = "0.4"
 toml = { version = "0.9", features = ["preserve_order"] }
-toml_edit = "0.22"
+toml_edit = "0.23"
 # All three crates must use the same version series to avoid native library conflicts
 # These are optional dependencies controlled by the "syntax-highlighting" feature.
 # To build without C compilation requirements, use: cargo install worktrunk --no-default-features
@@ -90,7 +88,6 @@ portable-pty = "0.9"
 regex = "1.12"
 vt100 = "0.16"
 fs2 = "0.4"
-home = "0.5.12"
 
 [[bench]]
 name = "completion"
