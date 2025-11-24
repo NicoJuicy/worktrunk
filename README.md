@@ -44,7 +44,7 @@ $ wt switch --create fix-auth
 ```bash
 $ wt merge
 🔄 Merging 1 commit to main @ a1b2c3d (no commit/squash/rebase needed)
-   * a1b2c3d (HEAD -> fix-auth) Implement JWT validation
+   * a1b2c3d Implement JWT validation
     auth.rs | 13 +++++++++++++
     1 file changed, 13 insertions(+)
 ✅ Merged to main (1 commit, 1 file, +13)
@@ -137,7 +137,7 @@ $ wt merge
 🔄 Running pre-merge lint:
    cargo clippy
 🔄 Merging 1 commit to main @ a1b2c3d (no rebase needed)
-   * a1b2c3d (HEAD -> feature-auth) feat(auth): Implement JWT authentication system
+   * a1b2c3d feat(auth): Implement JWT authentication system
     auth.rs      |  8 ++++++++
     auth_test.rs | 17 +++++++++++++++++
     jwt.rs       |  8 ++++++++
@@ -223,7 +223,7 @@ tests/test_auth.py::test_token_validation PASSED                         [100%]
 All checks passed!
 
 🔄 Merging 1 commit to main @ a1b2c3d (no rebase needed)
-   * a1b2c3d (HEAD -> feature-auth) feat(api): Add user authentication endpoints
+   * a1b2c3d feat(api): Add user authentication endpoints
     api/auth.py        | 31 +++++++++++++++++++++++++++++++
     tests/test_auth.py | 14 ++++++++++++++
     2 files changed, 45 insertions(+)

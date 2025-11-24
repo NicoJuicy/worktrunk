@@ -27,7 +27,7 @@ tests/test_auth.py::test_token_validation PASSED                         [100%]
 All checks passed!
 
 🔄 [36mMerging 1 commit to [1m[36mmain[0m[36m @ [2m[36m[HASH][0m[0m (no rebase needed)
-[107m [0m  * [33m[HASH][m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature-auth[m[33m)[m feat(api): Add user authentication endpoints
+[107m [0m  * [33m[HASH][m feat(api): Add user authentication endpoints
 [107m [0m   api/auth.py        | 31 [32m+++++++++++++++++++++++++++++++[m
 [107m [0m   tests/test_auth.py | 14 [32m++++++++++++++[m
 [107m [0m   2 files changed, 45 insertions(+)

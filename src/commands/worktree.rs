@@ -495,7 +495,6 @@ pub fn handle_push(
                 "--color=always",
                 "--graph",
                 "--oneline",
-                "--decorate",
                 &format!("HEAD..{}", target_branch),
             ])?
             .trim()
@@ -581,7 +580,6 @@ pub fn handle_push(
             "--color=always",
             "--graph",
             "--oneline",
-            "--decorate",
             &format!("{}..HEAD", target_branch),
         ])?;
         crate::output::gutter(format_with_gutter(&log_output, "", None))?;
