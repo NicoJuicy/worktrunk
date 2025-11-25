@@ -24,6 +24,8 @@ info:
 success: true
 exit_code: 0
 ----- stdout -----
+
+----- stderr -----
 ⚪ Global Config: [1m~/.config/worktrunk/config.toml[0m
 [107m [0m  worktree-path = [32m"../{{ main_worktree }}.{{ branch }}"[0m
 
@@ -33,5 +35,3 @@ exit_code: 0
 [2m⚪ Skipped bash; ~/.bashrc not found[0m
 [2m⚪ Skipped zsh; ~/.zshrc not found[0m
 [2m⚪ Skipped fish; ~/.config/fish/conf.d not found[0m
-
------ stderr -----

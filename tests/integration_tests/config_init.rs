@@ -57,7 +57,7 @@ fn test_config_init_creates_file() {
         success: true
         exit_code: 0
         ----- stdout -----
-        ✅ [32mCreated config file: [1m[32m~/.config/worktrunk/config.toml[0m
+        ✅ [32mCreated config file: [1m[32m~/.config/worktrunk/config.toml[0m[0m
 
         💡 [2mEdit this file to customize worktree paths and LLM settings[0m
 

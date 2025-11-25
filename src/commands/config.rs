@@ -4,12 +4,10 @@ use std::path::PathBuf;
 use worktrunk::git::{Repository, detached_head};
 use worktrunk::path::format_path_for_display;
 use worktrunk::shell::Shell;
-use worktrunk::styling::{
-    AnstyleStyle, CYAN, GREEN, GREEN_BOLD, HINT, HINT_EMOJI, INFO_EMOJI, SUCCESS_EMOJI,
-    format_toml, print, println,
-};
+use worktrunk::styling::{AnstyleStyle, CYAN, GREEN, GREEN_BOLD, format_toml};
 
 use super::configure_shell::{ConfigAction, process_shell_completions, scan_shell_configs};
+use crate::output;
 
 /// Example configuration file content (displayed in help with values uncommented)
 const CONFIG_EXAMPLE: &str = include_str!("../../dev/config.example.toml");
@@ -45,15 +43,13 @@ pub fn handle_config_create() -> anyhow::Result<()> {
     // Check if file already exists
     if config_path.exists() {
         let bold = AnstyleStyle::new().bold();
-        println!(
-            "{INFO_EMOJI} Global config already exists: {bold}{}{bold:#}",
+        output::info(format!(
+            "Global config already exists: {bold}{}{bold:#}",
             format_path_for_display(&config_path)
-        );
-        println!();
-        println!("{HINT_EMOJI} {HINT}Use 'wt config show' to view existing configuration{HINT:#}");
-        println!(
-            "{HINT_EMOJI} {HINT}Use 'wt config create --help' for config format reference{HINT:#}"
-        );
+        ))?;
+        output::blank()?;
+        output::hint("Use 'wt config show' to view existing configuration")?;
+        output::hint("Use 'wt config create --help' for config format reference")?;
         return Ok(());
     }
 
@@ -69,14 +65,12 @@ pub fn handle_config_create() -> anyhow::Result<()> {
 
     // Success message
     let green_bold = GREEN.bold();
-    println!(
-        "{SUCCESS_EMOJI} {GREEN}Created config file: {green_bold}{}{green_bold:#}",
+    output::success(format!(
+        "{GREEN}Created config file: {green_bold}{}{green_bold:#}{GREEN:#}",
         format_path_for_display(&config_path)
-    );
-    println!();
-    println!(
-        "{HINT_EMOJI} {HINT}Edit this file to customize worktree paths and LLM settings{HINT:#}"
-    );
+    ))?;
+    output::blank()?;
+    output::hint("Edit this file to customize worktree paths and LLM settings")?;
 
     Ok(())
 }
@@ -85,11 +79,11 @@ pub fn handle_config_create() -> anyhow::Result<()> {
 pub fn handle_config_show() -> anyhow::Result<()> {
     // Display global config
     display_global_config()?;
-    println!();
+    output::blank()?;
 
     // Display project config if in a git repository
     display_project_config()?;
-    println!();
+    output::blank()?;
 
     // Display shell integration status
     display_shell_status()?;
@@ -104,19 +98,19 @@ fn display_global_config() -> anyhow::Result<()> {
     let config_path = get_global_config_path()
         .ok_or_else(|| anyhow::anyhow!("Could not determine global config path"))?;
 
-    println!(
-        "{INFO_EMOJI} Global Config: {bold}{}{bold:#}",
+    output::info(format!(
+        "Global Config: {bold}{}{bold:#}",
         format_path_for_display(&config_path)
-    );
+    ))?;
 
     // Check if file exists
     if !config_path.exists() {
-        println!("{HINT_EMOJI} {HINT}Not found (using defaults){HINT:#}");
-        println!("{HINT_EMOJI} {HINT}Run 'wt config create' to create a config file{HINT:#}");
-        println!();
+        output::hint("Not found (using defaults)")?;
+        output::hint("Run 'wt config create' to create a config file")?;
+        output::blank()?;
         let default_config =
             "# Default configuration:\nworktree-path = \"../{{ main_worktree }}.{{ branch }}\"";
-        print!("{}", format_toml(default_config, ""));
+        output::gutter(format_toml(default_config, ""))?;
         return Ok(());
     }
 
@@ -124,12 +118,12 @@ fn display_global_config() -> anyhow::Result<()> {
     let contents = std::fs::read_to_string(&config_path).context("Failed to read config file")?;
 
     if contents.trim().is_empty() {
-        println!("{HINT_EMOJI} {HINT}Empty file (using defaults){HINT:#}");
+        output::hint("Empty file (using defaults)")?;
         return Ok(());
     }
 
     // Display TOML with syntax highlighting (gutter at column 0)
-    print!("{}", format_toml(&contents, ""));
+    output::gutter(format_toml(&contents, ""))?;
 
     Ok(())
 }
@@ -143,20 +137,22 @@ fn display_project_config() -> anyhow::Result<()> {
     let repo_root = match repo.worktree_root() {
         Ok(root) => root,
         Err(_) => {
-            println!("{INFO_EMOJI} {dim}Project Config: Not in a git repository{dim:#}");
+            output::info(format!(
+                "{dim}Project Config: Not in a git repository{dim:#}"
+            ))?;
             return Ok(());
         }
     };
     let config_path = repo_root.join(".config").join("wt.toml");
 
-    println!(
-        "{INFO_EMOJI} Project Config: {bold}{}{bold:#}",
+    output::info(format!(
+        "Project Config: {bold}{}{bold:#}",
         format_path_for_display(&config_path)
-    );
+    ))?;
 
     // Check if file exists
     if !config_path.exists() {
-        println!("{HINT_EMOJI} {HINT}Not found{HINT:#}");
+        output::hint("Not found")?;
         return Ok(());
     }
 
@@ -164,18 +160,18 @@ fn display_project_config() -> anyhow::Result<()> {
     let contents = std::fs::read_to_string(&config_path).context("Failed to read config file")?;
 
     if contents.trim().is_empty() {
-        println!("{HINT_EMOJI} {HINT}Empty file{HINT:#}");
+        output::hint("Empty file")?;
         return Ok(());
     }
 
     // Display TOML with syntax highlighting (gutter at column 0)
-    print!("{}", format_toml(&contents, ""));
+    output::gutter(format_toml(&contents, ""))?;
 
     Ok(())
 }
 
 fn display_shell_status() -> anyhow::Result<()> {
-    use worktrunk::styling::{WARNING, WARNING_EMOJI, format_with_gutter};
+    use worktrunk::styling::{WARNING, format_with_gutter};
 
     let bold = AnstyleStyle::new().bold();
     let dim = AnstyleStyle::new().dimmed();
@@ -184,7 +180,7 @@ fn display_shell_status() -> anyhow::Result<()> {
     let scan_result = match scan_shell_configs(None, true) {
         Ok(r) => r,
         Err(e) => {
-            println!("{HINT_EMOJI} {HINT}Could not determine shell status: {e}{HINT:#}");
+            output::hint(format!("Could not determine shell status: {e}"))?;
             return Ok(());
         }
     };
@@ -210,26 +206,27 @@ fn display_shell_status() -> anyhow::Result<()> {
         match result.action {
             ConfigAction::AlreadyExists => {
                 any_configured = true;
-                println!(
-                    "{INFO_EMOJI} Already configured {what} for {bold}{shell}{bold:#} @ {path}"
-                );
+                output::info(format!(
+                    "Already configured {what} for {bold}{shell}{bold:#} @ {path}"
+                ))?;
 
                 // Check if zsh has compinit enabled (required for completions)
                 if matches!(shell, Shell::Zsh) && check_zsh_compinit_missing() {
-                    println!(
-                        "{WARNING_EMOJI} {WARNING}Completions won't work; add to ~/.zshrc before the wt line:{WARNING:#}"
-                    );
-                    print!(
-                        "{}",
-                        format_with_gutter("autoload -Uz compinit && compinit", "", None)
-                    );
+                    output::warning(format!(
+                        "{WARNING}Completions won't work; add to ~/.zshrc before the wt line:{WARNING:#}"
+                    ))?;
+                    output::gutter(format_with_gutter(
+                        "autoload -Uz compinit && compinit",
+                        "",
+                        None,
+                    ))?;
                 }
             }
             ConfigAction::WouldAdd | ConfigAction::WouldCreate => {
                 any_not_configured = true;
-                println!(
-                    "{HINT_EMOJI} {HINT}Not configured {what} for {bold}{shell}{bold:#} @ {path}{HINT:#}"
-                );
+                output::hint(format!(
+                    "Not configured {what} for {bold}{shell}{bold:#} @ {path}"
+                ))?;
             }
             _ => {} // Added/Created won't appear in dry_run mode
         }
@@ -243,15 +240,15 @@ fn display_shell_status() -> anyhow::Result<()> {
         match result.action {
             ConfigAction::AlreadyExists => {
                 any_configured = true;
-                println!(
-                    "{INFO_EMOJI} Already configured completions for {bold}{shell}{bold:#} @ {path}"
-                );
+                output::info(format!(
+                    "Already configured completions for {bold}{shell}{bold:#} @ {path}"
+                ))?;
             }
             ConfigAction::WouldAdd | ConfigAction::WouldCreate => {
                 any_not_configured = true;
-                println!(
-                    "{HINT_EMOJI} {HINT}Not configured completions for {bold}{shell}{bold:#} @ {path}{HINT:#}"
-                );
+                output::hint(format!(
+                    "Not configured completions for {bold}{shell}{bold:#} @ {path}"
+                ))?;
             }
             _ => {}
         }
@@ -260,15 +257,13 @@ fn display_shell_status() -> anyhow::Result<()> {
     // Show skipped (not installed) shells
     for (shell, path) in &scan_result.skipped {
         let path = format_path_for_display(path);
-        println!("{dim}⚪ Skipped {shell}; {path} not found{dim:#}");
+        output::raw(format!("{dim}⚪ Skipped {shell}; {path} not found{dim:#}"))?;
     }
 
     // Summary hint
     if any_not_configured && !any_configured {
-        println!();
-        println!(
-            "{HINT_EMOJI} {HINT}Run 'wt config shell install' to enable shell integration{HINT:#}"
-        );
+        output::blank()?;
+        output::hint("Run 'wt config shell install' to enable shell integration")?;
     }
 
     Ok(())
