@@ -25,6 +25,35 @@ struct ClaudeCodeContext {
 }
 
 impl ClaudeCodeContext {
+    /// Parse Claude Code context from a JSON string.
+    /// Returns None if the string is empty or not valid JSON.
+    fn parse(input: &str) -> Option<Self> {
+        if input.is_empty() {
+            return None;
+        }
+
+        // Parse JSON
+        let json: serde_json::Value = serde_json::from_str(input).ok()?;
+
+        let current_dir = json
+            .get("workspace")
+            .and_then(|w| w.get("current_dir"))
+            .and_then(|d| d.as_str())
+            .unwrap_or(".")
+            .to_string();
+
+        let model_name = json
+            .get("model")
+            .and_then(|m| m.get("display_name"))
+            .and_then(|n| n.as_str())
+            .map(|s| s.to_string());
+
+        Some(Self {
+            current_dir,
+            model_name,
+        })
+    }
+
     /// Try to read and parse Claude Code context from stdin.
     /// Returns None if stdin is empty or not valid JSON.
     fn from_stdin() -> Option<Self> {
@@ -44,30 +73,7 @@ impl ClaudeCodeContext {
         // Wait up to 10ms for stdin
         let input = rx.recv_timeout(Duration::from_millis(10)).ok()?;
 
-        if input.is_empty() {
-            return None;
-        }
-
-        // Parse JSON
-        let json: serde_json::Value = serde_json::from_str(&input).ok()?;
-
-        let current_dir = json
-            .get("workspace")
-            .and_then(|w| w.get("current_dir"))
-            .and_then(|d| d.as_str())
-            .unwrap_or(".")
-            .to_string();
-
-        let model_name = json
-            .get("model")
-            .and_then(|m| m.get("display_name"))
-            .and_then(|n| n.as_str())
-            .map(|s| s.to_string());
-
-        Some(Self {
-            current_dir,
-            model_name,
-        })
+        Self::parse(&input)
     }
 }
 
@@ -117,8 +123,9 @@ fn format_directory_fish_style(path: &str) -> String {
 
 /// Run the statusline command.
 ///
-/// Uses the output system like other commands - output goes to stderr in both interactive
-/// and directive modes, keeping stdout clean for shell directives.
+/// Uses the output system like other commands:
+/// - Interactive mode: output goes to stdout
+/// - Directive mode: output goes to stderr, keeping stdout clean for shell directives
 pub fn run(claude_code: bool) -> Result<()> {
     // Get context - either from stdin (claude-code mode) or current directory
     let (cwd, model_name) = if claude_code {
@@ -251,5 +258,72 @@ mod tests {
                 "Expected /project suffix, got: {result}"
             );
         }
+    }
+
+    #[test]
+    fn test_claude_code_context_parse_full() {
+        // Full Claude Code context JSON (as documented)
+        let json = r#"{
+            "hook_event_name": "Status",
+            "session_id": "abc123",
+            "cwd": "/current/working/directory",
+            "model": {
+                "id": "claude-opus-4-1",
+                "display_name": "Opus"
+            },
+            "workspace": {
+                "current_dir": "/home/user/project",
+                "project_dir": "/home/user/project"
+            },
+            "version": "1.0.80"
+        }"#;
+
+        let ctx = ClaudeCodeContext::parse(json).expect("should parse");
+        assert_eq!(ctx.current_dir, "/home/user/project");
+        assert_eq!(ctx.model_name, Some("Opus".to_string()));
+    }
+
+    #[test]
+    fn test_claude_code_context_parse_minimal() {
+        // Minimal JSON with just the fields we need
+        let json = r#"{
+            "workspace": {"current_dir": "/tmp/test"},
+            "model": {"display_name": "Haiku"}
+        }"#;
+
+        let ctx = ClaudeCodeContext::parse(json).expect("should parse");
+        assert_eq!(ctx.current_dir, "/tmp/test");
+        assert_eq!(ctx.model_name, Some("Haiku".to_string()));
+    }
+
+    #[test]
+    fn test_claude_code_context_parse_missing_model() {
+        // Model is optional
+        let json = r#"{"workspace": {"current_dir": "/tmp/test"}}"#;
+
+        let ctx = ClaudeCodeContext::parse(json).expect("should parse");
+        assert_eq!(ctx.current_dir, "/tmp/test");
+        assert_eq!(ctx.model_name, None);
+    }
+
+    #[test]
+    fn test_claude_code_context_parse_missing_workspace() {
+        // Missing workspace defaults to "."
+        let json = r#"{"model": {"display_name": "Sonnet"}}"#;
+
+        let ctx = ClaudeCodeContext::parse(json).expect("should parse");
+        assert_eq!(ctx.current_dir, ".");
+        assert_eq!(ctx.model_name, Some("Sonnet".to_string()));
+    }
+
+    #[test]
+    fn test_claude_code_context_parse_empty() {
+        assert!(ClaudeCodeContext::parse("").is_none());
+    }
+
+    #[test]
+    fn test_claude_code_context_parse_invalid_json() {
+        assert!(ClaudeCodeContext::parse("not json").is_none());
+        assert!(ClaudeCodeContext::parse("{invalid}").is_none());
     }
 }

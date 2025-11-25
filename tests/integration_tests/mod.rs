@@ -36,4 +36,5 @@ pub mod security;
 pub mod select;
 pub mod shell_wrapper;
 pub mod spacing_edge_cases;
+pub mod statusline;
 pub mod switch;
