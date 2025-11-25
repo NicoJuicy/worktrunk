@@ -354,6 +354,28 @@ impl ListItem {
 
         parts.join("  ")
     }
+
+    /// Populate display fields for JSON output and statusline.
+    ///
+    /// Call after all computed fields (counts, diffs, upstream, CI) are available.
+    pub fn finalize_display(&mut self) {
+        use super::columns::ColumnKind;
+
+        self.display = DisplayFields::from_common_fields(
+            &self.counts,
+            &self.branch_diff,
+            &self.upstream,
+            &self.pr_status,
+        );
+        self.display.status_line = Some(self.format_statusline());
+
+        if let ItemKind::Worktree(ref mut wt_data) = self.kind
+            && let Some(ref working_tree_diff) = wt_data.working_tree_diff
+        {
+            wt_data.working_diff_display = ColumnKind::WorkingDiff
+                .format_diff_plain(working_tree_diff.added, working_tree_diff.deleted);
+        }
+    }
 }
 
 /// Main branch divergence state

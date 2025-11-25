@@ -782,23 +782,9 @@ pub fn collect(
 
     // Status symbols are now computed during data collection (both modes), no fallback needed
 
-    // Compute display fields for all items (used by JSON output and statusline)
-    // Table rendering uses raw data directly; these fields provide pre-formatted strings
+    // Populate display fields for all items (used by JSON output and statusline)
     for item in &mut all_items {
-        item.display = super::model::DisplayFields::from_common_fields(
-            &item.counts,
-            &item.branch_diff,
-            &item.upstream,
-            &item.pr_status,
-        );
-        item.display.status_line = Some(item.format_statusline());
-
-        if let super::model::ItemKind::Worktree(ref mut wt_data) = item.kind
-            && let Some(ref working_tree_diff) = wt_data.working_tree_diff
-        {
-            wt_data.working_diff_display = super::columns::ColumnKind::WorkingDiff
-                .format_diff_plain(working_tree_diff.added, working_tree_diff.deleted);
-        }
+        item.finalize_display();
     }
 
     // all_items now contains both worktrees and branches (if requested)
@@ -975,22 +961,9 @@ pub fn populate_items(
         );
     });
 
-    // Compute display fields (including status_line for statusline command)
+    // Populate display fields (including status_line for statusline command)
     for item in items.iter_mut() {
-        item.display = DisplayFields::from_common_fields(
-            &item.counts,
-            &item.branch_diff,
-            &item.upstream,
-            &item.pr_status,
-        );
-        item.display.status_line = Some(item.format_statusline());
-
-        if let ItemKind::Worktree(ref mut wt_data) = item.kind
-            && let Some(ref working_tree_diff) = wt_data.working_tree_diff
-        {
-            wt_data.working_diff_display = super::columns::ColumnKind::WorkingDiff
-                .format_diff_plain(working_tree_diff.added, working_tree_diff.deleted);
-        }
+        item.finalize_display();
     }
 
     Ok(())
