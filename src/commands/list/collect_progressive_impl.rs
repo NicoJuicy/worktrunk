@@ -187,7 +187,6 @@ fn spawn_merge_tree_conflicts<'scope>(
     s: &'scope std::thread::Scope<'scope, '_>,
     ctx: &TaskContext,
     check_merge_tree_conflicts: bool,
-    send_default_on_skip: bool,
     tx: Sender<CellUpdate>,
 ) {
     let item_idx = ctx.item_idx;
@@ -204,14 +203,13 @@ fn spawn_merge_tree_conflicts<'scope>(
                 has_merge_tree_conflicts,
             });
         });
-    } else if send_default_on_skip {
-        // Send default value when not checking conflicts (worktree behavior)
+    } else {
+        // Always send a message to match the cell_count increment
         let _ = tx.send(CellUpdate::MergeTreeConflicts {
             item_idx,
             has_merge_tree_conflicts: false,
         });
     }
-    // Branch behavior: don't send anything when not checking
 }
 
 /// Spawn task 6 (worktree only): Worktree state detection
@@ -382,13 +380,7 @@ pub fn collect_worktree_progressive(
         cell_count.fetch_add(1, Ordering::Relaxed);
         spawn_working_tree_diff(s, &ctx, tx.clone());
         cell_count.fetch_add(1, Ordering::Relaxed);
-        spawn_merge_tree_conflicts(
-            s,
-            &ctx,
-            options.check_merge_tree_conflicts,
-            true,
-            tx.clone(),
-        );
+        spawn_merge_tree_conflicts(s, &ctx, options.check_merge_tree_conflicts, tx.clone());
         cell_count.fetch_add(1, Ordering::Relaxed);
         spawn_worktree_state(s, &ctx, tx.clone());
         cell_count.fetch_add(1, Ordering::Relaxed);
@@ -506,13 +498,7 @@ pub fn collect_branch_progressive(
         cell_count.fetch_add(1, Ordering::Relaxed);
         spawn_upstream(s, &ctx, false, tx.clone());
         cell_count.fetch_add(1, Ordering::Relaxed);
-        spawn_merge_tree_conflicts(
-            s,
-            &ctx,
-            options.check_merge_tree_conflicts,
-            false,
-            tx.clone(),
-        );
+        spawn_merge_tree_conflicts(s, &ctx, options.check_merge_tree_conflicts, tx.clone());
         cell_count.fetch_add(1, Ordering::Relaxed);
         spawn_ci_status(s, &ctx, options.fetch_ci, tx);
         cell_count.fetch_add(1, Ordering::Relaxed);
