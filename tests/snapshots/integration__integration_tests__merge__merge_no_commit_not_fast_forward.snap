@@ -1,11 +1,12 @@
 ---
-source: tests/integration_tests/push.rs
+source: tests/integration_tests/merge.rs
 info:
   program: wt
   args:
-    - step
-    - push
+    - merge
     - main
+    - "--no-commit"
+    - "--no-remove"
   env:
     CLICOLOR_FORCE: "1"
     COLUMNS: "150"
@@ -24,8 +25,8 @@ success: false
 exit_code: 1
 ----- stdout -----
 ❌ [31mCan't push to local [1m[31mmain[0m[31m branch: it has newer commits[0m
-[107m [0m  * [SHA] Main commit
+[107m [0m  * [SHA] Add main file
 
-💡 [2mUse 'wt step rebase' or 'wt merge' to rebase onto main[0m
+💡 [2mRun 'wt merge' again to incorporate these changes[0m
 
 ----- stderr -----

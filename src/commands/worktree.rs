@@ -113,12 +113,12 @@ use std::path::PathBuf;
 use worktrunk::HookType;
 use worktrunk::config::{CommandPhase, WorktrunkConfig};
 use worktrunk::git::{
-    Repository, branch_already_exists, is_command_not_approved, merge_commits_found,
-    not_fast_forward, push_failed, worktree_creation_failed, worktree_missing,
-    worktree_path_exists, worktree_path_occupied,
+    Repository, branch_already_exists, is_command_not_approved, merge_commits_found, push_failed,
+    worktree_creation_failed, worktree_missing, worktree_path_exists, worktree_path_occupied,
 };
 use worktrunk::styling::{
-    AnstyleStyle, CYAN, CYAN_BOLD, GREEN, GREEN_BOLD, WARNING, format_with_gutter,
+    AnstyleStyle, CYAN, CYAN_BOLD, ERROR, ERROR_BOLD, ERROR_EMOJI, GREEN, GREEN_BOLD, HINT,
+    HINT_EMOJI, WARNING, format_with_gutter,
 };
 
 use super::command_executor::CommandContext;
@@ -512,7 +512,24 @@ pub fn handle_push(
             .trim()
             .to_string();
 
-        bail!("{}", not_fast_forward(&target_branch, &commits_formatted));
+        let mut msg = format!(
+            "{ERROR_EMOJI} {ERROR}Can't push to local {ERROR_BOLD}{target_branch}{ERROR_BOLD:#}{ERROR} branch: it has newer commits{ERROR:#}"
+        );
+
+        if !commits_formatted.is_empty() {
+            msg.push('\n');
+            msg.push_str(&format_with_gutter(&commits_formatted, "", None));
+        }
+
+        // Context-appropriate hint: operations.is_some() means we're in merge context
+        let hint = if operations.is_some() {
+            "Run 'wt merge' again to incorporate these changes".to_string()
+        } else {
+            format!("Use 'wt step rebase' or 'wt merge' to rebase onto {target_branch}")
+        };
+        msg.push_str(&format!("\n{HINT_EMOJI} {HINT}{hint}{HINT:#}"));
+
+        bail!("{}", msg);
     }
 
     // Check for merge commits unless allowed

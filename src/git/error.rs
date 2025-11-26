@@ -175,23 +175,6 @@ pub fn conflicting_changes(files: &[String], worktree_path: &Path) -> anyhow::Er
     anyhow::anyhow!("{}", msg)
 }
 
-/// Not fast-forward error
-pub fn not_fast_forward(target_branch: &str, commits_formatted: &str) -> anyhow::Error {
-    let mut msg = format!(
-        "{ERROR_EMOJI} {ERROR}Can't push to local {ERROR_BOLD}{target_branch}{ERROR_BOLD:#}{ERROR} branch: it has newer commits{ERROR:#}"
-    );
-
-    if !commits_formatted.is_empty() {
-        msg.push('\n');
-        msg.push_str(&format_with_gutter(commits_formatted, "", None));
-    }
-
-    msg.push_str(&format!(
-        "\n{HINT_EMOJI} {HINT}Use 'wt merge' to rebase onto {target_branch}{HINT:#}"
-    ));
-    anyhow::anyhow!("{}", msg)
-}
-
 /// Merge commits found error
 pub fn merge_commits_found() -> anyhow::Error {
     anyhow::anyhow!(

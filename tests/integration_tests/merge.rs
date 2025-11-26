@@ -266,6 +266,87 @@ fn test_merge_not_fast_forward() {
     );
 }
 
+/// Test that `wt merge --no-commit` shows merge-context hint when main has newer commits.
+/// The --no-commit flag skips the rebase step, so the push fails with not-fast-forward error.
+/// The hint should say "Run 'wt merge' again" (not "Use 'wt merge'").
+#[test]
+fn test_merge_no_commit_not_fast_forward() {
+    let mut repo = TestRepo::new();
+    repo.commit("Initial commit");
+    repo.setup_remote("main");
+
+    // Get the initial commit SHA to create feature branch from there
+    let mut cmd = Command::new("git");
+    repo.configure_git_cmd(&mut cmd);
+    let initial_sha = cmd
+        .args(["rev-parse", "HEAD"])
+        .current_dir(repo.root_path())
+        .output()
+        .unwrap();
+    let initial_sha = String::from_utf8_lossy(&initial_sha.stdout)
+        .trim()
+        .to_string();
+
+    // Add commit to main (this advances main beyond the initial commit)
+    std::fs::write(repo.root_path().join("main.txt"), "main content").unwrap();
+
+    let mut cmd = Command::new("git");
+    repo.configure_git_cmd(&mut cmd);
+    cmd.args(["add", "main.txt"])
+        .current_dir(repo.root_path())
+        .output()
+        .unwrap();
+
+    let mut cmd = Command::new("git");
+    repo.configure_git_cmd(&mut cmd);
+    cmd.args(["commit", "-m", "Add main file"])
+        .current_dir(repo.root_path())
+        .output()
+        .unwrap();
+
+    // Create feature worktree from the INITIAL commit (before main advanced)
+    let feature_path = repo.root_path().parent().unwrap().join("feature");
+    let mut cmd = Command::new("git");
+    repo.configure_git_cmd(&mut cmd);
+    cmd.args([
+        "worktree",
+        "add",
+        "-b",
+        "feature",
+        feature_path.to_str().unwrap(),
+        &initial_sha,
+    ])
+    .current_dir(repo.root_path())
+    .output()
+    .unwrap();
+
+    // Add a commit on feature branch
+    std::fs::write(feature_path.join("feature.txt"), "feature content").unwrap();
+
+    let mut cmd = Command::new("git");
+    repo.configure_git_cmd(&mut cmd);
+    cmd.args(["add", "feature.txt"])
+        .current_dir(&feature_path)
+        .output()
+        .unwrap();
+
+    let mut cmd = Command::new("git");
+    repo.configure_git_cmd(&mut cmd);
+    cmd.args(["commit", "-m", "Add feature file"])
+        .current_dir(&feature_path)
+        .output()
+        .unwrap();
+
+    // Try to merge with --no-commit --no-remove (skips rebase, so push fails with not-fast-forward)
+    // Main has "Add main file" commit that feature doesn't have as ancestor
+    snapshot_merge(
+        "merge_no_commit_not_fast_forward",
+        &repo,
+        &["main", "--no-commit", "--no-remove"],
+        Some(&feature_path),
+    );
+}
+
 #[test]
 fn test_merge_rebase_conflict() {
     let mut repo = TestRepo::new();
