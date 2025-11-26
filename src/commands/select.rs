@@ -174,11 +174,11 @@ fn shell_escape(s: &str) -> String {
 /// 3. BranchDiff: Line diffs in commits ahead of main (git diff --stat main…)
 ///
 /// Loosely aligned with `wt list` columns, though not a perfect match:
-/// - Mode 1 corresponds to "HEAD±" column
-/// - Mode 2 shows commits (related to "main↕" counts)
-/// - Mode 3 corresponds to "main…± (--full)" column
+/// - Tab 1 corresponds to "HEAD±" column
+/// - Tab 2 shows commits (related to "main↕" counts)
+/// - Tab 3 corresponds to "main…± (--full)" column
 ///
-/// TODO: Consider adding mode 4 "remote±" showing diff vs upstream tracking branch
+/// TODO: Consider adding tab 4 "remote±" showing diff vs upstream tracking branch
 /// (unpushed commits). Would align with "Remote⇅" column in `wt list`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PreviewMode {
@@ -354,7 +354,7 @@ impl WorktreeSkimItem {
         output
     }
 
-    /// Render Mode 1: Working tree preview (uncommitted changes vs HEAD)
+    /// Render Tab 1: Working tree preview (uncommitted changes vs HEAD)
     /// Matches `wt list` "HEAD±" column
     fn render_working_tree_preview(&self, width: usize) -> String {
         let Some(wt_info) = self.item.worktree_data() else {
@@ -371,7 +371,7 @@ impl WorktreeSkimItem {
         )
     }
 
-    /// Render Mode 3: Branch diff preview (line diffs in commits ahead of main)
+    /// Render Tab 3: Branch diff preview (line diffs in commits ahead of main)
     /// Matches `wt list` "main…± (--full)" column
     fn render_branch_diff_preview(&self, width: usize) -> String {
         if self.item.counts().ahead == 0 {
@@ -382,7 +382,7 @@ impl WorktreeSkimItem {
         self.render_diff_preview(&["diff", &merge_base], "No changes vs main", width)
     }
 
-    /// Render Mode 2: History preview
+    /// Render Tab 2: History preview
     fn render_history_preview(&self, _width: usize) -> String {
         const HISTORY_LIMIT: &str = "10";
 

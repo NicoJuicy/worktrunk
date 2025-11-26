@@ -983,10 +983,10 @@ Experimental commands under `wt beta`. Interface may change.
 
 Interactive worktree selector with fuzzy search and diff preview. Unix only.
 
-Preview modes (toggle with `1`/`2`/`3`):
-- **Mode 1**: Working tree changes (uncommitted)
-- **Mode 2**: History (commits not on main highlighted)
-- **Mode 3**: Branch diff (changes ahead of main)
+Preview tabs (toggle with `1`/`2`/`3`):
+- **Tab 1**: Working tree changes (uncommitted)
+- **Tab 2**: History (commits not on main highlighted)
+- **Tab 3**: Branch diff (changes ahead of main)
 
 ### `wt beta statusline`
 
