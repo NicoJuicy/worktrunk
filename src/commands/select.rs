@@ -540,6 +540,11 @@ pub fn handle_select(is_directive_mode: bool) -> anyhow::Result<()> {
     // Get state path for key bindings
     let state_path_str = _state.path.display().to_string();
 
+    // Calculate half-page scroll: skim uses 90% of terminal height, half of that = 45%
+    let half_page = terminal_size::terminal_size()
+        .map(|(_, terminal_size::Height(h))| (h as usize * 45 / 100).max(5))
+        .unwrap_or(10);
+
     // Configure skim options with Rust-based preview and mode switching keybindings
     let options = SkimOptionsBuilder::default()
         .height("90%".to_string())
@@ -580,9 +585,9 @@ pub fn handle_select(is_directive_mode: bool) -> anyhow::Result<()> {
                 "3:execute-silent(echo 3 > {})+refresh-preview",
                 state_path_str
             ),
-            // Preview scrolling
-            "ctrl-u:preview-page-up".to_string(),
-            "ctrl-d:preview-page-down".to_string(),
+            // Preview scrolling (half-page based on terminal height)
+            format!("ctrl-u:preview-up({half_page})"),
+            format!("ctrl-d:preview-down({half_page})"),
         ])
         // Legend/controls moved to preview window tabs (render_preview_tabs)
         .no_clear(true) // Prevent skim from clearing screen, we'll do it manually
