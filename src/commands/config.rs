@@ -457,8 +457,8 @@ pub fn handle_cache_show() -> anyhow::Result<()> {
     // Show default branch cache
     crate::output::info(format!("{HINT}Default branch cache:{HINT:#}"))?;
     match repo.default_branch() {
-        Ok(branch) => crate::output::raw(format!("  {branch}"))?,
-        Err(_) => crate::output::raw("  (not cached)")?,
+        Ok(branch) => crate::output::data(format!("  {branch}"))?,
+        Err(_) => crate::output::data("  (not cached)")?,
     }
     crate::output::blank()?;
 
@@ -467,7 +467,7 @@ pub fn handle_cache_show() -> anyhow::Result<()> {
 
     let entries = CachedCiStatus::list_all(&repo);
     if entries.is_empty() {
-        crate::output::raw("  (no CI cache entries)")?;
+        crate::output::data("  (no CI cache entries)")?;
         return Ok(());
     }
 
@@ -483,7 +483,7 @@ pub fn handle_cache_show() -> anyhow::Result<()> {
         let age = now_secs.saturating_sub(cached.checked_at);
         let head: String = cached.head.chars().take(8).collect();
 
-        crate::output::raw(format!("  {branch}: {status} (age: {age}s, head: {head})"))?;
+        crate::output::data(format!("  {branch}: {status} (age: {age}s, head: {head})"))?;
     }
 
     Ok(())

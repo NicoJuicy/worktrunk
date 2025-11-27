@@ -127,37 +127,33 @@ pub fn blank() -> io::Result<()> {
     with_output(|h| h.blank())
 }
 
-/// Emit raw output without emoji decoration
+/// Emit structured data output without emoji decoration
 ///
-/// Used for structured data like JSON. Goes to stdout in interactive mode,
-/// stderr in directive mode (where stdout is reserved for directives).
+/// Used for JSON and other pipeable data. In interactive mode, writes to stdout
+/// for piping. In directive mode, writes to stderr (where user messages go).
 ///
 /// Example:
 /// ```rust,ignore
-/// output::raw(json_string)?;
+/// output::data(json_string)?;
 /// ```
-pub fn raw(content: impl Into<String>) -> io::Result<()> {
-    with_output(|h| h.raw(content.into()))
+pub fn data(content: impl Into<String>) -> io::Result<()> {
+    with_output(|h| h.data(content.into()))
 }
 
-/// Emit raw terminal output to stderr
+/// Emit table/UI output to stderr
 ///
-/// Used for table output that should appear on the same stream as progress bars.
-/// Goes to stderr in both interactive and directive modes.
-///
-/// TODO: This split between raw() and raw_terminal() is messy. Consider unifying
-/// the output system to have a clearer separation between structured data (JSON)
-/// and terminal UI (tables, progress bars).
+/// Used for table rows and progress indicators that should appear on the same
+/// stream as progress bars. Both modes write to stderr.
 ///
 /// Example:
 /// ```rust,ignore
-/// output::raw_terminal(layout.format_header_line())?;
+/// output::table(layout.format_header_line())?;
 /// for item in items {
-///     output::raw_terminal(layout.format_item_line(item))?;
+///     output::table(layout.format_item_line(item))?;
 /// }
 /// ```
-pub fn raw_terminal(content: impl Into<String>) -> io::Result<()> {
-    with_output(|h| h.raw_terminal(content.into()))
+pub fn table(content: impl Into<String>) -> io::Result<()> {
+    with_output(|h| h.table(content.into()))
 }
 
 /// Request directory change (for shell integration)
@@ -194,19 +190,6 @@ pub fn flush_for_stderr_prompt() -> io::Result<()> {
 /// In interactive mode, this is a no-op.
 pub fn terminate_output() -> io::Result<()> {
     with_output(|h| h.terminate_output())
-}
-
-/// Format a switch success message (identical across modes)
-///
-/// Both modes now report `"at {path}"` so users see the same wording whether
-/// they invoke worktrunk directly or through the shell wrapper.
-pub fn format_switch_success(
-    branch: &str,
-    path: &Path,
-    created_branch: bool,
-    base_branch: Option<&str>,
-) -> String {
-    super::format_switch_success_message(branch, path, created_branch, base_branch)
 }
 
 #[cfg(test)]

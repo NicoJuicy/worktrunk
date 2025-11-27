@@ -27,7 +27,7 @@ impl RenderMode {
 
         // Priority 2: Auto-detect based on TTY
         // Check the appropriate stream based on output mode:
-        // - Directive mode: check stderr (where table output goes via output::raw())
+        // - Directive mode: check stderr (where table output goes via output::table())
         // - Interactive mode: check stdout (where table output goes)
         use std::io::IsTerminal;
         let is_tty = if directive_mode {

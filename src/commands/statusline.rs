@@ -198,9 +198,9 @@ pub fn run(claude_code: bool) -> Result<()> {
     if !output.is_empty() {
         if claude_code {
             let reset = anstyle::Reset;
-            output::raw(format!("{reset} {output}"))?;
+            output::data(format!("{reset} {output}"))?;
         } else {
-            output::raw(output)?;
+            output::data(output)?;
         }
     }
 

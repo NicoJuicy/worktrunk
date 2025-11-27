@@ -2,9 +2,11 @@ use askama::Template;
 use etcetera::base_strategy::{BaseStrategy, choose_base_strategy};
 use std::path::PathBuf;
 
+use crate::path::home_dir;
+
 /// Get the user's home directory or return an error
-fn home_dir() -> Result<PathBuf, std::io::Error> {
-    home::home_dir().ok_or_else(|| {
+fn home_dir_required() -> Result<PathBuf, std::io::Error> {
+    home_dir().ok_or_else(|| {
         std::io::Error::new(
             std::io::ErrorKind::NotFound,
             "Cannot determine home directory. Set $HOME environment variable",
@@ -28,7 +30,7 @@ impl Shell {
     ///
     /// Returns paths in order of preference. The first existing file should be used.
     pub fn config_paths(&self) -> Result<Vec<PathBuf>, std::io::Error> {
-        let home = home_dir()?;
+        let home = home_dir_required()?;
 
         Ok(match self {
             Self::Bash => {
@@ -60,7 +62,7 @@ impl Shell {
     /// (installed by `wt config shell install`) that uses $WORKTRUNK_BIN to bypass
     /// the shell function wrapper.
     pub fn completion_path(&self) -> Result<PathBuf, std::io::Error> {
-        let home = home_dir()?;
+        let home = home_dir_required()?;
 
         // Use etcetera for XDG-compliant paths when available
         let strategy = choose_base_strategy().ok();
@@ -120,7 +122,7 @@ impl Shell {
         use std::fs;
         use std::io::{BufRead, BufReader};
 
-        let home = home_dir()?;
+        let home = home_dir_required()?;
 
         // Check common shell config files for integration patterns
         let config_files = vec![

@@ -485,8 +485,8 @@ The output module (`src/output/global.rs`) provides:
 - `shell_integration_hint(message)` - Shell integration hints (💡, suppressed in directive)
 - `gutter(content)` - Gutter-formatted content (use with `format_with_gutter()`)
 - `blank()` - Blank line for visual separation
-- `raw(content)` - Raw output without emoji (JSON data)
-- `raw_terminal(content)` - Raw terminal output to stderr (tables)
+- `data(content)` - Structured data output without emoji (JSON, for piping)
+- `table(content)` - Table/UI output to stderr
 - `change_directory(path)` - Request directory change
 - `execute(command)` - Execute command or buffer for shell script
 - `flush()` - Flush output buffers

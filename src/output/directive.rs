@@ -89,7 +89,7 @@ impl OutputHandler for DirectiveOutput {
         Ok(())
     }
 
-    // Note: raw() uses the default which calls write_message_line() -> stderr
+    // Note: data() uses the default which calls write_message_line() -> stderr
     // This is correct for directive mode where stdout is reserved for the final shell script
 
     fn change_directory(&mut self, path: &Path) -> io::Result<()> {

@@ -1,29 +1,20 @@
 use std::path::{Path, PathBuf};
 
+/// Get the user's home directory.
+///
+/// Uses the `home` crate which handles platform-specific detection:
+/// - Unix: `$HOME` environment variable
+/// - Windows: `USERPROFILE` or `HOMEDRIVE`/`HOMEPATH`
+pub fn home_dir() -> Option<PathBuf> {
+    home::home_dir()
+}
+
 /// Format a filesystem path for user-facing output.
 ///
 /// When the path lives under the user's home directory, it is shown with a
 /// leading `~` (e.g., `/Users/alex/projects/wt` -> `~/projects/wt`). Paths
 /// outside home are returned unchanged.
 pub fn format_path_for_display(path: &Path) -> String {
-    fn home_dir() -> Option<PathBuf> {
-        #[cfg(windows)]
-        {
-            std::env::var_os("USERPROFILE")
-                .map(PathBuf::from)
-                .or_else(|| {
-                    let drive = std::env::var_os("HOMEDRIVE")?;
-                    let path = std::env::var_os("HOMEPATH")?;
-                    Some(PathBuf::from(drive).join(path))
-                })
-        }
-
-        #[cfg(not(windows))]
-        {
-            std::env::var_os("HOME").map(PathBuf::from)
-        }
-    }
-
     if let Some(home) = home_dir()
         && let Ok(stripped) = path.strip_prefix(&home)
     {
@@ -41,26 +32,9 @@ pub fn format_path_for_display(path: &Path) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::format_path_for_display;
     use std::path::PathBuf;
 
-    fn home_dir() -> Option<PathBuf> {
-        #[cfg(windows)]
-        {
-            std::env::var_os("USERPROFILE")
-                .map(PathBuf::from)
-                .or_else(|| {
-                    let drive = std::env::var_os("HOMEDRIVE")?;
-                    let path = std::env::var_os("HOMEPATH")?;
-                    Some(PathBuf::from(drive).join(path))
-                })
-        }
-
-        #[cfg(not(windows))]
-        {
-            std::env::var_os("HOME").map(PathBuf::from)
-        }
-    }
+    use super::{format_path_for_display, home_dir};
 
     #[test]
     fn shortens_path_under_home() {

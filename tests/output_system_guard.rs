@@ -45,7 +45,7 @@ fn check_no_stdout_in_commands() {
         panic!(
             "stdout writes found in command code (use output::* instead):\n\n{}\n\n\
              In directive mode, stdout is reserved for shell script output.\n\
-             Use output::info(), output::hint(), output::raw(), etc. instead.",
+             Use output::info(), output::hint(), output::data(), etc. instead.",
             violations.join("\n")
         );
     }

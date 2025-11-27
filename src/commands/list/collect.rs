@@ -666,14 +666,12 @@ pub fn collect(
             layout.hidden_nonempty_count,
         );
 
-        crate::output::raw_terminal(layout.format_header_line())?;
+        crate::output::table(layout.format_header_line())?;
         for item in &all_items {
-            crate::output::raw_terminal(
-                layout.format_list_item_line(item, previous_branch.as_deref()),
-            )?;
+            crate::output::table(layout.format_list_item_line(item, previous_branch.as_deref()))?;
         }
-        crate::output::raw_terminal("")?;
-        crate::output::raw_terminal(final_msg)?;
+        crate::output::table("")?;
+        crate::output::table(final_msg)?;
     }
 
     // Status symbols are now computed during data collection (both modes), no fallback needed

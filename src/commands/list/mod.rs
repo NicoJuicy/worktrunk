@@ -180,7 +180,7 @@ pub fn handle_list(
             // Display fields are already computed in collect()
             let json = serde_json::to_string_pretty(&items)
                 .map_err(|e| anyhow::anyhow!("Failed to serialize to JSON: {}", e))?;
-            crate::output::raw(json)?;
+            crate::output::data(json)?;
         }
         crate::OutputFormat::Table => {
             // Table and summary already rendered in collect() for all modes

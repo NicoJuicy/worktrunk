@@ -2,7 +2,6 @@
 
 use crate::commands::process::spawn_detached;
 use crate::commands::worktree::{RemoveResult, SwitchResult};
-use crate::output::global::format_switch_success;
 use worktrunk::git::GitError;
 use worktrunk::git::Repository;
 use worktrunk::path::format_path_for_display;
@@ -175,7 +174,9 @@ pub fn handle_switch_output(
 
             if is_directive_mode || has_execute_command || is_configured {
                 // Shell integration active, --execute provided, or configured - show success
-                super::success(format_switch_success(branch, path, false, None))?;
+                super::success(super::format_switch_success_message(
+                    branch, path, false, None,
+                ))?;
             } else {
                 // Shell integration not configured - show warning and setup hint
                 super::warning(format!(
@@ -191,7 +192,7 @@ pub fn handle_switch_output(
             base_branch,
         } => {
             // Creation succeeded - show success
-            super::success(format_switch_success(
+            super::success(super::format_switch_success_message(
                 branch,
                 path,
                 *created_branch,

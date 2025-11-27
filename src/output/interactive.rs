@@ -36,8 +36,8 @@ impl OutputHandler for InteractiveOutput {
         stderr().flush()
     }
 
-    fn raw(&mut self, content: String) -> io::Result<()> {
-        // JSON and structured data go to stdout for piping
+    fn data(&mut self, content: String) -> io::Result<()> {
+        // Structured data (JSON, etc.) goes to stdout for piping
         use worktrunk::styling::println;
         println!("{content}");
         io::stdout().flush()

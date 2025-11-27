@@ -57,15 +57,19 @@ pub trait OutputHandler {
         self.write_message_line("")
     }
 
-    /// Emit raw output without emoji decoration
-    fn raw(&mut self, content: String) -> io::Result<()> {
+    /// Emit structured data output without emoji decoration
+    ///
+    /// Used for JSON and other pipeable data. In interactive mode, writes to stdout
+    /// for piping. In directive mode, writes to stderr (where user messages go).
+    fn data(&mut self, content: String) -> io::Result<()> {
         self.write_message_line(&content)
     }
 
-    /// Emit raw terminal output to stderr
+    /// Emit table/UI output to stderr
     ///
-    /// Both modes write to stderr for table output
-    fn raw_terminal(&mut self, content: String) -> io::Result<()> {
+    /// Used for table rows and progress indicators that should appear on the same
+    /// stream as progress bars. Both modes write to stderr.
+    fn table(&mut self, content: String) -> io::Result<()> {
         use worktrunk::styling::eprintln;
         eprintln!("{content}");
         io::stderr().flush()
