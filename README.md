@@ -1009,8 +1009,6 @@ $ wt list
 
 </details>
 
-Experimental commands under `wt beta`. Interface may change.
-
 ### `wt beta select`
 
 Interactive worktree selector with fuzzy search and diff preview. Unix only.
