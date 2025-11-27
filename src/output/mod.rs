@@ -85,19 +85,24 @@ pub(crate) fn format_switch_success_message(
     path: &Path,
     created_branch: bool,
     base_branch: Option<&str>,
+    from_remote: Option<&str>,
 ) -> String {
     use worktrunk::styling::{GREEN, GREEN_BOLD};
 
-    let action = if created_branch {
-        "Created new worktree for"
+    // Determine action and source based on how the worktree was created
+    // Priority: explicit --create > DWIM from remote > existing local branch
+    let (action, source) = if created_branch {
+        ("Created new worktree for", base_branch)
+    } else if let Some(remote) = from_remote {
+        ("Created worktree for", Some(remote))
     } else {
-        "Switched to worktree for"
+        ("Switched to worktree for", None)
     };
 
     // Re-establish GREEN after each green_bold reset to prevent color leak
-    match base_branch {
-        Some(base) => format!(
-            "{GREEN}{action} {GREEN_BOLD}{branch}{GREEN_BOLD:#}{GREEN} from {GREEN_BOLD}{base}{GREEN_BOLD:#}{GREEN} at {GREEN_BOLD}{}{GREEN_BOLD:#}{GREEN:#}",
+    match source {
+        Some(src) => format!(
+            "{GREEN}{action} {GREEN_BOLD}{branch}{GREEN_BOLD:#}{GREEN} from {GREEN_BOLD}{src}{GREEN_BOLD:#}{GREEN} at {GREEN_BOLD}{}{GREEN_BOLD:#}{GREEN:#}",
             format_path_for_display(path)
         ),
         None => format!(

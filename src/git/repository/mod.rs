@@ -199,6 +199,33 @@ impl Repository {
             .is_ok())
     }
 
+    /// Find which remotes have a branch with the given name.
+    ///
+    /// Returns a list of remote names that have this branch (e.g., `["origin"]`).
+    /// Returns an empty list if no remotes have this branch.
+    pub fn remotes_with_branch(&self, branch: &str) -> anyhow::Result<Vec<String>> {
+        // Get all remote tracking branches matching this name
+        // Format: refs/remotes/<remote>/<branch>
+        let output = self.run_command(&[
+            "for-each-ref",
+            "--format=%(refname:strip=2)",
+            &format!("refs/remotes/*/{}", branch),
+        ])?;
+
+        // Parse output: each line is "<remote>/<branch>"
+        // Extract the remote name (everything before the last /<branch>)
+        let remotes: Vec<String> = output
+            .lines()
+            .filter_map(|line| {
+                let line = line.trim();
+                // Strip the branch suffix to get the remote name
+                line.strip_suffix(&format!("/{}", branch)).map(String::from)
+            })
+            .collect();
+
+        Ok(remotes)
+    }
+
     /// Get the current branch name, or None if in detached HEAD state.
     pub fn current_branch(&self) -> anyhow::Result<Option<String>> {
         let stdout = self.run_command(&["branch", "--show-current"])?;

@@ -114,7 +114,8 @@ use worktrunk::HookType;
 use worktrunk::config::{CommandPhase, WorktrunkConfig};
 use worktrunk::git::{GitError, Repository, is_command_not_approved};
 use worktrunk::styling::{
-    AnstyleStyle, CYAN, CYAN_BOLD, GREEN, GREEN_BOLD, WARNING, format_with_gutter,
+    AnstyleStyle, CYAN, CYAN_BOLD, GREEN, GREEN_BOLD, HINT, WARNING, WARNING_BOLD,
+    format_with_gutter,
 };
 
 use super::command_executor::CommandContext;
@@ -138,8 +139,13 @@ pub enum SwitchResult {
     /// Created new worktree at the given path
     Created {
         path: PathBuf,
+        /// True if we used `-b` to create a new branch (--create flag)
         created_branch: bool,
+        /// Base branch when creating new branch (e.g., "main")
         base_branch: Option<String>,
+        /// Remote tracking branch if created from remote (e.g., "origin/feature")
+        /// This is set when git's DWIM created a local branch from a remote
+        from_remote: Option<String>,
     },
 }
 
@@ -222,6 +228,20 @@ pub fn handle_switch(
             branch: resolved_branch.clone(),
         }
         .into());
+    }
+
+    // Warn if --create would shadow a remote branch
+    if create {
+        let remotes = repo.remotes_with_branch(&resolved_branch)?;
+        if !remotes.is_empty() {
+            let remote_ref = format!("{}/{}", remotes[0], resolved_branch);
+            crate::output::warning(format!(
+                "{WARNING}Branch {WARNING_BOLD}{resolved_branch}{WARNING_BOLD:#}{WARNING} exists on remote ({remote_ref}); creating new branch from base instead{WARNING:#}"
+            ))?;
+            crate::output::hint(format!(
+                "{HINT}Use 'wt switch {resolved_branch}' (without --create) to switch to the remote branch{HINT:#}"
+            ))?;
+        }
     }
 
     // Check if base flag was provided without create flag
@@ -366,6 +386,16 @@ pub fn handle_switch(
         .canonicalize()
         .context("Failed to canonicalize worktree path")?;
 
+    // Check if git's DWIM created a tracking branch from a remote
+    // This happens when we don't use --create and the branch exists on a remote
+    let from_remote = if !create {
+        // Query the new worktree for its upstream tracking branch
+        let worktree_repo = Repository::at(&worktree_path);
+        worktree_repo.upstream_branch(&resolved_branch)?
+    } else {
+        None
+    };
+
     // Execute post-create commands (sequential, blocking)
     // Note: If user declines, continue anyway - worktree already created
     if !no_verify {
@@ -400,6 +430,7 @@ pub fn handle_switch(
             path: worktree_path,
             created_branch: create,
             base_branch: base_for_creation,
+            from_remote,
         },
         resolved_branch,
     ))

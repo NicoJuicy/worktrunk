@@ -175,7 +175,7 @@ pub fn handle_switch_output(
             if is_directive_mode || has_execute_command || is_configured {
                 // Shell integration active, --execute provided, or configured - show success
                 super::success(super::format_switch_success_message(
-                    branch, path, false, None,
+                    branch, path, false, None, None,
                 ))?;
             } else {
                 // Shell integration not configured - show warning and setup hint
@@ -190,6 +190,7 @@ pub fn handle_switch_output(
             path,
             created_branch,
             base_branch,
+            from_remote,
         } => {
             // Creation succeeded - show success
             super::success(super::format_switch_success_message(
@@ -197,6 +198,7 @@ pub fn handle_switch_output(
                 path,
                 *created_branch,
                 base_branch.as_deref(),
+                from_remote.as_deref(),
             ))?;
             // Show setup hint if shell integration not active
             if !is_directive_mode && !has_execute_command {
