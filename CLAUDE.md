@@ -166,13 +166,6 @@ show_message_based_on(is_merged);
 spawn_background(build_command_that_checks_merge_again());  // Duplicate check!
 ```
 
-### The anstyle Ecosystem
-
-All styling uses the **anstyle ecosystem** for composable, auto-detecting terminal output:
-- **`anstream`**: Auto-detecting I/O streams (println!, eprintln! macros)
-- **`anstyle`**: Core styling with inline pattern `{style}text{style:#}`
-- **Color detection**: Respects NO_COLOR, CLICOLOR_FORCE, TTY detection
-
 ### Message Types
 
 Six canonical message patterns with their emojis:
@@ -273,24 +266,16 @@ perform_squash()?;
 output::success("Squashed @ a1b2c3d")?;
 ```
 
-### Semantic Style Constants
+### Style Constants
 
-Style constants defined in `src/styling/constants.rs`:
-- `ERROR`: Red (errors, conflicts)
-- `ERROR_BOLD`: Red + bold
-- `WARNING`: Yellow (warnings)
-- `WARNING_BOLD`: Yellow + bold
-- `HINT`: Dimmed (hints, secondary information)
-- `HINT_BOLD`: Dimmed + bold (avoid - bold+dim renders inconsistently)
-- `CURRENT`: Magenta + bold (current worktree)
-- `ADDITION`: Green (diffs, additions)
-- `DELETION`: Red (diffs, deletions)
-- `CYAN`, `CYAN_BOLD`: Cyan (progress messages)
-- `GREEN`, `GREEN_BOLD`: Green (success messages)
-- `GRAY`: BrightBlack (secondary/metadata text)
+Style constants in `src/styling/constants.rs` (minimal set for programmatic styling):
+- `ADDITION`: Green (diffs, additions) - used in table rendering
+- `DELETION`: Red (diffs, deletions) - used in table rendering
 - `GUTTER`: BrightWhite background (quoted content)
 
 Emoji constants: `PROGRESS_EMOJI` (🔄), `SUCCESS_EMOJI` (✅), `ERROR_EMOJI` (❌), `WARNING_EMOJI` (🟡), `HINT_EMOJI` (💡), `INFO_EMOJI` (⚪)
+
+For all other styling, use color-print tags in `cformat!`: `<red>`, `<green>`, `<yellow>`, `<cyan>`, `<dim>`, `<bold>`, `<bright-black>`
 
 ### Styling in Command Code
 
@@ -328,9 +313,10 @@ use worktrunk::styling::eprintln;  // Auto-detects color support
 
 ### Design Principles
 
-- **Use the ecosystem, not manual escape codes** - Use `color-print` for command code, `anstyle` for tables/StyledLine. Never manually write ANSI codes (`\x1b[...`)
+- **color-print for all styling** - Use `cformat!` with HTML-like tags (`<green>`, `<bold>`, etc.). Only use anstyle for `StyledLine` table rendering.
 - **output:: functions over direct printing** - Use output:: for user messages, which auto-adds emoji + semantic color
 - **cformat! for inner styling** - Use `<bold>`, `<dim>` tags within output:: calls
+- **Never manual escape codes** - No `\x1b[...` in code
 - **YAGNI for presentation** - Most output needs no styling
 - **Unicode-aware** - Width calculations respect emoji and CJK characters (via `StyledLine`)
 - **Graceful degradation** - Must work without color support

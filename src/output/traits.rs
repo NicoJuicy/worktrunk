@@ -16,12 +16,10 @@
 //! Callers provide content with optional inner styling (like `<bold>`) using `cformat!`.
 //! The trait adds the outer semantic color, so callers don't repeat `<green>...</>` etc.
 
+use color_print::cformat;
 use std::io::{self, Write};
 use std::path::Path;
-use worktrunk::styling::{
-    CYAN, GREEN, HINT, HINT_EMOJI, INFO_EMOJI, PROGRESS_EMOJI, SUCCESS_EMOJI, WARNING,
-    WARNING_EMOJI,
-};
+use worktrunk::styling::{HINT_EMOJI, INFO_EMOJI, PROGRESS_EMOJI, SUCCESS_EMOJI, WARNING_EMOJI};
 
 /// Core output handler trait
 ///
@@ -33,27 +31,27 @@ pub trait OutputHandler {
 
     /// Emit a success message (automatically wrapped in green)
     fn success(&mut self, message: String) -> io::Result<()> {
-        self.write_message_line(&format!("{SUCCESS_EMOJI} {GREEN}{message}{GREEN:#}"))
+        self.write_message_line(&cformat!("{SUCCESS_EMOJI} <green>{message}</>"))
     }
 
     /// Emit a progress message (automatically wrapped in cyan)
     fn progress(&mut self, message: String) -> io::Result<()> {
-        self.write_message_line(&format!("{PROGRESS_EMOJI} {CYAN}{message}{CYAN:#}"))
+        self.write_message_line(&cformat!("{PROGRESS_EMOJI} <cyan>{message}</>"))
     }
 
     /// Emit a hint message (automatically wrapped in dim)
     fn hint(&mut self, message: String) -> io::Result<()> {
-        self.write_message_line(&format!("{HINT_EMOJI} {HINT}{message}{HINT:#}"))
+        self.write_message_line(&cformat!("{HINT_EMOJI} <dim>{message}</>"))
     }
 
     /// Emit an info message (no color - neutral status)
     fn info(&mut self, message: String) -> io::Result<()> {
-        self.write_message_line(&format!("{INFO_EMOJI} {message}"))
+        self.write_message_line(&cformat!("{INFO_EMOJI} {message}"))
     }
 
     /// Emit a warning message (automatically wrapped in yellow)
     fn warning(&mut self, message: String) -> io::Result<()> {
-        self.write_message_line(&format!("{WARNING_EMOJI} {WARNING}{message}{WARNING:#}"))
+        self.write_message_line(&cformat!("{WARNING_EMOJI} <yellow>{message}</>"))
     }
 
     /// Print a message (written as-is)

@@ -1,6 +1,6 @@
 //! Git diff utilities for parsing and formatting diff statistics.
 
-use crate::styling::{ADDITION, DELETION};
+use color_print::cformat;
 
 /// Line-level diff totals (added/deleted counts) used across git operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize)]
@@ -123,10 +123,10 @@ impl DiffStats {
             ));
         }
         if let Some(insertions) = self.insertions {
-            parts.push(format!("{ADDITION}+{insertions}{ADDITION:#}"));
+            parts.push(cformat!("<green>+{insertions}</>"));
         }
         if let Some(deletions) = self.deletions {
-            parts.push(format!("{DELETION}-{deletions}{DELETION:#}"));
+            parts.push(cformat!("<red>-{deletions}</>"));
         }
 
         parts

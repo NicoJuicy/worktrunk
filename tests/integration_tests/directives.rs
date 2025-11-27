@@ -91,7 +91,7 @@ fn test_remove_internal_directive() {
         cd '[PATH]'
 
         ----- stderr -----
-        🔄 [36m[36mRemoving [1mmain[22m worktree & branch in background[39m[0m
+        🔄 [36m[36mRemoving [1mmain[22m worktree & branch in background[39m[39m
         ");
     });
 }
@@ -116,7 +116,7 @@ fn test_remove_without_internal() {
         ----- stdout -----
 
         ----- stderr -----
-        🔄 [36m[36mRemoving [1mmain[22m worktree & branch in background[39m[0m
+        🔄 [36m[36mRemoving [1mmain[22m worktree & branch in background[39m[39m
         ");
     });
 }
