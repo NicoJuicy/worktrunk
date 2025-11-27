@@ -14,10 +14,9 @@ use std::sync::LazyLock;
 
 /// Regex to find README snapshot markers
 /// Format: <!-- ⚠️ AUTO-GENERATED from path.snap — edit source to update -->
-/// Captures: (1) snapshot path, (2) command line (e.g., "$ wt merge"), (3) content
 static SNAPSHOT_MARKER_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(?s)<!-- ⚠️ AUTO-GENERATED from ([^\s]+\.snap) — edit source to update -->\n+```\w*\n(\$ [^\n]+)\n(.*?)```\n+<!-- END AUTO-GENERATED -->",
+        r"(?s)<!-- ⚠️ AUTO-GENERATED from ([^\s]+\.snap) — edit source to update -->\n+```\w*\n(.*?)```\n+<!-- END AUTO-GENERATED -->",
     )
     .unwrap()
 });
@@ -157,10 +156,65 @@ fn combine_stdout_stderr(stdout: &str, stderr: &str) -> String {
     result.join("\n")
 }
 
-/// Parse content from an insta snapshot file
-fn parse_snapshot(path: &Path) -> Result<String, String> {
-    let content = fs::read_to_string(path)
+/// Regex to extract program and args from YAML front matter
+static YAML_ARGS_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?s)program:\s*(\S+).*?args:\s*\n((?:\s*-\s*[^\n]+\n?)*)").unwrap()
+});
+
+/// Parse command line from snapshot YAML front matter
+fn parse_command_from_snapshot(content: &str) -> Option<String> {
+    if !content.starts_with("---") {
+        return None;
+    }
+
+    let parts: Vec<&str> = content.splitn(3, "---").collect();
+    if parts.len() < 2 {
+        return None;
+    }
+
+    let yaml = parts[1];
+    YAML_ARGS_PATTERN.captures(yaml).map(|cap| {
+        let program = cap.get(1).unwrap().as_str();
+        let args_block = cap.get(2).unwrap().as_str();
+        let args: Vec<&str> = args_block
+            .lines()
+            .filter_map(|line| {
+                let trimmed = line.trim();
+                if trimmed.starts_with("- ") {
+                    Some(trimmed.trim_start_matches("- ").trim_matches('"'))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        format!("$ {} {}", program, args.join(" "))
+    })
+}
+
+/// Parse content from an insta snapshot file, optionally including command line
+/// Prefers the README command if provided, falls back to YAML program/args.
+fn parse_snapshot_with_command(
+    path: &Path,
+    readme_command: Option<&str>,
+) -> Result<String, String> {
+    let raw = fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
+
+    // Prefer README command (user-facing), fall back to YAML (test implementation detail)
+    let command = readme_command
+        .map(String::from)
+        .or_else(|| parse_command_from_snapshot(&raw));
+    let content = parse_snapshot_content(&raw)?;
+
+    Ok(match command {
+        Some(cmd) => format!("{}\n{}", cmd, content),
+        None => content,
+    })
+}
+
+/// Parse content from snapshot file content
+fn parse_snapshot_content(content: &str) -> Result<String, String> {
+    let content = content.to_string();
 
     // Remove YAML front matter
     let content = if content.starts_with("---") {
@@ -314,10 +368,11 @@ fn get_help_output(command: &str, project_root: &Path) -> Result<String, String>
 }
 
 /// Update a section in the README content, returning (new content, updated count, total count)
+/// The replacement function receives (id, current_content) to allow preserving existing values.
 fn update_readme_section(
     content: &str,
     pattern: &Regex,
-    get_replacement: impl Fn(&str) -> Result<String, String>,
+    get_replacement: impl Fn(&str, &str) -> Result<String, String>,
     wrapper: (&str, &str),
 ) -> Result<(String, usize, usize), Vec<String>> {
     let mut result = content.to_string();
@@ -339,7 +394,7 @@ fn update_readme_section(
 
     // Process in reverse order to preserve positions
     for (start, end, id, current) in matches.into_iter().rev() {
-        let expected = match get_replacement(&id) {
+        let expected = match get_replacement(&id, &current) {
             Ok(content) => content,
             Err(e) => {
                 errors.push(format!("❌ {}: {}", id, e));
@@ -359,8 +414,9 @@ fn update_readme_section(
                 )
             } else {
                 // With wrapper (snapshot sections)
+                // wrapper.0 includes trailing \n, so no extra newline between wrapper and content
                 format!(
-                    "<!-- ⚠️ AUTO-GENERATED from {} — edit source to update -->\n\n{}\n{}\n{}\n\n<!-- END AUTO-GENERATED -->",
+                    "<!-- ⚠️ AUTO-GENERATED from {} — edit source to update -->\n\n{}{}\n{}\n\n<!-- END AUTO-GENERATED -->",
                     id, wrapper.0, expected, wrapper.1
                 )
             };
@@ -480,45 +536,29 @@ fn test_readme_examples_are_in_sync() {
     let mut updated_content = readme_content.clone();
     let mut total_updated = 0;
 
-    // Update snapshot markers (preserving command lines)
-    let matches: Vec<_> = SNAPSHOT_MARKER_PATTERN
-        .captures_iter(&updated_content.clone())
-        .map(|cap| {
-            let full_match = cap.get(0).unwrap();
-            let snap_path = cap.get(1).unwrap().as_str().to_string();
-            let command_line = cap.get(2).unwrap().as_str().to_string();
-            let current = normalize_readme_content(cap.get(3).unwrap().as_str());
-            (
-                full_match.start(),
-                full_match.end(),
-                snap_path,
-                command_line,
-                current,
-            )
-        })
-        .collect();
-
-    checked += matches.len();
-
-    // Process in reverse order to preserve positions
-    for (start, end, snap_path, command_line, current) in matches.into_iter().rev() {
-        let full_path = project_root.join(&snap_path);
-        let expected = match parse_snapshot(&full_path) {
-            Ok(content) => normalize_for_readme(&content),
-            Err(e) => {
-                errors.push(format!("❌ {}: {}", snap_path, e));
-                continue;
-            }
-        };
-
-        if current != expected {
-            let replacement = format!(
-                "<!-- ⚠️ AUTO-GENERATED from {} — edit source to update -->\n\n```console\n{}\n{}\n```\n\n<!-- END AUTO-GENERATED -->",
-                snap_path, command_line, expected
-            );
-            updated_content.replace_range(start..end, &replacement);
-            total_updated += 1;
+    // Update snapshot markers (with command line from YAML, or preserved from README)
+    let project_root_for_snapshots = project_root.to_path_buf();
+    match update_readme_section(
+        &updated_content,
+        &SNAPSHOT_MARKER_PATTERN,
+        |snap_path, current_content| {
+            // Extract existing command line from README if present (e.g., "$ wt switch --create fix-auth")
+            let existing_command = current_content
+                .lines()
+                .next()
+                .filter(|line| line.starts_with("$ "));
+            let full_path = project_root_for_snapshots.join(snap_path);
+            parse_snapshot_with_command(&full_path, existing_command)
+                .map(|content| normalize_for_readme(&content))
+        },
+        ("```console\n", "```"),
+    ) {
+        Ok((new_content, updated_count, total_count)) => {
+            updated_content = new_content;
+            total_updated += updated_count;
+            checked += total_count;
         }
+        Err(errs) => errors.extend(errs),
     }
 
     // Update help markers (no wrapper - content is rendered markdown)
@@ -526,7 +566,7 @@ fn test_readme_examples_are_in_sync() {
     match update_readme_section(
         &updated_content,
         &HELP_MARKER_PATTERN,
-        |cmd| get_help_output(cmd, &project_root_clone),
+        |cmd, _current| get_help_output(cmd, &project_root_clone),
         ("", ""),
     ) {
         Ok((new_content, updated_count, total_count)) => {

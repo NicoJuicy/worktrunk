@@ -959,14 +959,13 @@ git config worktrunk.status.feature-x "💬"
 
 ```console
 $ wt list
-  Branch             Status         HEAD±    main↕  Path                      Remote⇅  Commit    Age   Message
-@ main                   ^                          ./repo                             b834638e  1d    Initial commit
-+ clean-no-status       _                           ./repo.clean-no-status             b834638e  1d    Initial commit
-+ clean-with-status     _   💬                      ./repo.clean-with-status           b834638e  1d    Initial commit
-+ dirty-no-status     !           +1   -1           ./repo.dirty-no-status             b834638e  1d    Initial commit
-+ dirty-with-status    ?_   🤖                      ./repo.dirty-with-status           b834638e  1d    Initial commit
+  Branch       Status         HEAD±    main↕  Path                Remote⇅  Commit    Age   Message
+@ main             ^                          ./repo                       b834638e  1d    Initial commit
++ feature-api      ↑  🤖              ↑1      ./repo.feature-api           9606cd0f  1d    Add REST API endpoints
++ review-ui      ? ↑  💬              ↑1      ./repo.review-ui             afd3b353  1d    Add dashboard component
++ wip-docs       ?_                           ./repo.wip-docs              b834638e  1d    Initial commit
 
-⚪ Showing 5 worktrees, 1 with changes
+⚪ Showing 4 worktrees, 2 ahead
 ```
 
 <!-- END AUTO-GENERATED -->
@@ -983,22 +982,6 @@ When using Claude:
 - Sets status to `🤖` for the current branch when submitting a prompt (working)
 - Changes to `💬` when Claude needs input (waiting for permission or idle)
 - Clears the status completely when the session ends
-
-<!-- ⚠️ AUTO-GENERATED from tests/snapshots/integration__integration_tests__list__with_user_status.snap — edit source to update -->
-
-```console
-$ wt list
-  Branch             Status         HEAD±    main↕  Path                      Remote⇅  Commit    Age   Message
-@ main                   ^                          ./repo                             b834638e  1d    Initial commit
-+ clean-no-status       _                           ./repo.clean-no-status             b834638e  1d    Initial commit
-+ clean-with-status     _   💬                      ./repo.clean-with-status           b834638e  1d    Initial commit
-+ dirty-no-status     !           +1   -1           ./repo.dirty-no-status             b834638e  1d    Initial commit
-+ dirty-with-status    ?_   🤖                      ./repo.dirty-with-status           b834638e  1d    Initial commit
-
-⚪ Showing 5 worktrees, 1 with changes
-```
-
-<!-- END AUTO-GENERATED -->
 
 **How it works:**
 

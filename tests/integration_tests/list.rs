@@ -761,37 +761,57 @@ fn test_list_with_user_status() {
     let mut repo = TestRepo::new();
     repo.commit_with_age("Initial commit", DAY);
 
-    // Worktree with user status only (no git changes)
-    repo.add_worktree("clean-with-status");
-
-    // Set user status (emoji only, branch-keyed)
+    // Branch ahead of main with commits and user status 🤖
+    let feature_wt = repo.add_worktree("feature-api");
+    std::fs::write(feature_wt.join("api.rs"), "// API implementation").unwrap();
     let mut cmd = Command::new("git");
     repo.configure_git_cmd(&mut cmd);
-    cmd.args(["config", "worktrunk.status.clean-with-status", "💬"])
+    cmd.args(["add", "."])
+        .current_dir(&feature_wt)
+        .output()
+        .unwrap();
+    let mut cmd = Command::new("git");
+    repo.configure_git_cmd(&mut cmd);
+    cmd.args(["commit", "-m", "Add REST API endpoints"])
+        .current_dir(&feature_wt)
+        .output()
+        .unwrap();
+    // Set user status
+    let mut cmd = Command::new("git");
+    repo.configure_git_cmd(&mut cmd);
+    cmd.args(["config", "worktrunk.status.feature-api", "🤖"])
         .current_dir(repo.root_path())
         .output()
         .unwrap();
 
-    // Worktree with both git status and user status
-    let dirty_wt = repo.add_worktree("dirty-with-status");
-
-    // Set user status (emoji only, branch-keyed)
+    // Branch with uncommitted changes and user status 💬
+    let review_wt = repo.add_worktree("review-ui");
+    std::fs::write(review_wt.join("component.tsx"), "// UI component").unwrap();
     let mut cmd = Command::new("git");
     repo.configure_git_cmd(&mut cmd);
-    cmd.args(["config", "worktrunk.status.dirty-with-status", "🤖"])
-        .current_dir(repo.root_path())
+    cmd.args(["add", "."])
+        .current_dir(&review_wt)
         .output()
         .unwrap();
-
+    let mut cmd = Command::new("git");
+    repo.configure_git_cmd(&mut cmd);
+    cmd.args(["commit", "-m", "Add dashboard component"])
+        .current_dir(&review_wt)
+        .output()
+        .unwrap();
     // Add uncommitted changes
-    std::fs::write(dirty_wt.join("new.txt"), "content").unwrap();
+    std::fs::write(review_wt.join("styles.css"), "/* pending styles */").unwrap();
+    // Set user status
+    let mut cmd = Command::new("git");
+    repo.configure_git_cmd(&mut cmd);
+    cmd.args(["config", "worktrunk.status.review-ui", "💬"])
+        .current_dir(repo.root_path())
+        .output()
+        .unwrap();
 
-    // Worktree with git status only (no user status)
-    let dirty_no_status_wt = repo.add_worktree("dirty-no-status");
-    std::fs::write(dirty_no_status_wt.join("file.txt"), "content").unwrap();
-
-    // Worktree with neither (control)
-    repo.add_worktree("clean-no-status");
+    // Branch with uncommitted changes only (no user status)
+    let wip_wt = repo.add_worktree("wip-docs");
+    std::fs::write(wip_wt.join("README.md"), "# Documentation").unwrap();
 
     snapshot_list("with_user_status", &repo);
 }
