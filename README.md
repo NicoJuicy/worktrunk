@@ -16,20 +16,26 @@ adds branch-based navigation, lifecycle hooks, and unified status. The goal is
 to make spinning up a new AI "developer" for a task feel as routine as `git
 switch`.
 
-Worktrunk can simplify standard workflows — a easier way to create / navigate /
-list / clean up worktrees. It also supports newer workflows, such as LLM commit
-messages, or local merging of worktrees gated on CI-like checks. And there are
-QoL improvements such as listing the CI status of all branches, listing which
-worktrees have Claude Code working vs. waiting for input, and a Claude Code
-statusline.
+## December 2025 Project Status
 
 I've been using Worktrunk as my daily driver while building it for the past
-couple of months, and found the workflows extremely good. It's built with love;
-there's no slop here! If some social proof is helpful: I also created
+couple of months, and am releasing it as Open Source now. It's built with love
+(no slop!). If some social proof is helpful: I also created
 [PRQL](https://github.com/PRQL/prql) (10k stars) and am a maintainer of
 [Xarray](https://github.com/pydata/xarray) (4k stars),
 [Insta](https://github.com/mitsuhiko/insta), &
 [Numbagg](https://github.com/numbagg/numbagg).
+
+Currently, Worktrunk:
+
+- simplifies standard worktree workflows — an easier way to create / navigate /
+  list / clean up worktrees.
+- can be used for more advanced workflows, such as [LLM commit
+  messages](#llm-commit-messages), or [local merging](#local-merging-with-wt-merge) of worktrees gated on CI-like checks
+- also comes with optional QoL features, such as listing branches' CI status or
+  Claude Code status, or having a [Claude Code statusline](#wt-list-statusline).
+
+...so there's no need to use the more advanced features to get the simpler benefits.
 
 ## Demo
 
