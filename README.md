@@ -85,12 +85,11 @@ We can get that a few ways:
 - one working tree with many branches — constant stashing, rebasing, and conflict risk
 - git worktrees — multiple directories backed by a single `.git` directory
 
-So we use git worktrees: many working directories, one repository.
+So we use git worktrees: multiple working directories backed by a single repository.
 
 ## Why Worktrunk?
 
-Git's worktree commands handle the basics, but leave lifecycle management to you.
-Worktrunk wraps creation, hooks, merging, and cleanup into three commands — `wt switch`, `wt merge`, `wt list`. A comparison:
+Git's built-in `worktree` commands give you the primitives but not the lifecycle. Worktrunk bundles creation, hooks, merging, and cleanup into three commands: `wt switch`, `wt merge`, and `wt list`. A few examples:
 
 <table>
 <tr>
