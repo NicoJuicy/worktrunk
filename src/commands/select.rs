@@ -391,11 +391,13 @@ impl WorktreeSkimItem {
     /// Render the tab header for the preview window
     ///
     /// Shows all preview modes as tabs, with the current mode bolded
-    /// and unselected modes dimmed. Controls shown below.
+    /// and unselected modes dimmed. Controls shown below in normal text
+    /// for visual distinction from inactive tabs.
     fn render_preview_tabs(mode: PreviewMode) -> String {
+        use anstyle::Style;
+
         /// Format a tab label with bold (active) or dimmed (inactive) styling
         fn format_tab(label: &str, is_active: bool) -> String {
-            use anstyle::Style;
             let style = if is_active {
                 Style::new().bold()
             } else {
@@ -407,9 +409,16 @@ impl WorktreeSkimItem {
         let tab1 = format_tab("1: HEAD±", mode == PreviewMode::WorkingTree);
         let tab2 = format_tab("2: history", mode == PreviewMode::History);
         let tab3 = format_tab("3: main…±", mode == PreviewMode::BranchDiff);
-        let controls = format_tab(
-            "Enter: switch | Esc: cancel | ctrl-u/d: scroll | alt-p: toggle",
-            false,
+
+        // Controls use dim yellow to distinguish from dimmed (white) tabs
+        // while remaining subdued
+        let controls_style = Style::new()
+            .dimmed()
+            .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Yellow)));
+        let controls = format!(
+            "{}Enter: switch | Esc: cancel | ctrl-u/d: scroll | alt-p: toggle{}",
+            controls_style.render(),
+            controls_style.render_reset()
         );
 
         format!("{} | {} | {}\n{}\n\n", tab1, tab2, tab3, controls)
