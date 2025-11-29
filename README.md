@@ -180,7 +180,7 @@ git branch -d feature</pre></td>
 
 ## Advanced
 
-Most Worktrunk users just use the commands above. But I've found these features really helpful too:
+Many Worktrunk users will use the commands above. But for more:
 
 ### Shell integration
 
