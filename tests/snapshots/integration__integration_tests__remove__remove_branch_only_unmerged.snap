@@ -23,5 +23,5 @@ exit_code: 0
 ----- stdout -----
 
 ----- stderr -----
-🟡 [33m[33mNo worktree found for branch [1mfeature-unmerged[39m[22m[39m
-⚪ [90mBranch [1mfeature-unmerged[22m retained; not integrated into HEAD[39m
+🟡 [33mNo worktree found for branch [1mfeature-unmerged[22m[39m
+⚪ Branch [1mfeature-unmerged[22m retained; not integrated into HEAD

@@ -464,7 +464,7 @@ pub fn handle_cache_show() -> anyhow::Result<()> {
     let repo = Repository::current();
 
     // Show default branch cache
-    crate::output::info(cformat!("<dim>Default branch cache:</>"))?;
+    crate::output::info("Default branch cache:")?;
     match repo.default_branch() {
         Ok(branch) => crate::output::data(format!("  {branch}"))?,
         Err(_) => crate::output::data("  (not cached)")?,
@@ -472,7 +472,7 @@ pub fn handle_cache_show() -> anyhow::Result<()> {
     crate::output::blank()?;
 
     // Show CI status cache
-    crate::output::info(cformat!("<dim>CI status cache:</>"))?;
+    crate::output::info("CI status cache:")?;
 
     let entries = CachedCiStatus::list_all(&repo);
     if entries.is_empty() {

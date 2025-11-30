@@ -526,8 +526,9 @@ pub fn handle_remove(
 
     // Show progress (unless running in background - output handler will show command)
     if !background {
-        let progress_msg = cformat!("<cyan>Removing worktree for <bold>{worktree_name}</>...</>");
-        crate::output::progress(progress_msg)?;
+        crate::output::progress(cformat!(
+            "Removing worktree for <bold>{worktree_name}</>..."
+        ))?;
     }
 
     repo.remove_worktree_by_name(worktree_name, no_delete_branch, force_delete)
@@ -546,7 +547,7 @@ pub fn handle_remove_current(
 
     // Show progress (unless running in background - output handler will show command)
     if !background {
-        crate::output::progress(cformat!("<cyan>Removing current worktree...</>"))?;
+        crate::output::progress("Removing current worktree...")?;
     }
 
     repo.remove_current_worktree(no_delete_branch, force_delete)
@@ -567,7 +568,7 @@ pub fn handle_remove_by_path(
 
     if !background {
         crate::output::progress(cformat!(
-            "<cyan>Removing worktree at <bold>{}</>...</>",
+            "Removing worktree at <bold>{}</>...",
             worktrunk::path::format_path_for_display(path)
         ))?;
     }

@@ -130,15 +130,13 @@ fn handle_branch_deletion_result(
         Ok(None) => {
             // Branch not integrated - we chose not to delete (not a failure)
             super::info(cformat!(
-                "<bright-black>Branch <bold>{branch_name}</> retained; not integrated into HEAD</>"
+                "Branch <bold>{branch_name}</> retained; not integrated into HEAD"
             ))?;
             Ok(None)
         }
         Err(e) => {
             // Git command failed - show warning with actual error details
-            super::warning(cformat!(
-                "<yellow>Could not delete branch <bold>{branch_name}</></>"
-            ))?;
+            super::warning(cformat!("Could not delete branch <bold>{branch_name}</>"))?;
             super::gutter(format_with_gutter(&e.to_string(), "", None))?;
             Ok(None)
         }
@@ -210,23 +208,23 @@ fn format_remove_worktree_message(
     if changed_directory {
         if let Some(b) = branch_display {
             cformat!(
-                "<green>Removed <bold>{b}</> {action_suffix}; changed directory to <bold>{path_display}</>{flag_note}</>"
+                "Removed <bold>{b}</> {action_suffix}; changed directory to <bold>{path_display}</>{flag_note}"
             )
         } else {
             cformat!(
-                "<green>Removed {action_suffix}; changed directory to <bold>{path_display}</>{flag_note}</>"
+                "Removed {action_suffix}; changed directory to <bold>{path_display}</>{flag_note}"
             )
         }
     } else if let Some(b) = branch_display {
-        cformat!("<green>Removed <bold>{b}</> {action_suffix}{flag_note}</>")
+        cformat!("Removed <bold>{b}</> {action_suffix}{flag_note}")
     } else {
-        cformat!("<green>Removed {action_suffix}{flag_note}</>")
+        format!("Removed {action_suffix}{flag_note}")
     }
 }
 
-/// Shell integration hint message (with HINT styling - emoji added by shell_integration_hint())
+/// Shell integration hint message (hint() adds dim styling)
 fn shell_integration_hint() -> String {
-    cformat!("<dim>Run `wt config shell install` to enable automatic cd</>")
+    "Run `wt config shell install` to enable automatic cd".to_string()
 }
 
 /// Handle output for a switch operation
@@ -301,7 +299,7 @@ pub fn execute_user_command(command: &str) -> anyhow::Result<()> {
     use worktrunk::styling::format_bash_with_gutter;
 
     // Show what command is being executed (section header + gutter content)
-    super::progress(cformat!("<cyan>Executing (--execute):</>"))?;
+    super::progress("Executing (--execute):")?;
     super::gutter(format_bash_with_gutter(command, ""))?;
 
     super::execute(command)?;
@@ -386,7 +384,7 @@ fn handle_branch_only_output(
 ) -> anyhow::Result<()> {
     // Warn that no worktree was found (user asked to remove it)
     super::warning(cformat!(
-        "<yellow>No worktree found for branch <bold>{branch_name}</></>"
+        "No worktree found for branch <bold>{branch_name}</>"
     ))?;
 
     // Attempt branch deletion (unless --no-delete-branch was specified)
