@@ -835,7 +835,9 @@ wt switch --create bugfix --base=@       # Branch from current HEAD
 wt remove @                              # Remove current worktree
 ```"#)]
     Switch {
-        /// Branch, path, '@' (HEAD), '-' (previous), or '^' (main)
+        /// Branch or worktree name
+        ///
+        /// Shortcuts: '^' (main), '-' (previous), '@' (current)
         #[arg(add = crate::completion::worktree_branch_completer())]
         branch: String,
 

@@ -81,7 +81,6 @@ Keep the first line of flag and argument descriptions brief—aim for 3-6 words.
 - `/// Skip approval prompts`
 - `/// Show CI, conflicts, and full diffs`
 - `/// Target branch (defaults to default branch)`
-- `/// Branch, path, '@' (HEAD), '-' (previous), or '^' (main)`
 
 **Bad examples (too verbose):**
 - `/// Auto-approve project commands without saving approvals.`

@@ -468,7 +468,9 @@ Usage: wt switch [OPTIONS] <BRANCH>
 
 Arguments:
   <BRANCH>
-          Branch, path, '@' (HEAD), '-' (previous), or '^' (main)
+          Branch or worktree name
+
+          Shortcuts: '^' (main), '-' (previous), '@' (current)
 
 Options:
   -c, --create
