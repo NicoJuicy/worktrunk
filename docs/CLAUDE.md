@@ -11,6 +11,17 @@ This is an initial scaffolding of the documentation site. The content was auto-g
 
 This is being merged to enable iteration, not as finished documentation.
 
+## Development Workflow
+
+When making changes to the docs, **ensure the dev server is running before returning to the user** so they can review changes in their browser.
+
+```bash
+# Start the dev server from the docs directory (runs on http://127.0.0.1:1111)
+cd docs && zola serve
+```
+
+If the server isn't already running, start it as a background process or in a separate terminal session before completing work. The user should be able to immediately see rendered changes without needing to manually start the server.
+
 ## Theme Architecture
 
 The docs use a "warm workbench" theme built on top of the Juice Zola theme. Key files:
