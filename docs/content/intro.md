@@ -12,6 +12,6 @@ Worktrunk is a CLI for Git worktree management, designed for parallel AI agent w
 We recommend:
 
 - **Start with Worktrunk as a simpler & better `git worktree`**: create, navigate, list, and clean up git worktrees with ease
-- **Later use the more advanced features if they resonate**: [LLM commit messages](/configuration/#llm-commit-messages), [local merging with CI-like checks](/concepts/#local-merging-with-wt-merge), [fzf-like worktree picker](/commands/#wt-select), [Claude Code integration](/advanced/#claude-code-integration), and more
+- **Later use the more advanced features if they resonate**: [LLM commit messages](/llm-commits/), [local merging with CI-like checks](/concepts/#local-merging-with-wt-merge), [fzf-like worktree picker](/commands/#wt-select), [Claude Code integration](/advanced/#claude-code-integration), and more
 
 Ready? Head to the [Quick Start](/quickstart/).

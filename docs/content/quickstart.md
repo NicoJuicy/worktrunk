@@ -83,4 +83,4 @@ Worktrunk checks if your changes are already on main before deleting the branch.
 
 - Understand [why worktrees matter](/concepts/) and how Worktrunk improves on plain git
 - Set up [project hooks](/hooks/) for automated setup
-- Use [LLM commit messages](/configuration/#llm-commit-messages) for auto-generated commits
+- Use [LLM commit messages](/llm-commits/) for auto-generated commits
