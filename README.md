@@ -505,9 +505,9 @@ Global Options:
 
 ```
 
-## Operation
+### Operation
 
-### Worktree resolution
+#### Worktree resolution
 
 Arguments are resolved using **path-first lookup**:
 
@@ -520,13 +520,13 @@ Arguments are resolved using **path-first lookup**:
 - `wt switch foo` switches to `repo.foo/` (the `bar` branch worktree)
 - `wt switch bar` also works (falls back to branch lookup)
 
-### Switching to Existing Worktree
+#### Switching to Existing Worktree
 
 - If worktree exists at expected path or for branch, changes directory via shell integration
 - No hooks run
 - No branch creation
 
-### Creating New Worktree (`--create`)
+#### Creating New Worktree (`--create`)
 
 1. Creates new branch (defaults to current default branch as base)
 2. Creates worktree in configured location (default: `../{{ main_worktree }}.{{ branch }}`)
@@ -535,16 +535,16 @@ Arguments are resolved using **path-first lookup**:
 5. Spawns post-start hooks in background (non-blocking)
 6. Changes directory to new worktree via shell integration
 
-## Hooks
+### Hooks
 
-### post-create (sequential, blocking)
+#### post-create (sequential, blocking)
 
 - Run after worktree creation, before success message
 - Typically: `npm install`, `cargo build`, setup tasks
 - Failures block the operation
 - Skip with `--no-verify`
 
-### post-start (parallel, background)
+#### post-start (parallel, background)
 
 - Spawned after success message shown
 - Typically: dev servers, file watchers, editors
@@ -558,7 +558,7 @@ Arguments are resolved using **path-first lookup**:
 Approvals are saved to user config. Use `--force` to bypass prompts.
 See `wt config approvals --help`.
 
-## Examples
+### Examples
 
 Switch to existing worktree:
 
@@ -596,7 +596,7 @@ Skip hooks during creation:
 wt switch --create temp --no-verify
 ```
 
-## Shortcuts
+### Shortcuts
 
 Use `@` for current HEAD, `-` for previous, `^` for main:
 
@@ -666,34 +666,34 @@ Global Options:
 
 ```
 
-## Operation
+### Operation
 
 Commit → Squash → Rebase → Pre-merge hooks → Push → Cleanup → Post-merge hooks
 
-### Commit
+#### Commit
 
 Uncommitted changes are staged and committed with LLM commit message.
 Use `--stage=tracked` to stage only tracked files, or `--stage=none` to commit only what's already staged.
 
-### Squash
+#### Squash
 
 Multiple commits are squashed into one (like GitHub's "Squash and merge") with LLM commit message.
 Skip with `--no-squash`. Safety backup: `git reflog show refs/wt-backup/<branch>`
 
-### Rebase
+#### Rebase
 
 Branch is rebased onto target. Conflicts abort the merge immediately.
 
-### Hooks
+#### Hooks
 
 Pre-merge commands run after rebase (failures abort). Post-merge commands
 run after cleanup (failures logged). Skip all with `--no-verify`.
 
-### Push
+#### Push
 
 Fast-forward push to local target branch. Non-fast-forward pushes are rejected.
 
-### Cleanup
+#### Cleanup
 
 Worktree and branch are removed. Skip with `--no-remove`.
 
@@ -703,7 +703,7 @@ Worktree and branch are removed. Skip with `--no-remove`.
 Approvals are saved to user config. Use `--force` to bypass prompts.
 See `wt config approvals --help`.
 
-## Examples
+### Examples
 
 Basic merge to main:
 
@@ -771,21 +771,21 @@ Global Options:
 
 ```
 
-## Operation
+### Operation
 
 Removes worktree directory, git metadata, and branch. Requires clean working tree.
 
-### No arguments (remove current)
+#### No arguments (remove current)
 
 - Removes current worktree and switches to main worktree
 - In main worktree: switches to default branch
 
-### By name (remove specific)
+#### By name (remove specific)
 
 - Removes specified worktree(s) and branches
 - Current worktree removed last (switches to main first)
 
-### Worktree resolution
+#### Worktree resolution
 
 Arguments are resolved to worktrees using **path-first lookup**:
 
@@ -807,7 +807,7 @@ branch `foo` has a different worktree at `repo.bar/`, an error is raised.
 - `-` - previous worktree (from switch history)
 - `^` - main worktree
 
-### Branch deletion
+#### Branch deletion
 
 By default, branches are deleted only when their content is already in the target branch:
 
@@ -820,17 +820,17 @@ This handles workflows where PRs are squash-merged or rebased, which don't prese
 commit ancestry but do integrate the content. Use `-D` to delete unintegrated
 branches, or `--no-delete-branch` to always keep branches.
 
-### Background removal (default)
+#### Background removal (default)
 
 - Returns immediately for continued work
 - Logs: `.git/wt-logs/{branch}-remove.log`
 - Use `--no-background` for foreground (blocking)
 
-### Cleanup
+#### Cleanup
 
 Stops any git fsmonitor daemon for the worktree before removal. This prevents orphaned processes when using builtin fsmonitor (`core.fsmonitor=true`). No effect on Watchman users.
 
-## Examples
+### Examples
 
 Remove current worktree and branch:
 
@@ -920,7 +920,7 @@ Global Options:
 
 ```
 
-## Columns
+### Columns
 
 - **Branch:** Branch name
 - **Status:** Quick status symbols (see Status Symbols below)
@@ -941,7 +941,7 @@ Global Options:
 - **Age:** Time since last commit (relative)
 - **Message:** Last commit message (truncated)
 
-## Status Symbols
+### Status Symbols
 
 Order: `+!? ✖⚠≡_ ↻⋈ ↑↓↕ ⇡⇣⇅ ⎇⌫⊠`
 
@@ -966,7 +966,7 @@ Order: `+!? ✖⚠≡_ ↻⋈ ↑↓↕ ⇡⇣⇅ ⎇⌫⊠`
 
 Rows are dimmed when there's no marginal contribution (`≡` matches main OR `_` no commits).
 
-## JSON Output
+### JSON Output
 
 Use `--format=json` for structured data. Each object contains two status maps
 with the same fields in the same order as Status Symbols above:
@@ -1049,7 +1049,7 @@ Global Options:
 
 ```
 
-## Setup Guide
+### Setup Guide
 
 1. Set up shell integration
 
@@ -1082,7 +1082,7 @@ Global Options:
    command = "llm"
    ```
 
-## LLM Setup Details
+### LLM Setup Details
 
 For Claude:
 
@@ -1101,7 +1101,7 @@ llm keys set openai
 Use `wt config show` to view the current configuration.
 Docs: <https://llm.datasette.io/> | <https://github.com/sigoden/aichat>
 
-## Configuration Files
+### Configuration Files
 
 **User config**:
 

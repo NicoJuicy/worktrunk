@@ -393,6 +393,8 @@ fn get_help_output(command: &str, project_root: &Path) -> Result<String, String>
     // Format for README display:
     // 1. Replace " - " with em dash in first line (command description)
     // 2. Split at first ## header - synopsis in code block, rest as markdown
+    // 3. Increase heading levels in docs section (## -> ###, ### -> ####)
+    //    so they become children of the command heading (which is ##)
     let result = if let Some(first_newline) = help_output.find('\n') {
         let (first_line, rest) = help_output.split_at(first_newline);
         // Replace hyphen-minus with em dash in command description
@@ -402,6 +404,8 @@ fn get_help_output(command: &str, project_root: &Path) -> Result<String, String>
             // Split at first H2 header
             let (synopsis, docs) = rest.split_at(header_pos);
             let docs = docs.trim_start_matches('\n');
+            // Increase heading levels so docs headings become children of command heading
+            let docs = increase_heading_levels(docs);
             format!("```text\n{}{}\n```\n\n{}", first_line, synopsis, docs)
         } else {
             // No documentation section, wrap everything in code block
@@ -413,6 +417,32 @@ fn get_help_output(command: &str, project_root: &Path) -> Result<String, String>
     };
 
     Ok(result)
+}
+
+/// Increase markdown heading levels by one (## -> ###, ### -> ####, etc.)
+/// This makes help output headings children of the command heading in docs.
+/// Only transforms actual markdown headings, not code block content.
+fn increase_heading_levels(content: &str) -> String {
+    let mut result = Vec::new();
+    let mut in_code_block = false;
+
+    for line in content.lines() {
+        // Track code block boundaries (``` or ````+)
+        if line.trim_start().starts_with("```") {
+            in_code_block = !in_code_block;
+            result.push(line.to_string());
+            continue;
+        }
+
+        // Only transform headings outside code blocks
+        if !in_code_block && line.starts_with('#') {
+            result.push(format!("#{}", line));
+        } else {
+            result.push(line.to_string());
+        }
+    }
+
+    result.join("\n")
 }
 
 /// Update a section in the README content, returning (new content, updated count, total count)
