@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="preload" href="{{ get_url(path='logo.svg') }}" as="image" type="image/svg+xml">
+<link rel="preload" href="{{ get_url(path='logo.png') }}" as="image" type="image/png">
 {% endblock fonts %}
 
 {% block head %}
@@ -71,7 +71,7 @@
 <header>
     <a href="/">
         <div class="logo">
-            <img src="{{ get_url(path=config.extra.juice_logo_path) }}" alt="logo">
+            <img src="{{ get_url(path=config.extra.juice_logo_path) }}" srcset="{{ get_url(path='logo.png') }} 1x, {{ get_url(path='logo@2x.png') }} 2x" alt="logo">
             {{ config.extra.juice_logo_name }}
         </div>
     </a>

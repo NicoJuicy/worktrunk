@@ -14,7 +14,7 @@ error_on_missing_highlight = true
 
 [extra]
 juice_logo_name = "Worktrunk"
-juice_logo_path = "logo.svg"
+juice_logo_path = "logo.png"
 rust_crate = "worktrunk"
 github_repo = "max-sixty/worktrunk"
 site_description = "CLI for Git worktree management, designed for parallel AI agent workflows."

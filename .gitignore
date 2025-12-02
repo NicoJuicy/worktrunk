@@ -9,3 +9,4 @@ test-concurrent.sh
 # Insta snapshot test artifacts
 *.snap.new
 *.snap.pending
+logo-variant-*.png

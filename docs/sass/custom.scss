@@ -98,6 +98,12 @@ header {
     font-weight: 600;
     font-size: 1.25rem;
     color: var(--wt-color-text);
+
+    img {
+        width: 44px;
+        height: 44px;
+        object-fit: contain;
+    }
 }
 
 // Navigation
@@ -513,6 +519,8 @@ footer {
     .hero-image {
         max-height: 55vh;
         width: auto;
+        aspect-ratio: 1;
+        object-fit: contain;
         flex-shrink: 1;
     }
 
