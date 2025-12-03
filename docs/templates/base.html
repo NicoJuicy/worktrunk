@@ -14,6 +14,7 @@
 
 {% block head %}
 {% include "_variables.html" %}
+<meta name="view-transition" content="same-origin">
 <meta name="description" content="{{ config.extra.site_description }}">
 
 <!-- OpenGraph -->
@@ -73,6 +74,7 @@
 <script src="/search_index.en.js" defer></script>
 <script src="/search.js" defer></script>
 <script src="/code-copy.js" defer></script>
+<script src="//instant.page/5.2.0" type="module" integrity="sha384-jnZyxPjiipYXnSU0ygqeac2q7CVYMbh84q0uHVRRxEtvFPiQYbXWUorga2aqZJ0z"></script>
 {% endblock head %}
 
 {% block header %}

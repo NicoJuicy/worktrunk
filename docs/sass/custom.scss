@@ -804,6 +804,19 @@ ul > li::marker {
 }
 
 // ============================================================================
+// View Transitions (smooth page navigation)
+// ============================================================================
+
+@view-transition {
+    navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 50ms;
+}
+
+// ============================================================================
 // Transitions & Accessibility
 // ============================================================================
 
@@ -825,6 +838,11 @@ input:focus-visible {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
+    }
+
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation: none !important;
     }
 }
 
