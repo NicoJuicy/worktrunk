@@ -6,7 +6,7 @@ weight = 22
 group = "Reference"
 +++
 
-Worktrunk generates commit messages by building a templated prompt and piping it to an external command. This integrates with `wt merge` and `wt step commit`.
+Worktrunk generates commit messages by building a templated prompt and piping it to an external command. This integrates with `wt merge`, `wt step commit`, and `wt step squash`.
 
 ## Setup
 
@@ -57,22 +57,15 @@ command = "llm"
 args = ["-m", "gpt-4o-mini"]
 ```
 
-## Two generation modes
+## How it works
 
-Worktrunk has two LLM generation functions, each with its own template:
-
-| Mode | Analyzes | Template | Used by |
-|------|----------|----------|---------|
-| **Commit** | Git diff (staged changes) | `template` | `wt step commit`, `wt merge --no-squash` (when dirty) |
-| **Squash** | Commit subjects (message titles) | `squash-template` | `wt step squash`, `wt merge` (default) |
-
-The key difference: commit mode sees *what changed* (diffs), squash mode sees *what was already said* (commit messages).
+When worktrunk needs a commit message, it builds a prompt from a template and pipes it to the configured LLM command. The default templates include the git diff and style guidance.
 
 ## Usage
 
-### wt merge (default behavior)
+### wt merge
 
-By default, `wt merge` squashes all commits on the branch into one. Any uncommitted changes are staged and included in the squash. The commit message is generated using **squash mode** (analyzing commit subjects, not diffs):
+Merges branch into target with LLM-generated commit message. Generates a commit message if there are uncommitted changes, and a squash message for the branch commits.
 
 ```bash
 $ wt merge
@@ -82,27 +75,9 @@ $ wt merge
    ...
 ```
 
-### wt merge --no-squash
-
-<!-- TODO: This example only shows committing uncommitted changes. Add an example
-     that shows multiple preserved commits being rebased onto the target branch,
-     which is the main point of --no-squash. -->
-
-With `--no-squash`, individual commits are preserved and rebased onto the target branch. If there are uncommitted changes, they're committed first using **commit mode**:
-
-```bash
-$ wt merge --no-squash
-🔄 Generating commit message and committing changes... (2 files, +15)
-   fix: Handle edge case in config parser
-✅ Committed changes @ a1b2c3d
-🔄 Rebasing onto main...
-```
-
-If there are no uncommitted changes, the commits are rebased as-is without generating any new messages.
-
 ### wt step commit
 
-Commits staged changes using **commit mode**:
+Stages and commits with LLM-generated message:
 
 ```bash
 $ wt step commit
@@ -110,11 +85,13 @@ $ wt step commit
 
 ### wt step squash
 
-Squashes commits on the current branch using **squash mode**:
+Squashes branch commits into one with LLM-generated message:
 
 ```bash
 $ wt step squash
 ```
+
+See [wt merge](/merge/) and [wt step](/step/) for full documentation.
 
 ## Prompt templates
 
@@ -122,23 +99,16 @@ Worktrunk uses [minijinja](https://docs.rs/minijinja/) templates (Jinja2-like sy
 
 ### Template variables
 
-**Commit template** (analyzes diffs):
+All variables are available in both templates:
 
 | Variable | Description |
 |----------|-------------|
-| `{{ git_diff }}` | The staged diff |
+| `{{ git_diff }}` | The diff (staged changes or combined diff for squash) |
 | `{{ branch }}` | Current branch name |
-| `{{ recent_commits }}` | List of recent commit subjects (for style reference) |
+| `{{ recent_commits }}` | Recent commit subjects (for style reference) |
 | `{{ repo }}` | Repository name |
-
-**Squash template** (analyzes commit messages):
-
-| Variable | Description |
-|----------|-------------|
-| `{{ commits }}` | List of commit messages being squashed (chronological order) |
+| `{{ commits }}` | Commit messages being squashed (chronological order) |
 | `{{ target_branch }}` | Branch being merged into |
-| `{{ branch }}` | Current branch name |
-| `{{ repo }}` | Repository name |
 
 ### Custom templates
 
@@ -149,7 +119,6 @@ Override the defaults with inline templates or external files:
 command = "llm"
 args = ["-m", "claude-haiku-4.5"]
 
-# Commit mode template (analyzes diffs)
 template = """
 Write a commit message for this diff. One line, under 50 chars.
 
@@ -158,12 +127,14 @@ Diff:
 {{ git_diff }}
 """
 
-# Squash mode template (analyzes commit messages)
 squash-template = """
 Combine these {{ commits | length }} commits into one message:
 {% for c in commits %}
 - {{ c }}
 {% endfor %}
+
+Diff:
+{{ git_diff }}
 """
 ```
 
@@ -173,8 +144,6 @@ Or load templates from files (supports `~` expansion):
 [commit-generation]
 command = "llm"
 args = ["-m", "claude-haiku-4.5"]
-
-# Load from files instead
 template-file = "~/.config/worktrunk/commit-template.txt"
 squash-template-file = "~/.config/worktrunk/squash-template.txt"
 ```
@@ -200,7 +169,7 @@ Any command that reads a prompt from stdin and outputs a commit message works:
 # aichat
 [commit-generation]
 command = "aichat"
-args = ["-m", "claude:claude-3-5-haiku-latest"]
+args = ["-m", "claude:claude-haiku-4.5"]
 
 # Custom script
 [commit-generation]
@@ -209,9 +178,6 @@ command = "./scripts/generate-commit.sh"
 
 ## Fallback behavior
 
-When no LLM is configured, worktrunk uses deterministic fallback messages:
-
-- **Commit mode** generates a message based on changed filenames (e.g., "Changes to auth.rs & config.rs")
-- **Squash mode** generates a message listing the squashed commits
+When no LLM is configured, worktrunk generates deterministic messages based on changed filenames (e.g., "Changes to auth.rs & config.rs").
 
 Resources: [llm documentation](https://llm.datasette.io/) | [aichat](https://github.com/sigoden/aichat)
