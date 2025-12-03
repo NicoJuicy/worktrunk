@@ -23,6 +23,13 @@ body {
     background-color: var(--wt-color-bg);
 }
 
+// Override Juice theme's .text class (sets font-size: 18px, we want 15px)
+.text {
+    font-size: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+}
+
 // Headings
 h1, h2, h3, h4, h5, h6 {
     font-family: var(--wt-font-head);
@@ -224,7 +231,10 @@ main {
 }
 
 .content {
-    max-width: 860px;
+    box-sizing: border-box; // Include padding/border in width for consistent sizing
+    width: 100%; // Fill available space in flex container
+    max-width: 922px; // Cap width for readability
+    min-width: 0; // Override Juice's min-width: 800px
     padding: 1.5rem 30px;
     background-color: var(--wt-color-bg-elevated);
     border-radius: 12px;
@@ -234,7 +244,6 @@ main {
 
 // Paragraphs
 .content p {
-    max-width: 70ch;
     margin-bottom: 0.75rem;
 }
 
