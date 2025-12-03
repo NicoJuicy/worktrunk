@@ -415,72 +415,76 @@ table {
     overscroll-behavior: contain; // Trap scroll events within TOC
 }
 
-.toc-group-label {
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--wt-color-text-soft);
-    padding: 0.5rem 0.5rem 0.15rem;
-    margin: 0.25rem 0.5rem 0;
-
-    &:first-child {
-        margin-top: 0;
-    }
-}
-
-.toc-item {
-    padding: 0;
-    margin: 0 0.5rem;
-
-    a {
-        display: block;
-        padding: 0.15rem 0.5rem;
-        border-radius: 0.35rem;
-        font-size: 0.8rem;
-        color: var(--wt-color-text-muted);
-        transition: all 150ms;
-
-        &:hover {
-            background: var(--wt-color-bg-soft);
-            color: var(--wt-color-text);
-            text-decoration: none;
-        }
-
-        &.active {
-            border-left: 3px solid var(--wt-color-accent);
-            background: var(--wt-color-accent-soft);
-            color: var(--wt-color-text);
-            font-weight: 550;
-            padding-left: calc(0.5rem - 3px);
-        }
-    }
-}
-
-.toc-item-child {
-    padding: 0 0.5rem 0 1rem;
-    margin: 0 0.5rem;
-
-    a {
-        font-size: 0.75rem;
+// Use `main` prefix to override juice.scss specificity (main .toc-item)
+main {
+    // Moderate tightening with clear section headers
+    .toc-group-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
         color: var(--wt-color-text-soft);
-        padding: 0.1rem 0.4rem;
-        border-radius: 0.3rem;
-        display: block;
-        transition: all 150ms;
+        padding: 0.6rem 0.45rem 0.2rem;
+        margin: 0.5rem 0.4rem 0;  // More top margin for clear section breaks
 
-        &:hover {
-            color: var(--wt-color-text-muted);
-            background: var(--wt-color-bg-soft);
-            text-decoration: none;
+        &:first-child {
+            margin-top: 0;
         }
     }
 
-    &.nested {
-        padding-left: 2rem;
+    .toc-item {
+        padding: 0;
+        margin: 0 0.4rem;
 
         a {
-            font-size: 0.7rem;
+            display: block;
+            padding: 0.55rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            color: var(--wt-color-text-muted);
+            transition: all 150ms;
+
+            &:hover {
+                background: var(--wt-color-bg-soft);
+                color: var(--wt-color-text);
+                text-decoration: none;
+            }
+
+            &.active {
+                border-left: 3px solid var(--wt-color-accent);
+                background: var(--wt-color-accent-soft);
+                color: var(--wt-color-text);
+                font-weight: 550;
+                padding-left: calc(0.5rem - 3px);
+            }
+        }
+    }
+
+    .toc-item-child {
+        padding: 0 0.45rem 0.2rem 1rem;
+        margin: 0 0.4rem;
+
+        a {
+            font-size: 0.75rem;
+            color: var(--wt-color-text-soft);
+            padding: 0.1rem 0.35rem;
+            border-radius: 0.2rem;
+            display: block;
+            transition: all 150ms;
+
+            &:hover {
+                color: var(--wt-color-text-muted);
+                background: var(--wt-color-bg-soft);
+                text-decoration: none;
+            }
+        }
+
+        &.nested {
+            padding-left: 1.6rem;
+
+            a {
+                font-size: 0.7rem;
+            }
         }
     }
 }
