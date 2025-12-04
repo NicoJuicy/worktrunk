@@ -68,7 +68,7 @@ Force-delete an unmerged branch:
 
   [2mwt remove -D experimental[0m
 
-[32mWhen Branches Are Deleted[0m
+[32mBranch Cleanup[0m
 
 Branches delete automatically when their content is already in the target branch (typically main). This works with squash-merge and rebase workflows where commit history differs but file changes match.
 
@@ -78,17 +78,7 @@ Use [2m-D[0m to force-delete unmerged branches. Use [2m--no-delete-branch[0m
 
 Removal runs in the background by default (returns immediately). Logs are written to [2m.git/wt-logs/{branch}-remove.log[0m. Use [2m--no-background[0m to run in the foreground.
 
-[32mPath-First Lookup[0m
-
-Arguments resolve by checking the expected path first, then falling back to branch name:
-
-1. Compute expected path from argument (using configured path template)
-2. If a worktree exists there, remove it (regardless of branch name)
-3. Otherwise, treat argument as a branch name
-
-If [2mrepo.foo/[0m exists on branch [2mbar[0m, both [2mwt remove foo[0m and [2mwt remove bar[0m remove the same worktree.
-
-[1mShortcuts[0m: [2m@[0m (current), [2m-[0m (previous), [2m^[0m (main worktree)
+Arguments resolve by path first, then branch name—see wt switch. Shortcuts: [2m@[0m (current), [2m-[0m (previous), [2m^[0m (main worktree).
 
 [32mSee Also[0m
 
