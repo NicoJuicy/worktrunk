@@ -551,9 +551,11 @@ fn parse_status_for_symbols(status_output: &str) -> (String, bool, bool) {
         }
 
         // Detect unmerged/conflicting paths (porcelain v1 two-letter codes)
+        // Only U codes and AA/DD indicate actual merge conflicts.
+        // AD/DA are normal staging states (staged then deleted, or deleted then restored).
         let is_unmerged_pair = matches!(
             (index_status, worktree_status),
-            ('U', _) | (_, 'U') | ('A', 'A') | ('D', 'D') | ('A', 'D') | ('D', 'A')
+            ('U', _) | (_, 'U') | ('A', 'A') | ('D', 'D')
         );
         if is_unmerged_pair {
             has_conflicts = true;
@@ -577,4 +579,65 @@ fn parse_status_for_symbols(status_output: &str) -> (String, bool, bool) {
     let is_dirty = has_untracked || has_modified || has_staged || has_renamed || has_deleted;
 
     (working_tree, is_dirty, has_conflicts)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_status_ad_not_conflict() {
+        // AD = added to index, deleted from worktree (not a conflict)
+        let (symbols, is_dirty, has_conflicts) = parse_status_for_symbols("AD file.txt\n");
+        assert!(!has_conflicts, "AD should not be treated as conflict");
+        assert!(is_dirty);
+        assert!(symbols.contains('+'), "AD should show staged symbol");
+    }
+
+    #[test]
+    fn test_parse_status_da_not_conflict() {
+        // DA = deleted from index, then restored to worktree (not a conflict)
+        let (_, is_dirty, has_conflicts) = parse_status_for_symbols("DA file.txt\n");
+        assert!(!has_conflicts, "DA should not be treated as conflict");
+        assert!(is_dirty);
+    }
+
+    #[test]
+    fn test_parse_status_uu_is_conflict() {
+        // UU = both modified (actual conflict)
+        let (_, _, has_conflicts) = parse_status_for_symbols("UU file.txt\n");
+        assert!(has_conflicts, "UU should be treated as conflict");
+    }
+
+    #[test]
+    fn test_parse_status_aa_is_conflict() {
+        // AA = both added (actual conflict)
+        let (_, _, has_conflicts) = parse_status_for_symbols("AA file.txt\n");
+        assert!(has_conflicts, "AA should be treated as conflict");
+    }
+
+    #[test]
+    fn test_parse_status_dd_is_conflict() {
+        // DD = both deleted (actual conflict)
+        let (_, _, has_conflicts) = parse_status_for_symbols("DD file.txt\n");
+        assert!(has_conflicts, "DD should be treated as conflict");
+    }
+
+    #[test]
+    fn test_parse_status_u_variants_are_conflicts() {
+        // All U codes indicate conflicts
+        for code in ["AU", "UA", "DU", "UD"] {
+            let input = format!("{} file.txt\n", code);
+            let (_, _, has_conflicts) = parse_status_for_symbols(&input);
+            assert!(has_conflicts, "{} should be treated as conflict", code);
+        }
+    }
+
+    #[test]
+    fn test_parse_status_md_not_conflict() {
+        // MD = modified in index, deleted from worktree (not a conflict)
+        let (_, is_dirty, has_conflicts) = parse_status_for_symbols("MD file.txt\n");
+        assert!(!has_conflicts, "MD should not be treated as conflict");
+        assert!(is_dirty);
+    }
 }
