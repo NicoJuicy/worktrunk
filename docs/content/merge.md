@@ -20,6 +20,12 @@ Basic merge to main:
 wt merge
 ```
 
+Merge to a different branch:
+
+```bash
+wt merge develop
+```
+
 Keep the worktree after merging:
 
 ```bash
@@ -42,21 +48,14 @@ wt merge --no-commit
 
 `wt merge` runs these steps:
 
-1. **Commit** — Stages and commits uncommitted changes. Commit messages are LLM-generated. Use `--stage` to control what gets staged: `all` (default), `tracked`, or `none`.
+1. **Squash** — Stages uncommitted changes, then combines all commits since target into one (like GitHub's "Squash and merge"). Use `--stage` to control what gets staged: `all` (default), `tracked`, or `none`. A backup ref is saved to `refs/wt-backup/<branch>`. With `--no-squash`, uncommitted changes are committed separately and individual commits are preserved.
+2. **Rebase** — Rebases onto target if behind. Skipped if already up-to-date. Conflicts abort immediately.
+3. **Pre-merge hooks** — Project commands run after rebase, before merge. Failures abort. See [Hooks](@/hooks.md).
+4. **Merge** — Fast-forward merge to the target branch. Non-fast-forward merges are rejected.
+5. **Cleanup** — Removes the worktree and branch. Use `--no-remove` to keep the worktree.
+6. **Post-merge hooks** — Project commands run after cleanup. Failures are logged but don't abort.
 
-2. **Squash** — Combines all commits into one (like GitHub's "Squash and merge"). Skip with `--no-squash` to preserve individual commits. A backup ref is saved to `refs/wt-backup/<branch>`.
-
-3. **Rebase** — Rebases onto the target branch. Conflicts abort immediately.
-
-4. **Pre-merge hooks** — Project commands run after rebase, before push. Failures abort. See [Hooks](@/hooks.md).
-
-5. **Push** — Fast-forward push to the target branch. Non-fast-forward pushes are rejected.
-
-6. **Cleanup** — Removes the worktree and branch. Use `--no-remove` to keep the worktree.
-
-7. **Post-merge hooks** — Project commands run after cleanup. Failures are logged but don't abort.
-
-Use `--no-commit` to skip steps 1-3 and only run hooks and push. Requires a clean working tree and `--no-remove`.
+Use `--no-commit` to skip all git operations (steps 1-2) and only run hooks and merge. Useful after preparing commits manually with `wt step`. Requires a clean working tree.
 
 ## See also
 

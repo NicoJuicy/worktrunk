@@ -1,8 +1,6 @@
-use color_print::cformat;
 use worktrunk::HookType;
 use worktrunk::config::{Command, CommandPhase, ProjectConfig};
 use worktrunk::git::Repository;
-use worktrunk::styling::{ERROR_EMOJI, HINT_EMOJI};
 
 use super::command_approval::approve_command_batch;
 use super::command_executor::CommandContext;
@@ -91,18 +89,7 @@ pub fn handle_merge(
         .into());
     }
 
-    // Validate --no-commit flag compatibility
-    if !commit && remove {
-        return Err(anyhow::anyhow!(
-            "{}\n\n{}",
-            cformat!("{ERROR_EMOJI} <red>--no-commit requires --no-remove</>"),
-            cformat!(
-                "{HINT_EMOJI} <dim>Cannot remove active worktree when skipping commit/rebase</>"
-            )
-        ));
-    }
-
-    // --no-commit implies --no-squash (validation above ensures --no-remove is already set)
+    // --no-commit implies --no-squash
     let squash_enabled = squash && commit;
 
     // Get target branch (default to default branch if not provided)

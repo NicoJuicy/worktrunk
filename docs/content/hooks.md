@@ -175,20 +175,13 @@ post-merge = "cargo install --path ."
 - Runs after push succeeds, before cleanup
 - Failures show errors but cleanup proceeds
 
-## Execution order during merge
+## When hooks run during merge
 
-The complete sequence when running `wt merge`:
+- **pre-commit** — After staging, before squash commit
+- **pre-merge** — After rebase, before merge to target
+- **post-merge** — After cleanup completes
 
-1. Validate working tree is clean
-2. **Run `pre-commit`** — fail-fast, aborts if any command fails
-3. Create commit (with LLM message if configured)
-4. Switch to main worktree
-5. Pull latest changes
-6. **Run `pre-merge`** — fail-fast, aborts if any command fails
-7. Merge branch into target
-8. Push to remote
-9. **Run `post-merge`** — best-effort, failures logged
-10. Clean up (delete branch, remove worktree)
+See [wt merge](@/merge.md#pipeline) for the complete pipeline.
 
 ## Security & approval
 
