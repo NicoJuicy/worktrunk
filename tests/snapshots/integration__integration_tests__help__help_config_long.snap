@@ -91,30 +91,31 @@ Controls where new worktrees are created. The template is relative to the reposi
   [2m# Creates: ~/code/worktrees/myproject/feature-login[0m
   [2mworktree-path = "../worktrees/{{ main_worktree }}/{{ branch }}"[0m
 
-[1mCommand defaults[0m
+[1mCommand settings[0m
 
-Override default flag behavior for commands. Settings here apply unless explicitly overridden on the command line.
+Set persistent flag values for commands. These apply unless explicitly overridden on the command line.
 
-[1m`wt list` defaults:[0m
+[1m`wt list`:[0m
 
   [2m[list][0m
-  [2mfull = true      # --full (default: false)[0m
-  [2mbranches = true  # --branches (default: false)[0m
-  [2mremotes = true   # --remotes (default: false)[0m
+  [2m# All off by default[0m
+  [2mfull = true      # --full[0m
+  [2mbranches = true  # --branches[0m
+  [2mremotes = true   # --remotes[0m
 
 [1m`wt step commit` and `wt merge` staging:[0m
 
   [2m[commit][0m
   [2mstage = "all"    # "all" (default), "tracked", or "none"[0m
 
-[1m`wt merge` defaults:[0m
+[1m`wt merge`:[0m
 
   [2m[merge][0m
-  [2m# All options default to true[0m
-  [2msquash = false  # --no-squash: preserve individual commits[0m
-  [2mcommit = false  # --no-commit: skip committing uncommitted changes[0m
-  [2mremove = false  # --no-remove: keep worktree after merge[0m
-  [2mverify = false  # --no-verify: skip project hooks[0m
+  [2m# These flags are on by default; set to false to disable[0m
+  [2msquash = false  # Preserve individual commits (--no-squash)[0m
+  [2mcommit = false  # Skip committing uncommitted changes (--no-commit)[0m
+  [2mremove = false  # Keep worktree after merge (--no-remove)[0m
+  [2mverify = false  # Skip project hooks (--no-verify)[0m
 
 [1mLLM commit messages[0m
 

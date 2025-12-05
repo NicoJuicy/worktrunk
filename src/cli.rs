@@ -720,17 +720,18 @@ worktree-path = ".worktrees/{{ branch }}"
 worktree-path = "../worktrees/{{ main_worktree }}/{{ branch }}"
 ```
 
-### Command defaults
+### Command settings
 
-Override default flag behavior for commands. Settings here apply unless explicitly overridden on the command line.
+Set persistent flag values for commands. These apply unless explicitly overridden on the command line.
 
-**`wt list` defaults:**
+**`wt list`:**
 
 ```toml
 [list]
-full = true      # --full (default: false)
-branches = true  # --branches (default: false)
-remotes = true   # --remotes (default: false)
+# All off by default
+full = true      # --full
+branches = true  # --branches
+remotes = true   # --remotes
 ```
 
 **`wt step commit` and `wt merge` staging:**
@@ -740,15 +741,15 @@ remotes = true   # --remotes (default: false)
 stage = "all"    # "all" (default), "tracked", or "none"
 ```
 
-**`wt merge` defaults:**
+**`wt merge`:**
 
 ```toml
 [merge]
-# All options default to true
-squash = false  # --no-squash: preserve individual commits
-commit = false  # --no-commit: skip committing uncommitted changes
-remove = false  # --no-remove: keep worktree after merge
-verify = false  # --no-verify: skip project hooks
+# These flags are on by default; set to false to disable
+squash = false  # Preserve individual commits (--no-squash)
+commit = false  # Skip committing uncommitted changes (--no-commit)
+remove = false  # Keep worktree after merge (--no-remove)
+verify = false  # Skip project hooks (--no-verify)
 ```
 
 ### LLM commit messages
