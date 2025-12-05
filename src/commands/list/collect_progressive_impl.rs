@@ -546,7 +546,8 @@ fn parse_status_for_symbols(status_output: &str) -> (String, bool, bool) {
             has_untracked = true;
         }
 
-        if worktree_status == 'M' {
+        // Worktree changes: M = modified, A = intent-to-add (git add -N), T = type change (file↔symlink)
+        if matches!(worktree_status, 'M' | 'A' | 'T') {
             has_modified = true;
         }
 
@@ -651,5 +652,35 @@ mod tests {
         let (_, is_dirty, has_conflicts) = parse_status_for_symbols("MD file.txt\n");
         assert!(!has_conflicts, "MD should not be treated as conflict");
         assert!(is_dirty);
+    }
+
+    #[test]
+    fn test_parse_status_intent_to_add() {
+        // " A" = intent-to-add (git add -N): file recorded but content not staged
+        let (symbols, is_dirty, has_conflicts) = parse_status_for_symbols(" A file.txt\n");
+        assert!(
+            !has_conflicts,
+            "intent-to-add should not be treated as conflict"
+        );
+        assert!(is_dirty, "intent-to-add should be dirty");
+        assert!(
+            symbols.contains('!'),
+            "intent-to-add should show modified symbol"
+        );
+    }
+
+    #[test]
+    fn test_parse_status_type_change() {
+        // " T" = type change in worktree (e.g., file changed to symlink)
+        let (symbols, is_dirty, has_conflicts) = parse_status_for_symbols(" T file.txt\n");
+        assert!(
+            !has_conflicts,
+            "type change should not be treated as conflict"
+        );
+        assert!(is_dirty, "type change should be dirty");
+        assert!(
+            symbols.contains('!'),
+            "type change should show modified symbol"
+        );
     }
 }
