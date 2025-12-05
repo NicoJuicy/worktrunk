@@ -7,7 +7,7 @@ This is the Zola-based documentation site for Worktrunk, published at worktrunk.
 Start the dev server from the docs directory:
 
 ```bash
-cd docs && zola serve  # Runs on http://127.0.0.1:1111
+cd docs && zola serve -p 0  # Picks an available port
 ```
 
 ### Verifying changes
@@ -30,7 +30,7 @@ Common visual issues to check:
 **Always include the dev server link** when returning after doc changes:
 
 ```
-View changes: http://127.0.0.1:1111
+View changes: http://127.0.0.1:<port>
 ```
 
 ## Theme architecture
