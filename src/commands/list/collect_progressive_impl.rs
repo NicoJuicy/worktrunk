@@ -395,21 +395,29 @@ impl Task for UpstreamTask {
 }
 
 /// Task 10: CI/PR status
+///
+/// Only checks CI for branches that have an upstream tracking branch configured.
+/// This prevents false matches from similarly-named branches on the remote that
+/// aren't actually related to the local branch.
 pub struct CiStatusTask;
 
 impl Task for CiStatusTask {
     const KIND: TaskKind = TaskKind::CiStatus;
 
     fn compute(ctx: TaskContext) -> TaskResult {
-        let repo_path = Repository::at(&ctx.repo_path)
+        let repo = Repository::at(&ctx.repo_path);
+        let repo_path = repo
             .worktree_root()
             .ok()
             .unwrap_or_else(|| ctx.repo_path.clone());
 
-        let pr_status = ctx
-            .branch
-            .as_deref()
-            .and_then(|branch| PrStatus::detect(branch, &ctx.commit_sha, &repo_path));
+        let pr_status = ctx.branch.as_deref().and_then(|branch| {
+            // Only check CI for branches with an upstream configured.
+            // This prevents showing CI for old branches that happen to have
+            // same-named branches on the remote but aren't tracking them.
+            repo.upstream_branch(branch).ok().flatten()?;
+            PrStatus::detect(branch, &ctx.commit_sha, &repo_path)
+        });
 
         TaskResult::CiStatus {
             item_idx: ctx.item_idx,

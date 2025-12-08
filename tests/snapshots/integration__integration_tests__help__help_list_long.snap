@@ -104,9 +104,9 @@ The CI column shows GitHub/GitLab pipeline status:
   [31m●[0m red      Checks failed            
   [33m●[0m yellow   Merge conflicts with base
   [90m●[0m gray     No checks configured     
-  (blank)    No PR/MR found           
+  (blank)    No upstream or no PR/MR  
 
-Any CI dot appears dimmed when there are unpushed local changes (stale status). CI indicators are clickable links to the PR page.
+CI is only checked for branches that track a remote — local-only branches show blank. Any CI dot appears dimmed when there are unpushed local changes (stale status). CI indicators are clickable links to the PR page.
 
 [32mStatus symbols[0m
 

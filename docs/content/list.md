@@ -95,9 +95,9 @@ The CI column shows GitHub/GitLab pipeline status:
 | <span style='color:#a00'>●</span> red | Checks failed |
 | <span style='color:#a60'>●</span> yellow | Merge conflicts with base |
 | <span style='color:#888'>●</span> gray | No checks configured |
-| (blank) | No PR/MR found |
+| (blank) | No upstream or no PR/MR |
 
-Any CI dot appears dimmed when there are unpushed local changes (stale status). CI indicators are clickable links to the PR page.
+CI is only checked for branches that track a remote — local-only branches show blank. Any CI dot appears dimmed when there are unpushed local changes (stale status). CI indicators are clickable links to the PR page.
 
 ## Status symbols
 
