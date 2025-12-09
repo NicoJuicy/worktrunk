@@ -224,7 +224,7 @@ pub struct UserProjectConfig {
 /// Configuration for the `wt list` command
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct ListConfig {
-    /// Show CI and line diffs by default
+    /// Show CI and `main` diffstat by default
     #[serde(skip_serializing_if = "Option::is_none")]
     pub full: Option<bool>,
 

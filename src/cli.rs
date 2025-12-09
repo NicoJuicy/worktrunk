@@ -1492,7 +1492,7 @@ wt list --format=json | jq '.[] | select(.status.main_divergence == "Ahead")'
         #[arg(long)]
         remotes: bool,
 
-        /// Show CI and line diffs
+        /// Show CI and `main` diffstat
         #[arg(long)]
         full: bool,
 

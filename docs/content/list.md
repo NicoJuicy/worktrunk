@@ -190,7 +190,7 @@ Options:
           Include remote branches
 
       --full
-          Show CI and line diffs
+          Show CI and main diffstat
 
       --progressive
           Show fast info immediately, update with slow info
