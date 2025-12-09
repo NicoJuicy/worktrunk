@@ -66,26 +66,25 @@ Inline viewing options:
 ## Prerequisites
 
 - `wt` (worktrunk) installed and in PATH
-- Custom `vhs` fork with keystroke overlay (see below)
 - `starship` for prompt
+- **Custom VHS fork** with keystroke overlay (**required** - standard VHS won't work)
 
-## VHS Fork with Keystroke Overlay
+### Building the VHS Fork
 
-This demo uses a **custom fork of VHS** with keystroke overlay support:
+The demo requires a custom VHS fork that displays keystroke overlays. **You must build this before running the demo:**
 
-**GitHub:** https://github.com/max-sixty/vhs/tree/keypress-overlay
-
-The fork adds a large keystroke overlay that appears in the center of the screen, showing what keys are being pressed. This is essential for demo GIFs where viewers need to see what's being typed.
-
-To build (from the `docs/demos/wt-select/` directory):
 ```bash
+cd docs/demos/wt-select
 git clone -b keypress-overlay https://github.com/max-sixty/vhs.git vhs-keystrokes
 cd vhs-keystrokes
 go build -o vhs-keystrokes .
 ```
 
-The build script looks for the binary at `docs/demos/wt-select/vhs-keystrokes/vhs-keystrokes` by default.
-Override with: `VHS_KEYSTROKES=/path/to/binary ./build`
+The build script looks for the binary at `docs/demos/wt-select/vhs-keystrokes/vhs-keystrokes`.
+
+**Why custom VHS?** The fork adds a large keystroke overlay in the center of the screen, showing what keys are being pressed. This is essential for demo GIFs where viewers need to see navigation keys (↓, Ctrl+D, etc.).
+
+Override path with: `VHS_KEYSTROKES=/path/to/binary ./build`
 
 ### Keystroke Timing Calibration
 
