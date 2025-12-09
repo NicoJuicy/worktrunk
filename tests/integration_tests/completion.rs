@@ -1206,3 +1206,163 @@ fn test_complete_switch_single_dash_shows_options_not_branches() {
         "Should only show options when input starts with -, got:\n{stdout}"
     );
 }
+
+/// Verify --help appears in completions across all supported shells.
+///
+/// This is a regression test for a bug where --help was missing from zsh completions
+/// because clap's built-in help flag was disabled (to participate in completion filtering)
+/// but not replaced with a visible alternative.
+#[test]
+fn test_complete_help_flag_all_shells() {
+    let temp = TestRepo::new();
+    temp.commit("initial");
+
+    for shell in ["bash", "zsh", "fish"] {
+        // Test: wt --help<cursor> - should complete --help
+        let output = temp
+            .completion_cmd_for_shell(&["wt", "--help"], shell)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{shell}: completion failed");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            stdout.contains("--help"),
+            "{shell}: --help should appear in completions for 'wt --help', got:\n{stdout}"
+        );
+
+        // Test: wt config --help<cursor> - should complete --help on subcommands too
+        let output = temp
+            .completion_cmd_for_shell(&["wt", "config", "--help"], shell)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{shell}: completion failed");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            stdout.contains("--help"),
+            "{shell}: --help should appear in completions for 'wt config --help', got:\n{stdout}"
+        );
+    }
+}
+
+/// Verify --version appears in completions across all supported shells (root command only).
+#[test]
+fn test_complete_version_flag_all_shells() {
+    let temp = TestRepo::new();
+    temp.commit("initial");
+
+    for shell in ["bash", "zsh", "fish"] {
+        // Test: wt --version<cursor> - should complete --version
+        let output = temp
+            .completion_cmd_for_shell(&["wt", "--version"], shell)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{shell}: completion failed");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            stdout.contains("--version"),
+            "{shell}: --version should appear in completions for 'wt --version', got:\n{stdout}"
+        );
+    }
+}
+
+/// Verify --internal never appears in completions across all supported shells.
+///
+/// The --internal flag is used by shell wrappers and should never be exposed to users.
+/// This is a regression test for a bug where global hidden args would appear in completions
+/// due to clap's "all hidden = all shown" behavior when completing `--`.
+#[test]
+fn test_complete_internal_flag_never_shown() {
+    let temp = TestRepo::new();
+    temp.commit("initial");
+
+    for shell in ["bash", "zsh", "fish"] {
+        // Test: wt --<cursor> - should NOT show --internal
+        let output = temp
+            .completion_cmd_for_shell(&["wt", "--"], shell)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{shell}: completion failed");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            !stdout.contains("--internal"),
+            "{shell}: --internal should NEVER appear in completions, got:\n{stdout}"
+        );
+
+        // Test: wt config --<cursor> - should NOT show --internal on subcommands either
+        let output = temp
+            .completion_cmd_for_shell(&["wt", "config", "--"], shell)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{shell}: completion failed");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            !stdout.contains("--internal"),
+            "{shell}: --internal should NEVER appear in subcommand completions, got:\n{stdout}"
+        );
+
+        // Test: wt -<cursor> - should NOT show --internal even with single dash
+        let output = temp
+            .completion_cmd_for_shell(&["wt", "-"], shell)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{shell}: completion failed");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            !stdout.contains("--internal"),
+            "{shell}: --internal should NEVER appear in single-dash completions, got:\n{stdout}"
+        );
+    }
+}
+
+/// Verify single dash '-' shows both short AND long flags.
+///
+/// When completing `wt -`, users should see both short flags like `-h` and long flags
+/// like `--help`. This is more discoverable than requiring users to type `--` first.
+#[test]
+fn test_complete_single_dash_shows_both_short_and_long_flags() {
+    let temp = TestRepo::new();
+    temp.commit("initial");
+
+    for shell in ["bash", "zsh", "fish"] {
+        // Test: wt -<cursor> - should show both -h and --help
+        let output = temp
+            .completion_cmd_for_shell(&["wt", "-"], shell)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{shell}: completion failed");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        // Should have short flags
+        assert!(
+            stdout.contains("-h"),
+            "{shell}: single dash should show -h, got:\n{stdout}"
+        );
+        assert!(
+            stdout.contains("-v") || stdout.contains("-V"),
+            "{shell}: single dash should show -v or -V, got:\n{stdout}"
+        );
+
+        // Should also have long flags
+        assert!(
+            stdout.contains("--help"),
+            "{shell}: single dash should show --help, got:\n{stdout}"
+        );
+        assert!(
+            stdout.contains("--verbose") || stdout.contains("--version"),
+            "{shell}: single dash should show --verbose or --version, got:\n{stdout}"
+        );
+
+        // Test: wt config -<cursor> - same behavior on subcommands
+        let output = temp
+            .completion_cmd_for_shell(&["wt", "config", "-"], shell)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{shell}: completion failed");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        assert!(
+            stdout.contains("-h") && stdout.contains("--help"),
+            "{shell}: subcommand single dash should show both -h and --help, got:\n{stdout}"
+        );
+    }
+}

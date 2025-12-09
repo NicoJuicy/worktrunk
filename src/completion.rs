@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::ffi::{OsStr, OsString};
+use std::io::Write;
 
 use clap::Command;
 use clap_complete::engine::{ArgValueCompleter, CompletionCandidate, ValueCompleter};
@@ -10,22 +11,139 @@ use crate::display::format_relative_time_short;
 use worktrunk::config::ProjectConfig;
 use worktrunk::git::{BranchCategory, Repository};
 
+/// Args that should never appear in completions, even when all options are shown.
+const COMPLETION_DENYLIST: &[&str] = &["--internal"];
+
 /// Handle shell-initiated completion requests via `COMPLETE=$SHELL wt`
 pub fn maybe_handle_env_completion() -> bool {
-    if std::env::var_os("COMPLETE").is_none() {
+    let Some(shell_name) = std::env::var_os("COMPLETE") else {
+        return false;
+    };
+
+    if shell_name.is_empty() || shell_name == "0" {
         return false;
     }
 
-    let args: Vec<OsString> = std::env::args_os().collect();
+    let mut args: Vec<OsString> = std::env::args_os().collect();
     CONTEXT.with(|ctx| *ctx.borrow_mut() = Some(CompletionContext { args: args.clone() }));
 
+    // Remove the binary name and find the `--` separator
+    args.remove(0);
+    let escape_index = args
+        .iter()
+        .position(|a| *a == "--")
+        .map(|i| i + 1)
+        .unwrap_or(args.len());
+    args.drain(0..escape_index);
+
     let current_dir = std::env::current_dir().ok();
-    let handled = CompleteEnv::with_factory(completion_command)
-        .try_complete(args, current_dir.as_deref())
-        .unwrap_or_else(|err| err.exit());
+
+    // If no args after `--`, output the shell registration script
+    if args.is_empty() {
+        // Use CompleteEnv for registration script generation
+        let all_args: Vec<OsString> = std::env::args_os().collect();
+        let _ = CompleteEnv::with_factory(completion_command)
+            .try_complete(all_args, current_dir.as_deref());
+        CONTEXT.with(|ctx| ctx.borrow_mut().take());
+        return true;
+    }
+
+    // Generate completions with filtering
+    let mut cmd = completion_command();
+    cmd.build();
+
+    let index: usize = std::env::var("_CLAP_COMPLETE_INDEX")
+        .ok()
+        .and_then(|i| i.parse().ok())
+        .unwrap_or_default();
+
+    // Check if the current word is exactly "-" (single dash)
+    // If so, we want to show both short flags (-h) AND long flags (--help)
+    // clap only returns matches for the prefix, so we call complete twice
+    let current_word = args.get(index).map(|s| s.to_string_lossy());
+    let include_long_flags = current_word.as_deref() == Some("-");
+
+    let completions = match clap_complete::engine::complete(
+        &mut cmd,
+        args.clone(),
+        index,
+        current_dir.as_deref(),
+    ) {
+        Ok(c) => c,
+        Err(_) => {
+            CONTEXT.with(|ctx| ctx.borrow_mut().take());
+            return true;
+        }
+    };
+
+    // If single dash, also get completions for "--" and merge
+    let completions = if include_long_flags {
+        let mut merged = completions;
+        let mut args_with_double_dash = args;
+        if let Some(word) = args_with_double_dash.get_mut(index) {
+            *word = OsString::from("--");
+        }
+        let mut cmd2 = completion_command();
+        cmd2.build();
+        if let Ok(long_completions) = clap_complete::engine::complete(
+            &mut cmd2,
+            args_with_double_dash,
+            index,
+            current_dir.as_deref(),
+        ) {
+            // Add long flags that aren't already present (avoid duplicates)
+            for candidate in long_completions {
+                let value = candidate.get_value();
+                if !merged.iter().any(|c| c.get_value() == value) {
+                    merged.push(candidate);
+                }
+            }
+        }
+        merged
+    } else {
+        completions
+    };
+
+    // Filter out denylisted completions
+    let filtered: Vec<_> = completions
+        .into_iter()
+        .filter(|c| {
+            let value = c.get_value().to_string_lossy();
+            !COMPLETION_DENYLIST.contains(&value.as_ref())
+        })
+        .collect();
+
+    // Write completions in the appropriate format for the shell
+    let shell_name = shell_name.to_string_lossy();
+    let ifs = std::env::var("_CLAP_IFS").ok();
+    let separator = ifs.as_deref().unwrap_or("\n");
+
+    // Shell-specific separator between value and description
+    // zsh uses ":", fish uses "\t", bash doesn't support descriptions
+    let help_sep = match shell_name.as_ref() {
+        "zsh" => Some(":"),
+        "fish" => Some("\t"),
+        _ => None,
+    };
+
+    let mut stdout = std::io::stdout();
+    for (i, candidate) in filtered.iter().enumerate() {
+        if i != 0 {
+            let _ = write!(stdout, "{}", separator);
+        }
+        let value = candidate.get_value().to_string_lossy();
+        match (help_sep, candidate.get_help()) {
+            (Some(sep), Some(help)) => {
+                let _ = write!(stdout, "{}{}{}", value, sep, help);
+            }
+            _ => {
+                let _ = write!(stdout, "{}", value);
+            }
+        }
+    }
 
     CONTEXT.with(|ctx| ctx.borrow_mut().take());
-    handled
+    true
 }
 
 /// Branch completion without additional context filtering (e.g., --base, merge target).
@@ -242,27 +360,44 @@ fn completion_command() -> Command {
 /// This exploits clap_complete's behavior: if any non-hidden candidates exist,
 /// hidden ones are dropped. When all candidates are hidden, they're kept.
 fn hide_non_positional_options_for_completion(cmd: Command) -> Command {
-    // Disable built-in help/version flags for completion only
-    let cmd = cmd
-        .disable_help_flag(true)
-        .disable_help_subcommand(true)
-        .disable_version_flag(true);
+    fn process_command(cmd: Command, is_root: bool) -> Command {
+        // Disable built-in help flag (not visible to mut_args) and add custom replacement
+        let cmd = cmd.disable_help_flag(true).arg(
+            clap::Arg::new("help")
+                .short('h')
+                .long("help")
+                .action(clap::ArgAction::Help)
+                .help("Print help (see more with '--help')"),
+        );
 
-    fn recurse(cmd: Command) -> Command {
-        // Hide every non-positional arg on this Command
+        // Only root command has --version
+        let cmd = if is_root {
+            cmd.disable_version_flag(true).arg(
+                clap::Arg::new("version")
+                    .short('V')
+                    .long("version")
+                    .action(clap::ArgAction::Version)
+                    .help("Print version"),
+            )
+        } else {
+            cmd
+        };
+
+        // Hide non-positional args that aren't already hidden.
+        // Args originally marked hide=true (like --internal) stay hidden always.
+        // Args we hide here will appear when completing `--` (all-hidden = all shown).
         let cmd = cmd.mut_args(|arg| {
-            if arg.is_positional() {
+            if arg.is_positional() || arg.is_hide_set() {
                 arg
             } else {
                 arg.hide(true)
             }
         });
 
-        // Recurse into subcommands
-        cmd.mut_subcommands(recurse)
+        cmd.mut_subcommands(|sub| process_command(sub, false))
     }
 
-    recurse(cmd)
+    process_command(cmd, true)
 }
 
 // Mark positional args as `.last(true)` to allow them after all flags.

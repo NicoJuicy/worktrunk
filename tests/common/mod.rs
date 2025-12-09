@@ -71,10 +71,15 @@ pub fn wt_completion_command(words: &[&str]) -> Command {
 
 /// Configure an existing command to mimic shell completion environment.
 pub fn configure_completion_invocation(cmd: &mut Command, words: &[&str]) {
+    configure_completion_invocation_for_shell(cmd, words, "bash");
+}
+
+/// Configure an existing command to mimic shell completion environment for a specific shell.
+pub fn configure_completion_invocation_for_shell(cmd: &mut Command, words: &[&str], shell: &str) {
     let index = words.len().saturating_sub(1);
     cmd.arg("--");
     cmd.args(words);
-    cmd.env("COMPLETE", "bash");
+    cmd.env("COMPLETE", shell);
     cmd.env("_CLAP_COMPLETE_INDEX", index.to_string());
     cmd.env("_CLAP_COMPLETE_COMP_TYPE", "9"); // normal completion
     cmd.env("_CLAP_COMPLETE_SPACE", "true");
@@ -272,7 +277,13 @@ impl TestRepo {
 
     /// Prepare a `wt` command configured for shell completions within this repo.
     pub fn completion_cmd(&self, words: &[&str]) -> Command {
-        let mut cmd = wt_completion_command(words);
+        self.completion_cmd_for_shell(words, "bash")
+    }
+
+    /// Prepare a `wt` command configured for shell completions for a specific shell.
+    pub fn completion_cmd_for_shell(&self, words: &[&str], shell: &str) -> Command {
+        let mut cmd = wt_command();
+        configure_completion_invocation_for_shell(&mut cmd, words, shell);
         self.clean_cli_env(&mut cmd);
         cmd.current_dir(self.root_path());
         cmd
