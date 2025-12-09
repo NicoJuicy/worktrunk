@@ -87,10 +87,7 @@ fn create_config_file(
         )))?;
         output::blank()?;
         output::print(hint_message(cformat!(
-            "Use <bright-black>wt config show</> to view existing configuration"
-        )))?;
-        output::print(hint_message(cformat!(
-            "Use <bright-black>wt config create --help</> for config format reference"
+            "Use <bright-black>wt config show</> to view, or <bright-black>wt config create --help</> for format reference"
         )))?;
         return Ok(());
     }
@@ -219,13 +216,8 @@ fn render_user_config(out: &mut String) -> anyhow::Result<()> {
         writeln!(
             out,
             "{}",
-            cformat!("{HINT_EMOJI} <dim>Not found (using defaults)</>")
-        )?;
-        writeln!(
-            out,
-            "{}",
             cformat!(
-                "{HINT_EMOJI} <dim>Run <bright-black>wt config create</> to create a config file</>"
+                "{HINT_EMOJI} <dim>Not found (using defaults); run <bright-black>wt config create</> to create</>"
             )
         )?;
         writeln!(out)?;
