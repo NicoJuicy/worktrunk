@@ -76,28 +76,31 @@ pub fn configure_completion_invocation(cmd: &mut Command, words: &[&str]) {
 
 /// Configure an existing command to mimic shell completion environment for a specific shell.
 ///
-/// This matches how each shell actually invokes completions:
-/// - Bash/Zsh: Set `_CLAP_COMPLETE_INDEX` env var with cursor position
-/// - Fish: Appends current token as last arg (no index env var)
+/// This matches how each shell actually invokes completions (per clap_complete's
+/// registration scripts). Tests should match real behavior to catch shell-specific bugs.
+///
+/// Note: We use newline as IFS for all shells to simplify test parsing. The actual
+/// shells use different separators (bash: vertical tab, zsh/fish: newline), but IFS
+/// only affects output parsing, not completion logic. Shell-specific completion bugs
+/// are caught by the index calculation differences (fish vs bash/zsh).
 pub fn configure_completion_invocation_for_shell(cmd: &mut Command, words: &[&str], shell: &str) {
     cmd.arg("--");
     cmd.args(words);
     cmd.env("COMPLETE", shell);
-    cmd.env("_CLAP_IFS", "\n");
+    cmd.env("_CLAP_IFS", "\n"); // Use newline for test parsing simplicity
 
-    // Shell-specific environment setup to match real completion behavior
+    // Shell-specific environment setup - only set what affects completion logic
     match shell {
+        "bash" | "zsh" => {
+            // Bash and Zsh set the cursor index via environment variable
+            let index = words.len().saturating_sub(1);
+            cmd.env("_CLAP_COMPLETE_INDEX", index.to_string());
+        }
         "fish" => {
             // Fish doesn't set _CLAP_COMPLETE_INDEX - it appends the current token
             // as the last argument, so the completion handler uses args.len() - 1
         }
-        _ => {
-            // Bash and Zsh set the index via environment variable
-            let index = words.len().saturating_sub(1);
-            cmd.env("_CLAP_COMPLETE_INDEX", index.to_string());
-            cmd.env("_CLAP_COMPLETE_COMP_TYPE", "9"); // normal completion (bash)
-            cmd.env("_CLAP_COMPLETE_SPACE", "true"); // bash
-        }
+        _ => {}
     }
 }
 
