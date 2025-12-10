@@ -127,7 +127,7 @@ approved-commands = [
 ]
 ```
 
-Manage approvals with `wt config approvals add` to review and pre-approve commands, and `wt config approvals clear` to reset (add `--global` to clear all projects).
+Manage approvals with `wt hook approvals add` to review and pre-approve commands, and `wt hook approvals clear` to reset (add `--global` to clear all projects).
 
 ### User hooks
 
@@ -635,12 +635,11 @@ wt config - Manage configuration and shell integration
 Usage: wt config [OPTIONS] <COMMAND>
 
 Commands:
-  shell      Shell integration setup
-  create     Create configuration file
-  show       Show configuration files & locations
-  cache      Manage caches (CI status, default branch)
-  var        Get or set runtime variables (stored in git config)
-  approvals  Manage command approvals
+  shell   Shell integration setup
+  create  Create configuration file
+  show    Show configuration files & locations
+  cache   Manage caches (CI status, default branch)
+  var     Get or set runtime variables (stored in git config)
 
 Options:
   -h, --help

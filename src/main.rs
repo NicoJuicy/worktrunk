@@ -891,10 +891,6 @@ fn main() {
                 VarCommand::Set { key, value, branch } => handle_var_set(&key, value, branch),
                 VarCommand::Clear { key, branch, all } => handle_var_clear(&key, branch, all),
             },
-            ConfigCommand::Approvals { action } => match action {
-                ApprovalsCommand::Add { all } => add_approvals(all),
-                ApprovalsCommand::Clear { global } => clear_approvals(global),
-            },
         },
         Commands::Step { action } => match action {
             StepCommand::Commit {
@@ -999,6 +995,10 @@ fn main() {
             HookCommand::PreRemove { name, force } => {
                 run_hook(HookType::PreRemove, force, name.as_deref())
             }
+            HookCommand::Approvals { action } => match action {
+                ApprovalsCommand::Add { all } => add_approvals(all),
+                ApprovalsCommand::Clear { global } => clear_approvals(global),
+            },
         },
         #[cfg(unix)]
         Commands::Select => handle_select(cli.internal),

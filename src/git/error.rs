@@ -417,7 +417,7 @@ impl std::fmt::Display for GitError {
                     "{}\n\n{}",
                     error_message("Cannot prompt for approval in non-interactive environment"),
                     hint_message(cformat!(
-                        "In CI/CD, use <bright-black>--force</> to skip prompts. To pre-approve commands, use <bright-black>wt config approvals add</>"
+                        "In CI/CD, use <bright-black>--force</> to skip prompts. To pre-approve commands, use <bright-black>wt hook approvals add</>"
                     ))
                 )
             }

@@ -727,10 +727,11 @@ fn test_complete_hook_subcommands() {
     assert!(subcommands.contains(&"pre-merge"), "Missing pre-merge");
     assert!(subcommands.contains(&"post-merge"), "Missing post-merge");
     assert!(subcommands.contains(&"pre-remove"), "Missing pre-remove");
+    assert!(subcommands.contains(&"approvals"), "Missing approvals");
     assert_eq!(
         subcommands.len(),
-        7,
-        "Should have exactly 7 hook subcommands"
+        8,
+        "Should have exactly 8 hook subcommands"
     );
 
     // Test 2: Partial input "po" - filters to post-* subcommands

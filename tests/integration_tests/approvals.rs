@@ -8,7 +8,7 @@ use worktrunk::config::WorktrunkConfig;
 fn snapshot_add_approvals(test_name: &str, repo: &TestRepo, args: &[&str]) {
     let settings = setup_snapshot_settings(repo);
     settings.bind(|| {
-        let mut cmd = make_snapshot_cmd(repo, "config", &[], None);
+        let mut cmd = make_snapshot_cmd(repo, "hook", &[], None);
         cmd.arg("approvals").arg("add").args(args);
         assert_cmd_snapshot!(test_name, cmd);
     });
@@ -18,7 +18,7 @@ fn snapshot_add_approvals(test_name: &str, repo: &TestRepo, args: &[&str]) {
 fn snapshot_clear_approvals(test_name: &str, repo: &TestRepo, args: &[&str]) {
     let settings = setup_snapshot_settings(repo);
     settings.bind(|| {
-        let mut cmd = make_snapshot_cmd(repo, "config", &[], None);
+        let mut cmd = make_snapshot_cmd(repo, "hook", &[], None);
         cmd.arg("approvals").arg("clear").args(args);
         assert_cmd_snapshot!(test_name, cmd);
     });
@@ -143,7 +143,7 @@ fn test_clear_approvals_after_clear() {
         .unwrap();
 
     // Clear approvals
-    let mut cmd = make_snapshot_cmd(&repo, "config", &[], None);
+    let mut cmd = make_snapshot_cmd(&repo, "hook", &[], None);
     cmd.arg("approvals").arg("clear");
     cmd.output().unwrap();
 

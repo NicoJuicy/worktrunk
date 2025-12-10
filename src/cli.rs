@@ -383,47 +383,6 @@ wt config var clear marker --all
         #[command(subcommand)]
         action: VarCommand,
     },
-
-    /// Manage command approvals
-    #[command(after_long_help = r#"## How Approvals Work
-
-Commands from project hooks (`.config/wt.toml`) and LLM configuration require
-approval on first run. This prevents untrusted projects from running arbitrary
-commands.
-
-**Approval flow:**
-1. Command is shown with expanded template variables
-2. User approves or denies
-3. Approved commands are saved to user config under `[projects."project-id"]`
-
-**When re-approval is required:**
-- Command template changes (not just variable values)
-- Project ID changes (repository moves)
-
-**Bypassing prompts:**
-- `--force` flag on individual commands (e.g., `wt merge --force`)
-- Useful for CI/automation where prompts aren't possible
-
-## Examples
-
-Pre-approve all commands for current project:
-```console
-wt config approvals add
-```
-
-Clear approvals for current project:
-```console
-wt config approvals clear
-```
-
-Clear global approvals:
-```console
-wt config approvals clear --global
-```"#)]
-    Approvals {
-        #[command(subcommand)]
-        action: ApprovalsCommand,
-    },
 }
 
 #[derive(Subcommand)]
@@ -741,6 +700,47 @@ pub enum HookCommand {
         #[arg(short, long)]
         force: bool,
     },
+
+    /// Manage command approvals
+    #[command(after_long_help = r#"## How Approvals Work
+
+Commands from project hooks (`.config/wt.toml`) and LLM configuration require
+approval on first run. This prevents untrusted projects from running arbitrary
+commands.
+
+**Approval flow:**
+1. Command is shown with expanded template variables
+2. User approves or denies
+3. Approved commands are saved to user config under `[projects."project-id"]`
+
+**When re-approval is required:**
+- Command template changes (not just variable values)
+- Project ID changes (repository moves)
+
+**Bypassing prompts:**
+- `--force` flag on individual commands (e.g., `wt merge --force`)
+- Useful for CI/automation where prompts aren't possible
+
+## Examples
+
+Pre-approve all commands for current project:
+```console
+wt hook approvals add
+```
+
+Clear approvals for current project:
+```console
+wt hook approvals clear
+```
+
+Clear global approvals:
+```console
+wt hook approvals clear --global
+```"#)]
+    Approvals {
+        #[command(subcommand)]
+        action: ApprovalsCommand,
+    },
 }
 
 /// Subcommands for `wt list`
@@ -886,7 +886,7 @@ approved-commands = [
 ]
 ```
 
-Manage approvals with `wt config approvals add` to review and pre-approve commands, and `wt config approvals clear` to reset (add `--global` to clear all projects).
+Manage approvals with `wt hook approvals add` to review and pre-approve commands, and `wt hook approvals clear` to reset (add `--global` to clear all projects).
 
 ### User hooks
 
@@ -1211,7 +1211,7 @@ Project commands require approval on first run:
 - Use `--force` to bypass prompts (useful for CI/automation)
 - Use `--no-verify` to skip hooks
 
-Manage approvals with `wt config approvals add` and `wt config approvals clear`.
+Manage approvals with `wt hook approvals add` and `wt hook approvals clear`.
 
 ## User hooks
 

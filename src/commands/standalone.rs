@@ -559,7 +559,7 @@ pub fn handle_rebase(target: Option<&str>) -> anyhow::Result<RebaseResult> {
     Ok(RebaseResult::Rebased)
 }
 
-/// Handle `wt config approvals add` command - approve all commands in the project
+/// Handle `wt hook approvals add` command - approve all commands in the project
 pub fn add_approvals(show_all: bool) -> anyhow::Result<()> {
     use super::command_approval::approve_command_batch;
     use worktrunk::config::WorktrunkConfig;
@@ -619,7 +619,7 @@ pub fn add_approvals(show_all: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Handle `wt config approvals clear` command - clear approved commands
+/// Handle `wt hook approvals clear` command - clear approved commands
 pub fn clear_approvals(global: bool) -> anyhow::Result<()> {
     use worktrunk::config::WorktrunkConfig;
 

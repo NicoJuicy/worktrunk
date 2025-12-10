@@ -3,9 +3,9 @@ source: tests/integration_tests/help.rs
 info:
   program: wt
   args:
-    - config
+    - hook
     - approvals
-    - add
+    - clear
     - "--help"
   env:
     CLICOLOR_FORCE: "1"
@@ -19,13 +19,13 @@ exit_code: 0
 ----- stdout -----
 
 ----- stderr -----
-wt config approvals add - Store approvals in config
+wt hook approvals clear - Clear approved commands from config
 
-Usage: [1m[36mwt config approvals add[0m [36m[OPTIONS][0m
+Usage: [1m[36mwt hook approvals clear[0m [36m[OPTIONS][0m
 
 [1m[32mOptions:[0m
-      [1m[36m--all[0m
-          Show all commands
+  [1m[36m-g[0m, [1m[36m--global[0m
+          Clear global approvals
 
   [1m[36m-h[0m, [1m[36m--help[0m
           Print help (see a summary with '-h')
@@ -40,7 +40,7 @@ Usage: [1m[36mwt config approvals add[0m [36m[OPTIONS][0m
   [1m[36m-v[0m, [1m[36m--verbose[0m
           Show commands and debug info
 
-Prompts for approval of all project commands and saves them to user config.
+Removes saved approvals, requiring re-approval on next command run.
 
-By default, shows only unapproved commands. Use [2m--all[0m to review all commands
-including previously approved ones.
+By default, clears approvals for the current project. Use [2m--global[0m to clear
+all approvals across all projects.

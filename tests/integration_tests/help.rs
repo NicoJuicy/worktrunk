@@ -147,22 +147,22 @@ fn help_config_var_clear() {
 }
 
 #[test]
-fn help_config_approvals() {
-    snapshot_help("help_config_approvals", &["config", "approvals", "--help"]);
+fn help_hook_approvals() {
+    snapshot_help("help_hook_approvals", &["hook", "approvals", "--help"]);
 }
 
 #[test]
-fn help_config_approvals_add() {
+fn help_hook_approvals_add() {
     snapshot_help(
-        "help_config_approvals_add",
-        &["config", "approvals", "add", "--help"],
+        "help_hook_approvals_add",
+        &["hook", "approvals", "add", "--help"],
     );
 }
 
 #[test]
-fn help_config_approvals_clear() {
+fn help_hook_approvals_clear() {
     snapshot_help(
-        "help_config_approvals_clear",
-        &["config", "approvals", "clear", "--help"],
+        "help_hook_approvals_clear",
+        &["hook", "approvals", "clear", "--help"],
     );
 }

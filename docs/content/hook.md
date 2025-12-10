@@ -177,7 +177,7 @@ Project commands require approval on first run:
 - Use `--force` to bypass prompts (useful for CI/automation)
 - Use `--no-verify` to skip hooks
 
-Manage approvals with `wt config approvals add` and `wt config approvals clear`.
+Manage approvals with `wt hook approvals add` and `wt hook approvals clear`.
 
 ## User hooks
 
@@ -360,6 +360,7 @@ Commands:
   pre-merge    Run pre-merge hooks
   post-merge   Run post-merge hooks
   pre-remove   Run pre-remove hooks
+  approvals    Manage command approvals
 
 Options:
   -h, --help

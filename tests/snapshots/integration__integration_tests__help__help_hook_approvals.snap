@@ -3,7 +3,7 @@ source: tests/integration_tests/help.rs
 info:
   program: wt
   args:
-    - config
+    - hook
     - approvals
     - "--help"
   env:
@@ -18,9 +18,9 @@ exit_code: 0
 ----- stdout -----
 
 ----- stderr -----
-wt config approvals - Manage command approvals
+wt hook approvals - Manage command approvals
 
-Usage: [1m[36mwt config approvals[0m [36m[OPTIONS][0m [36m<COMMAND>[0m
+Usage: [1m[36mwt hook approvals[0m [36m[OPTIONS][0m [36m<COMMAND>[0m
 
 [1m[32mCommands:[0m
   [1m[36madd[0m    Store approvals in config
@@ -62,10 +62,10 @@ commands.
 [32mExamples[0m
 
 Pre-approve all commands for current project:
-  [2mwt config approvals add[0m
+  [2mwt hook approvals add[0m
 
 Clear approvals for current project:
-  [2mwt config approvals clear[0m
+  [2mwt hook approvals clear[0m
 
 Clear global approvals:
-  [2mwt config approvals clear --global[0m
+  [2mwt hook approvals clear --global[0m
