@@ -958,7 +958,6 @@ approved-commands = [
         skip_if_shell_unavailable!(shell);
         let mut repo = TestRepo::new();
         repo.commit("Initial commit");
-        repo.setup_remote("main");
 
         // Create project config with pre-merge validation
         let config_dir = repo.root_path().join(".config");
@@ -1041,7 +1040,6 @@ approved-commands = [
         skip_if_shell_unavailable!(shell);
         let mut repo = TestRepo::new();
         repo.commit("Initial commit");
-        repo.setup_remote("main");
 
         // Create project config with failing pre-merge validation
         let config_dir = repo.root_path().join(".config");
@@ -1122,7 +1120,6 @@ approved-commands = [
         skip_if_shell_unavailable!(shell);
         let mut repo = TestRepo::new();
         repo.commit("Initial commit");
-        repo.setup_remote("main");
 
         // Copy the fixture script to the test repo to avoid path issues with special characters
         // (CARGO_MANIFEST_DIR may contain single quotes like worktrunk.'∅' which break shell parsing)
@@ -1329,7 +1326,6 @@ approved-commands = ["echo 'test command executed'"]
     fn test_readme_example_simple_switch() {
         let mut repo = TestRepo::new();
         repo.commit("Initial commit");
-        repo.setup_remote("main");
 
         // Create worktree through shell wrapper (suppresses hint)
         let output = exec_through_wrapper("bash", &repo, "switch", &["--create", "fix-auth"]);
@@ -1346,7 +1342,6 @@ approved-commands = ["echo 'test command executed'"]
     fn test_readme_example_switch_back() {
         let mut repo = TestRepo::new();
         repo.commit("Initial commit");
-        repo.setup_remote("main");
 
         // Create worktrees (fix-auth is where we are after step 2, feature-api exists from earlier)
         exec_through_wrapper("bash", &repo, "switch", &["--create", "fix-auth"]);
@@ -1370,7 +1365,6 @@ approved-commands = ["echo 'test command executed'"]
     fn test_readme_example_remove() {
         let mut repo = TestRepo::new();
         repo.commit("Initial commit");
-        repo.setup_remote("main");
 
         // Create worktrees
         exec_through_wrapper("bash", &repo, "switch", &["--create", "fix-auth"]);
@@ -2200,7 +2194,6 @@ approved-commands = ["echo 'cleanup test'"]
     fn test_readme_example_hooks_pre_merge() {
         let mut repo = TestRepo::new();
         repo.commit("Initial commit");
-        repo.setup_remote("main");
 
         // Create project config with pre-merge hooks
         let config_dir = repo.root_path().join(".config");
@@ -2472,7 +2465,6 @@ command = "{}"
     fn test_readme_example_hooks_post_create() {
         let mut repo = TestRepo::new();
         repo.commit("Initial commit");
-        repo.setup_remote("main");
 
         // Create project config with post-create and post-start hooks
         let config_dir = repo.root_path().join(".config");
