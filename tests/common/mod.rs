@@ -169,6 +169,25 @@ pub fn repo_with_remote(mut repo: TestRepo) -> TestRepo {
     repo
 }
 
+/// Repo with a separate worktree for the main branch.
+///
+/// Many merge/push tests need the main branch in a separate worktree so the
+/// primary worktree can be on a feature branch. This fixture sets that up.
+///
+/// Use `#[from(repo_with_main_worktree)]` in rstest:
+/// ```ignore
+/// #[rstest]
+/// fn test_merge(#[from(repo_with_main_worktree)] mut repo: TestRepo) {
+///     let feature_wt = repo.add_worktree("feature");
+///     // main is already in a separate worktree
+/// }
+/// ```
+#[rstest::fixture]
+pub fn repo_with_main_worktree(repo: TestRepo) -> TestRepo {
+    repo.add_main_worktree();
+    repo
+}
+
 /// Merge test setup with a single commit on feature branch.
 ///
 /// Creates a repo with:

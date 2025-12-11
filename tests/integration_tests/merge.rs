@@ -1,6 +1,6 @@
 use crate::common::{
     TestRepo, make_snapshot_cmd, merge_scenario, merge_scenario_multi_commit, repo,
-    setup_snapshot_settings,
+    repo_with_main_worktree, setup_snapshot_settings,
 };
 use insta_cmd::assert_cmd_snapshot;
 use rstest::rstest;
@@ -336,10 +336,8 @@ fn test_merge_error_detached_head(repo: TestRepo) {
 }
 
 #[rstest]
-fn test_merge_squash_deterministic(mut repo: TestRepo) {
-    // Create a worktree for main
-    repo.add_main_worktree();
-
+fn test_merge_squash_deterministic(mut repo_with_main_worktree: TestRepo) {
+    let repo = &mut repo_with_main_worktree;
     // Create a feature worktree and make multiple commits
     let feature_wt = repo.add_worktree("feature");
     repo.commit_in_worktree(&feature_wt, "file1.txt", "content 1", "feat: add file 1");
@@ -349,17 +347,15 @@ fn test_merge_squash_deterministic(mut repo: TestRepo) {
     // Merge (squashing is now the default - no LLM configured, should use deterministic message)
     snapshot_merge(
         "merge_squash_deterministic",
-        &repo,
+        repo,
         &["main"],
         Some(&feature_wt),
     );
 }
 
 #[rstest]
-fn test_merge_squash_with_llm(mut repo: TestRepo) {
-    // Create a worktree for main
-    repo.add_main_worktree();
-
+fn test_merge_squash_with_llm(mut repo_with_main_worktree: TestRepo) {
+    let repo = &mut repo_with_main_worktree;
     // Create a feature worktree and make multiple commits
     let feature_wt = repo.add_worktree("feature");
     repo.commit_in_worktree(
@@ -385,14 +381,12 @@ args = ["-c", "cat >/dev/null && echo 'feat: implement user authentication syste
     fs::write(repo.test_config_path(), worktrunk_config).unwrap();
 
     // (squashing is now the default, no need for --squash flag)
-    snapshot_merge("merge_squash_with_llm", &repo, &["main"], Some(&feature_wt));
+    snapshot_merge("merge_squash_with_llm", repo, &["main"], Some(&feature_wt));
 }
 
 #[rstest]
-fn test_merge_squash_llm_command_not_found(mut repo: TestRepo) {
-    // Create a worktree for main
-    repo.add_main_worktree();
-
+fn test_merge_squash_llm_command_not_found(mut repo_with_main_worktree: TestRepo) {
+    let repo = &mut repo_with_main_worktree;
     // Create a feature worktree and make multiple commits
     let feature_wt = repo.add_worktree("feature");
     repo.commit_in_worktree(&feature_wt, "file1.txt", "content 1", "feat: new feature");
@@ -401,7 +395,7 @@ fn test_merge_squash_llm_command_not_found(mut repo: TestRepo) {
     // Configure LLM command that doesn't exist - should error
     snapshot_merge_with_env(
         "merge_squash_llm_command_not_found",
-        &repo,
+        repo,
         &["main"],
         Some(&feature_wt),
         &[(
@@ -412,11 +406,9 @@ fn test_merge_squash_llm_command_not_found(mut repo: TestRepo) {
 }
 
 #[rstest]
-fn test_merge_squash_llm_error(mut repo: TestRepo) {
+fn test_merge_squash_llm_error(mut repo_with_main_worktree: TestRepo) {
+    let repo = &mut repo_with_main_worktree;
     // Test that LLM command errors show proper gutter formatting with full command
-
-    // Create a worktree for main
-    repo.add_main_worktree();
 
     // Create a feature worktree and make commits
     let feature_wt = repo.add_worktree("feature");
@@ -436,19 +428,12 @@ args = ["-c", "cat > /dev/null; echo 'Error: connection refused' >&2 && exit 1"]
 "#;
     fs::write(repo.test_config_path(), worktrunk_config).unwrap();
 
-    snapshot_merge(
-        "merge_squash_llm_error",
-        &repo,
-        &["main"],
-        Some(&feature_wt),
-    );
+    snapshot_merge("merge_squash_llm_error", repo, &["main"], Some(&feature_wt));
 }
 
 #[rstest]
-fn test_merge_squash_single_commit(mut repo: TestRepo) {
-    // Create a worktree for main
-    repo.add_main_worktree();
-
+fn test_merge_squash_single_commit(mut repo_with_main_worktree: TestRepo) {
+    let repo = &mut repo_with_main_worktree;
     // Create a feature worktree with only one commit
     let feature_wt =
         repo.add_worktree_with_commit("feature", "file1.txt", "content", "feat: single commit");
@@ -456,7 +441,7 @@ fn test_merge_squash_single_commit(mut repo: TestRepo) {
     // Merge (squashing is default) - should skip squashing since there's only one commit
     snapshot_merge(
         "merge_squash_single_commit",
-        &repo,
+        repo,
         &["main"],
         Some(&feature_wt),
     );
@@ -476,10 +461,8 @@ fn test_merge_no_squash(merge_scenario_multi_commit: (TestRepo, PathBuf)) {
 }
 
 #[rstest]
-fn test_merge_squash_empty_changes(mut repo: TestRepo) {
-    // Create a worktree for main
-    repo.add_main_worktree();
-
+fn test_merge_squash_empty_changes(mut repo_with_main_worktree: TestRepo) {
+    let repo = &mut repo_with_main_worktree;
     // Create a feature worktree with commits that result in no net changes
     let feature_wt = repo.add_worktree("feature");
 
@@ -504,17 +487,15 @@ fn test_merge_squash_empty_changes(mut repo: TestRepo) {
     // Merge (squashing is default) - should succeed even when commits result in no net changes
     snapshot_merge(
         "merge_squash_empty_changes",
-        &repo,
+        repo,
         &["main"],
         Some(&feature_wt),
     );
 }
 
 #[rstest]
-fn test_merge_auto_commit_deterministic(mut repo: TestRepo) {
-    // Create a worktree for main
-    repo.add_main_worktree();
-
+fn test_merge_auto_commit_deterministic(mut repo_with_main_worktree: TestRepo) {
+    let repo = &mut repo_with_main_worktree;
     // Create a feature worktree with a commit
     let feature_wt = repo.add_worktree_with_commit(
         "feature",
@@ -529,17 +510,15 @@ fn test_merge_auto_commit_deterministic(mut repo: TestRepo) {
     // Merge - should auto-commit with deterministic message (no LLM configured)
     snapshot_merge(
         "merge_auto_commit_deterministic",
-        &repo,
+        repo,
         &["main"],
         Some(&feature_wt),
     );
 }
 
 #[rstest]
-fn test_merge_auto_commit_with_llm(mut repo: TestRepo) {
-    // Create a worktree for main
-    repo.add_main_worktree();
-
+fn test_merge_auto_commit_with_llm(mut repo_with_main_worktree: TestRepo) {
+    let repo = &mut repo_with_main_worktree;
     // Create a feature worktree with a commit
     let feature_wt = repo.add_worktree_with_commit(
         "feature",
@@ -563,7 +542,7 @@ args = ["-c", "cat >/dev/null && echo 'fix: improve auth validation logic'"]
     // Merge with LLM configured - should auto-commit with LLM commit message
     snapshot_merge(
         "merge_auto_commit_with_llm",
-        &repo,
+        repo,
         &["main"],
         Some(&feature_wt),
     );
@@ -595,10 +574,8 @@ args = ["-c", "cat >/dev/null && echo 'fix: update file 1 content'"]
 }
 
 #[rstest]
-fn test_merge_with_untracked_files(mut repo: TestRepo) {
-    // Create a worktree for main
-    repo.add_main_worktree();
-
+fn test_merge_with_untracked_files(mut repo_with_main_worktree: TestRepo) {
+    let repo = &mut repo_with_main_worktree;
     // Create a feature worktree with one commit
     let feature_wt = repo.add_worktree("feature");
     std::fs::write(feature_wt.join("file1.txt"), "content 1").unwrap();
@@ -622,7 +599,7 @@ fn test_merge_with_untracked_files(mut repo: TestRepo) {
     // Merge - should show warning about untracked files
     snapshot_merge_with_env(
         "merge_with_untracked_files",
-        &repo,
+        repo,
         &["main"],
         Some(&feature_wt),
         &[
@@ -1886,9 +1863,8 @@ command = "{}"
 }
 
 #[rstest]
-fn test_merge_no_commit_with_clean_tree(mut repo: TestRepo) {
-    // Create a worktree for main
-    repo.add_main_worktree();
+fn test_merge_no_commit_with_clean_tree(mut repo_with_main_worktree: TestRepo) {
+    let repo = &mut repo_with_main_worktree;
 
     // Create a feature worktree with commits (clean tree)
     let feature_wt = repo.add_worktree("feature");
@@ -1909,10 +1885,10 @@ fn test_merge_no_commit_with_clean_tree(mut repo: TestRepo) {
         .unwrap();
 
     // Merge with --no-commit (should succeed - clean tree)
-    let settings = setup_snapshot_settings(&repo);
+    let settings = setup_snapshot_settings(repo);
     settings.bind(|| {
         let mut cmd = make_snapshot_cmd(
-            &repo,
+            repo,
             "merge",
             &["main", "--no-commit", "--no-remove"],
             Some(&feature_wt),
@@ -1975,9 +1951,8 @@ fn test_merge_no_commit_with_dirty_tree(mut repo: TestRepo) {
 }
 
 #[rstest]
-fn test_merge_no_commit_no_squash_no_remove_redundant(mut repo: TestRepo) {
-    // Create a worktree for main
-    repo.add_main_worktree();
+fn test_merge_no_commit_no_squash_no_remove_redundant(mut repo_with_main_worktree: TestRepo) {
+    let repo = &mut repo_with_main_worktree;
 
     // Create a feature worktree with commits (clean tree)
     let feature_wt = repo.add_worktree("feature");
@@ -1998,10 +1973,10 @@ fn test_merge_no_commit_no_squash_no_remove_redundant(mut repo: TestRepo) {
         .unwrap();
 
     // Merge with --no-commit --no-squash --no-remove (redundant but valid - should succeed)
-    let settings = setup_snapshot_settings(&repo);
+    let settings = setup_snapshot_settings(repo);
     settings.bind(|| {
         let mut cmd = make_snapshot_cmd(
-            &repo,
+            repo,
             "merge",
             &["main", "--no-commit", "--no-squash", "--no-remove"],
             Some(&feature_wt),
@@ -2023,21 +1998,19 @@ fn test_merge_no_commit_no_squash_no_remove_redundant(mut repo: TestRepo) {
 }
 
 #[rstest]
-fn test_merge_no_commits(mut repo: TestRepo) {
-    // Create a worktree for main
-    repo.add_main_worktree();
+fn test_merge_no_commits(mut repo_with_main_worktree: TestRepo) {
+    let repo = &mut repo_with_main_worktree;
 
     // Create a feature worktree with NO commits (just branched from main)
     let feature_wt = repo.add_worktree("no-commits");
 
     // Merge without any commits - should skip both squashing and rebasing
-    snapshot_merge("merge_no_commits", &repo, &["main"], Some(&feature_wt));
+    snapshot_merge("merge_no_commits", repo, &["main"], Some(&feature_wt));
 }
 
 #[rstest]
-fn test_merge_no_commits_with_changes(mut repo: TestRepo) {
-    // Create a worktree for main
-    repo.add_main_worktree();
+fn test_merge_no_commits_with_changes(mut repo_with_main_worktree: TestRepo) {
+    let repo = &mut repo_with_main_worktree;
 
     // Create a feature worktree with NO commits but WITH uncommitted changes
     let feature_wt = repo.add_worktree("no-commits-dirty");
@@ -2046,7 +2019,7 @@ fn test_merge_no_commits_with_changes(mut repo: TestRepo) {
     // Merge - should commit the changes, skip squashing (only 1 commit), and skip rebasing (at merge base)
     snapshot_merge(
         "merge_no_commits_with_changes",
-        &repo,
+        repo,
         &["main"],
         Some(&feature_wt),
     );
@@ -2237,9 +2210,8 @@ fn test_merge_primary_on_different_branch_dirty(mut repo: TestRepo) {
 }
 
 #[rstest]
-fn test_merge_race_condition_commit_after_push(mut repo: TestRepo) {
-    // Create a worktree for main
-    repo.add_main_worktree();
+fn test_merge_race_condition_commit_after_push(mut repo_with_main_worktree: TestRepo) {
+    let repo = &mut repo_with_main_worktree;
 
     // Create a feature worktree and make a commit
     let feature_wt = repo.add_worktree("feature");
@@ -2262,7 +2234,7 @@ fn test_merge_race_condition_commit_after_push(mut repo: TestRepo) {
     // Merge to main (this pushes the branch to main)
     snapshot_merge(
         "merge_race_condition_before_new_commit",
-        &repo,
+        repo,
         &["main", "--no-remove"],
         Some(&feature_wt),
     );
@@ -2447,9 +2419,8 @@ fn test_merge_to_non_default_target(repo: TestRepo) {
 }
 
 #[rstest]
-fn test_merge_squash_with_working_tree_creates_backup(mut repo: TestRepo) {
-    // Create a worktree for main
-    repo.add_main_worktree();
+fn test_merge_squash_with_working_tree_creates_backup(mut repo_with_main_worktree: TestRepo) {
+    let repo = &mut repo_with_main_worktree;
 
     // Create a feature worktree with multiple commits
     let feature_wt = repo.add_worktree("feature");
@@ -2491,7 +2462,7 @@ fn test_merge_squash_with_working_tree_creates_backup(mut repo: TestRepo) {
     // This should create a backup before squashing because there are uncommitted changes
     snapshot_merge_with_env(
         "merge_squash_with_working_tree_creates_backup",
-        &repo,
+        repo,
         &["main"],
         Some(&feature_wt),
         &[
@@ -2917,11 +2888,9 @@ fn test_step_commit_nothing_to_commit(repo: TestRepo) {
 // =============================================================================
 
 #[rstest]
-fn test_merge_error_uncommitted_changes_with_no_commit(mut repo: TestRepo) {
+fn test_merge_error_uncommitted_changes_with_no_commit(mut repo_with_main_worktree: TestRepo) {
     // Tests the `uncommitted_changes()` error function when using --no-commit with dirty tree
-
-    // Create a worktree for main
-    repo.add_main_worktree();
+    let repo = &mut repo_with_main_worktree;
 
     // Create a feature worktree
     let feature_wt = repo.add_worktree("feature");
@@ -2932,7 +2901,7 @@ fn test_merge_error_uncommitted_changes_with_no_commit(mut repo: TestRepo) {
     // Try to merge with --no-commit - should fail because working tree is dirty
     snapshot_merge(
         "merge_error_uncommitted_changes_no_commit",
-        &repo,
+        repo,
         &["main", "--no-commit", "--no-remove"],
         Some(&feature_wt),
     );
