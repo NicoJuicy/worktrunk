@@ -18,9 +18,7 @@ use worktrunk::config::{CommandConfig, ProjectConfig};
 use worktrunk::git::WorktrunkError;
 use worktrunk::styling::{format_bash_with_gutter, progress_message, warning_message};
 
-use super::command_executor::{
-    CommandContext, PreparedCommand, prepare_project_commands, prepare_user_commands,
-};
+use super::command_executor::{CommandContext, PreparedCommand, prepare_commands};
 use crate::commands::process::spawn_detached;
 use crate::output::execute_command_in_worktree;
 
@@ -73,18 +71,11 @@ impl<'a> HookPipeline<'a> {
         &self,
         command_config: &CommandConfig,
         hook_type: HookType,
-        source: &HookSource,
+        _source: &HookSource,
         extra_vars: &[(&str, &str)],
         name_filter: Option<&str>,
     ) -> anyhow::Result<Vec<PreparedCommand>> {
-        let commands = match source {
-            HookSource::User => {
-                prepare_user_commands(command_config, &self.ctx, extra_vars, hook_type)?
-            }
-            HookSource::Project => {
-                prepare_project_commands(command_config, &self.ctx, extra_vars, hook_type)?
-            }
-        };
+        let commands = prepare_commands(command_config, &self.ctx, extra_vars, hook_type)?;
         Ok(Self::filter_by_name(commands, name_filter))
     }
 

@@ -166,14 +166,15 @@ fn expand_commands(
     Ok(result)
 }
 
-/// Prepare project commands for execution
+/// Prepare commands for execution.
 ///
-/// This function:
-/// 1. Expands command templates with context variables
-/// 2. Returns prepared commands ready for execution, each with JSON context for stdin
+/// Expands command templates with context variables and returns prepared
+/// commands ready for execution, each with JSON context for stdin.
 ///
-/// Note: Approval is handled at the gate (command entry point), not here.
-pub fn prepare_project_commands(
+/// Note: Approval logic (for project commands) is handled at the call site,
+/// not here. User commands don't require approval since users implicitly
+/// approve them by adding them to their config.
+pub fn prepare_commands(
     command_config: &CommandConfig,
     ctx: &CommandContext<'_>,
     extra_vars: &[(&str, &str)],
@@ -184,39 +185,6 @@ pub fn prepare_project_commands(
         return Ok(Vec::new());
     }
 
-    let expanded_with_json = expand_commands(&commands, ctx, extra_vars)?;
-
-    Ok(expanded_with_json
-        .into_iter()
-        .map(|(cmd, context_json)| PreparedCommand {
-            name: cmd.name,
-            expanded: cmd.expanded,
-            context_json,
-        })
-        .collect())
-}
-
-/// Prepare user hooks for execution without approval
-///
-/// Unlike project commands, user hooks don't require approval because they're
-/// defined in the user's own config file. The user implicitly approves them
-/// by adding them to their config.
-///
-/// This function:
-/// 1. Expands command templates with context variables
-/// 2. Returns prepared commands ready for execution, each with JSON context for stdin
-pub fn prepare_user_commands(
-    command_config: &CommandConfig,
-    ctx: &CommandContext<'_>,
-    extra_vars: &[(&str, &str)],
-    hook_type: HookType,
-) -> anyhow::Result<Vec<PreparedCommand>> {
-    let commands = command_config.commands_with_phase(hook_type);
-    if commands.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    // Expand commands (no approval needed for user hooks)
     let expanded_with_json = expand_commands(&commands, ctx, extra_vars)?;
 
     Ok(expanded_with_json

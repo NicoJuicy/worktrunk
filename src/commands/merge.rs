@@ -47,7 +47,7 @@ impl<'a> MergeCommandCollector<'a> {
         };
 
         // Collect original commands (not expanded) for approval
-        // Expansion happens later in prepare_project_commands during execution
+        // Expansion happens later in prepare_commands during execution
 
         // Collect pre-commit commands if we'll commit (direct or via squash)
         // These run before: (1) direct commit (line 179), or (2) squash commit (line 194 → handle_dev_squash)
