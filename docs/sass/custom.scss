@@ -558,7 +558,6 @@ table {
         padding: 0.6rem 0.875rem;
         text-align: left;
         vertical-align: top;
-        white-space: nowrap;
     }
 
     th {
@@ -572,6 +571,11 @@ table {
 
     td {
         font-size: 0.9rem;
+    }
+
+    // Prevent inline code from wrapping (paths, commands)
+    td code {
+        white-space: nowrap;
     }
 
     td:first-child {
