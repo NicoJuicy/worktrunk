@@ -14,8 +14,8 @@ use worktrunk::git::Repository;
 use worktrunk::path::format_path_for_display;
 use worktrunk::shell::Shell;
 use worktrunk::styling::{
-    HINT_EMOJI, error_message, format_with_gutter, info_message, progress_message, success_message,
-    warning_message,
+    error_message, format_with_gutter, hint_message, info_message, progress_message,
+    success_message, warning_message,
 };
 
 /// Format a switch success message with a consistent location phrase
@@ -224,9 +224,9 @@ fn handle_branch_deletion_result(
             super::print(info_message(cformat!(
                 "Branch <bold>{branch_name}</> retained; has unmerged changes"
             )))?;
-            super::print(cformat!(
-                "{HINT_EMOJI} <dim>Use </>wt remove -D<dim> to delete unmerged branches</>"
-            ))?;
+            super::print(hint_message(cformat!(
+                "<bright-black>wt remove -D</> deletes unmerged branches"
+            )))?;
             result
         }
         Err(e) => {
@@ -648,9 +648,9 @@ fn handle_removed_worktree_output(
 
         // Show hint for unmerged branches (same as synchronous path)
         if !no_delete_branch && !should_delete_branch {
-            super::print(cformat!(
-                "{HINT_EMOJI} <dim>Use </>wt remove -D<dim> to delete unmerged branches</>"
-            ))?;
+            super::print(hint_message(cformat!(
+                "<bright-black>wt remove -D</> deletes unmerged branches"
+            )))?;
         }
 
         // Build command with the decision we already made

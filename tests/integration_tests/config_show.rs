@@ -63,9 +63,9 @@ server = "npm run dev"
         [107m [0m  [1m[36m[post-start]
         [107m [0m  server = [32m"npm run dev"
 
-        [2m⚪ Skipped bash; ~/.bashrc not found[22m
-        [2m⚪ Skipped zsh; ~/.zshrc not found[22m
-        [2m⚪ Skipped fish; ~/.config/fish/conf.d not found[22m
+        ⚪ [2mSkipped bash; ~/.bashrc not found[22m
+        ⚪ [2mSkipped zsh; ~/.zshrc not found[22m
+        ⚪ [2mSkipped fish; ~/.config/fish/conf.d not found[22m
         "#);
     });
 }
@@ -105,9 +105,9 @@ fn test_config_show_no_project_config() {
         [36mPROJECT CONFIG[39m  [REPO]/.config/wt.toml
         💡 [2mNot found[22m
 
-        [2m⚪ Skipped bash; ~/.bashrc not found[22m
-        [2m⚪ Skipped zsh; ~/.zshrc not found[22m
-        [2m⚪ Skipped fish; ~/.config/fish/conf.d not found[22m
+        ⚪ [2mSkipped bash; ~/.bashrc not found[22m
+        ⚪ [2mSkipped zsh; ~/.zshrc not found[22m
+        ⚪ [2mSkipped fish; ~/.config/fish/conf.d not found[22m
         "#);
     });
 }
@@ -145,9 +145,9 @@ fn test_config_show_outside_git_repo() {
 
         [36m[2mPROJECT CONFIG[22m  Not in a git repository[39m
 
-        [2m⚪ Skipped bash; ~/.bashrc not found[22m
-        [2m⚪ Skipped zsh; ~/.zshrc not found[22m
-        [2m⚪ Skipped fish; ~/.config/fish/conf.d not found[22m
+        ⚪ [2mSkipped bash; ~/.bashrc not found[22m
+        ⚪ [2mSkipped zsh; ~/.zshrc not found[22m
+        ⚪ [2mSkipped fish; ~/.config/fish/conf.d not found[22m
         "#);
     });
 }
@@ -306,9 +306,9 @@ fn test_config_show_warns_unknown_project_keys() {
         [107m [0m  [1m[36m[post-merge-command]
         [107m [0m  deploy = [32m"task deploy"
 
-        [2m⚪ Skipped bash; ~/.bashrc not found[22m
-        [2m⚪ Skipped zsh; ~/.zshrc not found[22m
-        [2m⚪ Skipped fish; ~/.config/fish/conf.d not found[22m
+        ⚪ [2mSkipped bash; ~/.bashrc not found[22m
+        ⚪ [2mSkipped zsh; ~/.zshrc not found[22m
+        ⚪ [2mSkipped fish; ~/.config/fish/conf.d not found[22m
         "#);
     });
 }
@@ -351,9 +351,9 @@ fn test_config_show_warns_unknown_user_keys() {
         [36mPROJECT CONFIG[39m  [REPO]/.config/wt.toml
         💡 [2mNot found[22m
 
-        [2m⚪ Skipped bash; ~/.bashrc not found[22m
-        [2m⚪ Skipped zsh; ~/.zshrc not found[22m
-        [2m⚪ Skipped fish; ~/.config/fish/conf.d not found[22m
+        ⚪ [2mSkipped bash; ~/.bashrc not found[22m
+        ⚪ [2mSkipped zsh; ~/.zshrc not found[22m
+        ⚪ [2mSkipped fish; ~/.config/fish/conf.d not found[22m
         "#);
     });
 }

@@ -6,8 +6,8 @@ use worktrunk::config::{CommandConfig, ProjectConfig, WorktrunkConfig};
 use worktrunk::git::Repository;
 use worktrunk::path::format_path_for_display;
 use worktrunk::styling::{
-    HINT_EMOJI, INFO_EMOJI, PROMPT_EMOJI, format_bash_with_gutter, format_with_gutter,
-    hint_message, info_message, progress_message, success_message,
+    INFO_EMOJI, PROMPT_EMOJI, format_bash_with_gutter, format_with_gutter, hint_message,
+    info_message, progress_message, success_message,
 };
 
 use super::command_executor::CommandContext;
@@ -695,11 +695,7 @@ fn render_user_hooks(
     }
 
     if !has_any {
-        writeln!(
-            out,
-            "{}",
-            cformat!("{HINT_EMOJI} <dim>(none configured)</>")
-        )?;
+        writeln!(out, "{}", hint_message("(none configured)"))?;
     }
 
     Ok(())
@@ -728,7 +724,7 @@ fn render_project_hooks(
     )?;
 
     let Some(config) = project_config else {
-        writeln!(out, "{}", cformat!("{HINT_EMOJI} <dim>(not found)</>"))?;
+        writeln!(out, "{}", hint_message("(not found)"))?;
         return Ok(());
     };
 
@@ -758,11 +754,7 @@ fn render_project_hooks(
     }
 
     if !has_any {
-        writeln!(
-            out,
-            "{}",
-            cformat!("{HINT_EMOJI} <dim>(none configured)</>")
-        )?;
+        writeln!(out, "{}", hint_message("(none configured)"))?;
     }
 
     Ok(())

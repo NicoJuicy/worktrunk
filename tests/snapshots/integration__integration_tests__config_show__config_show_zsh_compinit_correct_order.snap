@@ -6,6 +6,7 @@ info:
     - config
     - show
   env:
+    APPDATA: /var/folders/wf/s6ycxvvs4ln8qsdbfx40hnc40000gn/T/.tmp0MPkhE/.config
     CLICOLOR_FORCE: "1"
     COLUMNS: "150"
     GIT_AUTHOR_DATE: "2025-01-01T00:00:00Z"
@@ -17,6 +18,7 @@ info:
     LANG: C
     LC_ALL: C
     SOURCE_DATE_EPOCH: "1735776000"
+    USERPROFILE: "[TEST_HOME]"
     WORKTRUNK_CONFIG_PATH: "[TEST_CONFIG]"
     WORKTRUNK_TEST_COMPINIT_CONFIGURED: "1"
     XDG_CONFIG_HOME: "[TEST_CONFIG_HOME]"
@@ -33,5 +35,5 @@ exit_code: 0
 💡 [2mNot found[22m
 
 ⚪ Already configured shell extension & completions for [1mzsh[22m @ ~/.zshrc
-[2m⚪ Skipped bash; ~/.bashrc not found[22m
-[2m⚪ Skipped fish; ~/.config/fish/conf.d not found[22m
+⚪ [2mSkipped bash; ~/.bashrc not found[22m
+⚪ [2mSkipped fish; ~/.config/fish/conf.d not found[22m
