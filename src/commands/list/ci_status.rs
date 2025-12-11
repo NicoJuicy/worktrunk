@@ -1101,10 +1101,27 @@ struct HeadRepositoryOwner {
     login: String,
 }
 
+/// A single check from `statusCheckRollup`.
+///
+/// This is a union of two GitHub API types with different field structures:
+/// - `CheckRun` (GitHub Actions): has `status` ("COMPLETED", "IN_PROGRESS") and
+///   `conclusion` ("SUCCESS", "FAILURE", "CANCELLED", "SKIPPED")
+/// - `StatusContext` (external CI like pre-commit.ci): has `state` only
+///   ("SUCCESS", "FAILURE", "PENDING", "ERROR")
+///
+/// We parse all three fields and check whichever is present. An alternative approach would be
+/// `gh pr checks <number> --json state` which returns a flat array with unified `state` field,
+/// but that requires a separate API call after finding the PR number. Since we also need
+/// `gh run list` for branch-based CI (branches without PRs), keeping the single-call approach
+/// here is simpler overall.
 #[derive(Debug, Deserialize)]
 struct GitHubCheck {
+    /// CheckRun only: "COMPLETED", "IN_PROGRESS", "QUEUED", etc.
     status: Option<String>,
+    /// CheckRun only: "SUCCESS", "FAILURE", "CANCELLED", "SKIPPED", etc.
     conclusion: Option<String>,
+    /// StatusContext only: "SUCCESS", "FAILURE", "PENDING", "ERROR"
+    state: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1125,23 +1142,35 @@ impl GitHubPrInfo {
             return CiStatus::NoCI;
         }
 
-        let has_pending = checks.iter().any(|c| {
+        // CheckRun uses `status` for in-progress states
+        let has_pending_checkrun = checks.iter().any(|c| {
             matches!(
                 c.status.as_deref(),
                 Some("IN_PROGRESS" | "QUEUED" | "PENDING" | "EXPECTED")
             )
         });
 
-        let has_failure = checks.iter().any(|c| {
+        // StatusContext uses `state` for pending
+        let has_pending_status = checks
+            .iter()
+            .any(|c| matches!(c.state.as_deref(), Some("PENDING")));
+
+        // CheckRun uses `conclusion` for final result
+        let has_failure_checkrun = checks.iter().any(|c| {
             matches!(
                 c.conclusion.as_deref(),
                 Some("FAILURE" | "ERROR" | "CANCELLED")
             )
         });
 
-        if has_pending {
+        // StatusContext uses `state` for final result
+        let has_failure_status = checks
+            .iter()
+            .any(|c| matches!(c.state.as_deref(), Some("FAILURE" | "ERROR")));
+
+        if has_pending_checkrun || has_pending_status {
             CiStatus::Running
-        } else if has_failure {
+        } else if has_failure_checkrun || has_failure_status {
             CiStatus::Failed
         } else {
             CiStatus::Passed
