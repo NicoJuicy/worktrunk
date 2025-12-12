@@ -93,12 +93,15 @@ pub enum IntegrationReason {
 
 impl IntegrationReason {
     /// Human-readable description for use in messages (e.g., `wt remove` output).
+    ///
+    /// Returns the phrase to appear inside parentheses. Some include `{target}`
+    /// placeholder for the target branch name.
     pub fn description(&self) -> &'static str {
         match self {
-            Self::SameCommit => "already in",
-            Self::Ancestor => "already in",
-            Self::NoAddedChanges => "no file changes",
-            Self::TreesMatch => "files match",
+            Self::SameCommit => "same commit as",
+            Self::Ancestor => "ancestor of",
+            Self::NoAddedChanges => "no added changes",
+            Self::TreesMatch => "tree matches",
             Self::MergeAddsNothing => "all changes in",
         }
     }

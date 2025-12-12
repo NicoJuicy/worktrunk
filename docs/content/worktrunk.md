@@ -88,7 +88,7 @@ Clean up when done:
 
 {% terminal() %}
 <span class="prompt">$</span> <span class="cmd">wt remove</span>
-🔄 <span class=c>Removing <b>feature-api</b> worktree &amp; branch in background (already in main)</span>
+🔄 <span class=c>Removing <b>feature-api</b> worktree &amp; branch in background (same commit as main)</span>
 {% end %}
 
 <!-- END AUTO-GENERATED -->

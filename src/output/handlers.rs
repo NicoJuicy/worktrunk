@@ -266,13 +266,10 @@ fn get_flag_note(
             let Some(target) = target_branch else {
                 return String::new();
             };
+            let desc = reason.description();
             match reason {
-                IntegrationReason::SameCommit | IntegrationReason::Ancestor => {
-                    format!(" (already in {target})")
-                }
-                IntegrationReason::NoAddedChanges => " (no file changes)".to_string(),
-                IntegrationReason::TreesMatch => format!(" (files match {target})"),
-                IntegrationReason::MergeAddsNothing => format!(" (all changes in {target})"),
+                IntegrationReason::NoAddedChanges => format!(" ({desc})"),
+                _ => format!(" ({desc} {target})"),
             }
         }
     }

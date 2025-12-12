@@ -100,9 +100,9 @@ Clean up when done:
 
 <!-- ⚠️ AUTO-GENERATED from tests/integration_tests/snapshots/integration__integration_tests__shell_wrapper__tests__readme_example_remove.snap — edit source to update -->
 
-```bash
+```console
 $ wt remove
-🔄 Removing feature-api worktree & branch in background (already in main)
+🔄 Removing feature-api worktree & branch in background (same commit as main)
 ```
 
 <!-- END AUTO-GENERATED -->

@@ -89,9 +89,11 @@ behavior:
 ```rust
 // GOOD - parallel structure with integration reason explaining branch deletion
 // Both wt merge and wt remove show integration reason when branch is deleted
-"Removing feature worktree & branch in background (already in main)"       // Branch is integrated (ancestor)
-"Removing feature worktree & branch in background (files match main)"      // Branch is integrated (squash/rebase)
-"Removing feature worktree & branch in background (all changes in main)"   // Branch is integrated (squash + main advanced)
+"Removing feature worktree & branch in background (same commit as main)"   // SameCommit
+"Removing feature worktree & branch in background (ancestor of main)"      // Ancestor (main moved past)
+"Removing feature worktree & branch in background (no added changes)"      // NoAddedChanges (empty 3-dot diff)
+"Removing feature worktree & branch in background (tree matches main)"     // TreesMatch (squash/rebase)
+"Removing feature worktree & branch in background (all changes in main)"   // MergeAddsNothing (squash + main advanced)
 "Removing feature worktree in background; retaining unmerged branch"        // Unmerged (system keeps)
 "Removing feature worktree in background; retaining branch (--no-delete-branch)"  // User flag (user keeps)
 ```
