@@ -51,26 +51,26 @@ worktree requires typing the branch name three times: `git worktree add -b feat
   <tbody>
     <tr>
       <td>Switch worktrees</td>
-      <td><code>wt switch feat</code></td>
+      <td><pre>wt switch feat</pre></td>
       <td><pre>cd ../repo.feat</pre></td>
     </tr>
     <tr>
       <td>Create + start Claude</td>
-      <td><code>wt switch -c -x claude feat</code></td>
+      <td><pre>wt switch -c -x claude feat</pre></td>
       <td><pre>git worktree add -b feat ../repo.feat && \
 cd ../repo.feat && \
 claude</pre></td>
     </tr>
     <tr>
       <td>Clean up</td>
-      <td><code>wt remove</code></td>
+      <td><pre>wt remove</pre></td>
       <td><pre>cd ../repo && \
 git worktree remove ../repo.feat && \
 git branch -d feat</pre></td>
     </tr>
     <tr>
       <td>List with status</td>
-      <td><code>wt list</code></td>
+      <td><pre>wt list</pre></td>
       <td><pre>git worktree list</pre> (paths only)</td>
     </tr>
   </tbody>
