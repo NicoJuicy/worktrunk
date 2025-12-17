@@ -3,10 +3,10 @@ source: tests/integration_tests/select.rs
 expression: normalized
 ---
 > [QUERY]                                                     │[PREVIEW_HEADER]
-    Branch       Status        HEAD±    main↕  Remote⇅  Comm│Enter: switch | Esc: cancel | ctrl-u/d: scroll | alt-p: tog
-> @ main             ^                                  a1..│
-  + feature-one      _                                  a1..│⚪ main has no uncommitted changes
-  + feature-two      _                                  a1..│
+    Branch       Status        HEAD±    main↕  Remote⇅  Age │Enter: switch | Esc: cancel | ctrl-u/d: scroll | alt-p: tog
+> @ main             ^                                  1d  │
+  + feature-one      _                                  1d  │⚪ main has no uncommitted changes
+  + feature-two      _                                  1d  │
                                                             │
                                                             │
                                                             │

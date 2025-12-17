@@ -37,20 +37,27 @@ const DEFAULT_TERMINAL_WIDTH: usize = 80;
 
 /// Get terminal width, defaulting to 80 if detection fails
 ///
-/// Checks COLUMNS environment variable first (for testing and scripts),
-/// then falls back to actual terminal size detection.
+/// Prefers direct terminal size detection over COLUMNS environment variable,
+/// because tools like cargo may set COLUMNS incorrectly.
+///
+/// Checks stderr first since that's where table output goes, then stdout.
 pub fn get_terminal_width() -> usize {
-    // Check COLUMNS environment variable first (for testing and scripts)
+    // Prefer direct terminal detection (more accurate than COLUMNS which may be stale/wrong)
+    // Check stderr first (where table output goes), then stdout
+    if let Some((terminal_size::Width(w), _)) =
+        terminal_size::terminal_size_of(std::io::stderr()).or_else(terminal_size::terminal_size)
+    {
+        return w as usize;
+    }
+
+    // Fall back to COLUMNS env var (for scripts, piped contexts, or when detection fails)
     if let Ok(cols) = std::env::var("COLUMNS")
         && let Ok(width) = cols.parse::<usize>()
     {
         return width;
     }
 
-    // Fall back to actual terminal size
-    terminal_size::terminal_size()
-        .map(|(terminal_size::Width(w), _)| w as usize)
-        .unwrap_or(DEFAULT_TERMINAL_WIDTH)
+    DEFAULT_TERMINAL_WIDTH
 }
 
 /// Calculate visual width of a string, ignoring ANSI escape codes
