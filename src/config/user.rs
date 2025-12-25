@@ -7,7 +7,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use super::commands::CommandConfig;
+use super::HooksConfig;
 
 /// Deserialize a Vec<String> that can also accept a single String
 /// This enables setting array config fields via environment variables
@@ -152,57 +152,8 @@ pub struct WorktrunkConfig {
     // =========================================================================
     // User-level hooks (same syntax as project hooks, run before project hooks)
     // =========================================================================
-    /// Commands to execute after worktree creation (blocking)
-    #[serde(
-        default,
-        rename = "post-create",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub post_create: Option<CommandConfig>,
-
-    /// Commands to execute after worktree creation (background)
-    #[serde(
-        default,
-        rename = "post-start",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub post_start: Option<CommandConfig>,
-
-    /// Commands to execute after switching to a worktree (background)
-    #[serde(
-        default,
-        rename = "post-switch",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub post_switch: Option<CommandConfig>,
-
-    /// Commands to execute before committing during merge (blocking, fail-fast)
-    #[serde(
-        default,
-        rename = "pre-commit",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub pre_commit: Option<CommandConfig>,
-
-    /// Commands to execute before merging (blocking, fail-fast)
-    #[serde(default, rename = "pre-merge", skip_serializing_if = "Option::is_none")]
-    pub pre_merge: Option<CommandConfig>,
-
-    /// Commands to execute after successful merge (blocking, best-effort)
-    #[serde(
-        default,
-        rename = "post-merge",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub post_merge: Option<CommandConfig>,
-
-    /// Commands to execute before worktree removal (blocking, fail-fast)
-    #[serde(
-        default,
-        rename = "pre-remove",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub pre_remove: Option<CommandConfig>,
+    #[serde(flatten, default)]
+    pub hooks: HooksConfig,
 
     /// Captures unknown fields for validation warnings
     #[serde(flatten, default, skip_serializing)]
@@ -348,13 +299,7 @@ impl Default for WorktrunkConfig {
             list: None,
             commit: None,
             merge: None,
-            post_create: None,
-            post_start: None,
-            post_switch: None,
-            pre_commit: None,
-            pre_merge: None,
-            post_merge: None,
-            pre_remove: None,
+            hooks: HooksConfig::default(),
             unknown: std::collections::HashMap::new(),
         }
     }

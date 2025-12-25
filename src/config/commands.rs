@@ -3,12 +3,8 @@
 //! Handles parsing and representation of commands that run during various phases
 //! of worktree and merge operations.
 
-use crate::git::HookType;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-
-/// Phase in which a command executes (alias to the canonical hook type)
-pub type CommandPhase = HookType;
 
 /// Represents a command with its template and optionally expanded form
 #[derive(Debug, Clone, PartialEq)]
@@ -19,33 +15,24 @@ pub struct Command {
     pub template: String,
     /// Expanded command with variables substituted (same as template if not expanded yet)
     pub expanded: String,
-    /// Phase in which this command executes
-    pub phase: CommandPhase,
 }
 
 impl Command {
     /// Create a new command from a template (not yet expanded)
-    pub fn new(name: Option<String>, template: String, phase: CommandPhase) -> Self {
+    pub fn new(name: Option<String>, template: String) -> Self {
         Self {
             name,
             expanded: template.clone(),
             template,
-            phase,
         }
     }
 
     /// Create a command with both template and expanded forms
-    pub fn with_expansion(
-        name: Option<String>,
-        template: String,
-        expanded: String,
-        phase: CommandPhase,
-    ) -> Self {
+    pub fn with_expansion(name: Option<String>, template: String, expanded: String) -> Self {
         Self {
             name,
             template,
             expanded,
-            phase,
         }
     }
 }
@@ -72,17 +59,6 @@ impl CommandConfig {
     pub fn commands(&self) -> &[Command] {
         &self.commands
     }
-
-    /// Returns commands with the specified phase
-    pub fn commands_with_phase(&self, phase: CommandPhase) -> Vec<Command> {
-        self.commands
-            .iter()
-            .map(|cmd| Command {
-                phase,
-                ..cmd.clone()
-            })
-            .collect()
-    }
 }
 
 // Custom deserialization to handle 2 TOML formats
@@ -102,14 +78,12 @@ impl<'de> Deserialize<'de> for CommandConfig {
         let commands = match toml {
             CommandConfigToml::Single(cmd) => {
                 // Phase will be set later when commands are collected
-                vec![Command::new(None, cmd, CommandPhase::PostCreate)]
+                vec![Command::new(None, cmd)]
             }
             CommandConfigToml::Named(map) => {
                 // IndexMap preserves insertion order from TOML
                 map.into_iter()
-                    .map(|(name, template)| {
-                        Command::new(Some(name), template, CommandPhase::PostCreate)
-                    })
+                    .map(|(name, template)| Command::new(Some(name), template))
                     .collect()
             }
         };
@@ -150,24 +124,18 @@ mod tests {
 
     #[test]
     fn test_command_new() {
-        let cmd = Command::new(
-            Some("build".to_string()),
-            "cargo build".to_string(),
-            HookType::PreMerge,
-        );
+        let cmd = Command::new(Some("build".to_string()), "cargo build".to_string());
         assert_eq!(cmd.name, Some("build".to_string()));
         assert_eq!(cmd.template, "cargo build");
         assert_eq!(cmd.expanded, "cargo build"); // Same as template when not expanded
-        assert_eq!(cmd.phase, HookType::PreMerge);
     }
 
     #[test]
     fn test_command_new_unnamed() {
-        let cmd = Command::new(None, "npm install".to_string(), HookType::PostCreate);
+        let cmd = Command::new(None, "npm install".to_string());
         assert_eq!(cmd.name, None);
         assert_eq!(cmd.template, "npm install");
         assert_eq!(cmd.expanded, "npm install");
-        assert_eq!(cmd.phase, HookType::PostCreate);
     }
 
     #[test]
@@ -176,23 +144,10 @@ mod tests {
             Some("test".to_string()),
             "cargo test --package {{ repo }}".to_string(),
             "cargo test --package myrepo".to_string(),
-            HookType::PreMerge,
         );
         assert_eq!(cmd.name, Some("test".to_string()));
         assert_eq!(cmd.template, "cargo test --package {{ repo }}");
         assert_eq!(cmd.expanded, "cargo test --package myrepo");
-        assert_eq!(cmd.phase, HookType::PreMerge);
-    }
-
-    #[test]
-    fn test_command_clone() {
-        let cmd = Command::new(
-            Some("build".to_string()),
-            "make".to_string(),
-            HookType::PreMerge,
-        );
-        let cloned = cmd.clone();
-        assert_eq!(cmd, cloned);
     }
 
     // ============================================================================
@@ -273,11 +228,7 @@ third = "echo 3"
 
         let wrapper = Wrapper {
             cmd: CommandConfig {
-                commands: vec![Command::new(
-                    None,
-                    "npm install".to_string(),
-                    HookType::PostCreate,
-                )],
+                commands: vec![Command::new(None, "npm install".to_string())],
             },
         };
 
@@ -296,16 +247,8 @@ third = "echo 3"
         let wrapper = Wrapper {
             cmd: CommandConfig {
                 commands: vec![
-                    Command::new(
-                        Some("build".to_string()),
-                        "cargo build".to_string(),
-                        HookType::PostCreate,
-                    ),
-                    Command::new(
-                        Some("test".to_string()),
-                        "cargo test".to_string(),
-                        HookType::PostCreate,
-                    ),
+                    Command::new(Some("build".to_string()), "cargo build".to_string()),
+                    Command::new(Some("test".to_string()), "cargo test".to_string()),
                 ],
             },
         };
@@ -320,11 +263,7 @@ third = "echo 3"
     #[test]
     fn test_serialize_deserialize_roundtrip_single() {
         let config = CommandConfig {
-            commands: vec![Command::new(
-                None,
-                "echo hello".to_string(),
-                HookType::PostCreate,
-            )],
+            commands: vec![Command::new(None, "echo hello".to_string())],
         };
 
         #[derive(Serialize, Deserialize)]
@@ -344,16 +283,8 @@ third = "echo 3"
     fn test_serialize_deserialize_roundtrip_named() {
         let config = CommandConfig {
             commands: vec![
-                Command::new(
-                    Some("a".to_string()),
-                    "echo a".to_string(),
-                    HookType::PostCreate,
-                ),
-                Command::new(
-                    Some("b".to_string()),
-                    "echo b".to_string(),
-                    HookType::PostCreate,
-                ),
+                Command::new(Some("a".to_string()), "echo a".to_string()),
+                Command::new(Some("b".to_string()), "echo b".to_string()),
             ],
         };
 
@@ -377,8 +308,8 @@ third = "echo 3"
     fn test_commands_returns_slice() {
         let config = CommandConfig {
             commands: vec![
-                Command::new(None, "cmd1".to_string(), HookType::PostCreate),
-                Command::new(None, "cmd2".to_string(), HookType::PostCreate),
+                Command::new(None, "cmd1".to_string()),
+                Command::new(None, "cmd2".to_string()),
             ],
         };
 
@@ -389,39 +320,12 @@ third = "echo 3"
     }
 
     #[test]
-    fn test_commands_with_phase() {
-        let config = CommandConfig {
-            commands: vec![
-                Command::new(
-                    Some("build".to_string()),
-                    "cargo build".to_string(),
-                    HookType::PostCreate,
-                ),
-                Command::new(
-                    Some("test".to_string()),
-                    "cargo test".to_string(),
-                    HookType::PostCreate,
-                ),
-            ],
-        };
-
-        let cmds = config.commands_with_phase(HookType::PreMerge);
-
-        // All returned commands should have the new phase
-        assert_eq!(cmds.len(), 2);
-        assert!(cmds.iter().all(|c| c.phase == HookType::PreMerge));
-        // But templates and names should be preserved
-        assert_eq!(cmds[0].name, Some("build".to_string()));
-        assert_eq!(cmds[0].template, "cargo build");
-    }
-
-    #[test]
     fn test_command_config_equality() {
         let config1 = CommandConfig {
-            commands: vec![Command::new(None, "test".to_string(), HookType::PostCreate)],
+            commands: vec![Command::new(None, "test".to_string())],
         };
         let config2 = CommandConfig {
-            commands: vec![Command::new(None, "test".to_string(), HookType::PostCreate)],
+            commands: vec![Command::new(None, "test".to_string())],
         };
         assert_eq!(config1, config2);
     }

@@ -1,5 +1,5 @@
 use worktrunk::HookType;
-use worktrunk::config::{Command, ProjectConfig};
+use worktrunk::config::ProjectConfig;
 use worktrunk::git::Repository;
 use worktrunk::styling::info_message;
 
@@ -8,7 +8,7 @@ use super::command_executor::CommandContext;
 use super::commit::CommitOptions;
 use super::context::CommandEnv;
 use super::hooks::{HookFailureStrategy, run_hook_with_filter};
-use super::project_config::collect_commands_for_hooks;
+use super::project_config::{HookCommand, collect_commands_for_hooks};
 use super::repository_ext::RepositoryCliExt;
 use super::worktree::{BranchDeletionMode, MergeOperations, RemoveResult, handle_push};
 
@@ -43,9 +43,9 @@ struct MergeCommandCollector<'a> {
 }
 
 /// Commands collected for batch approval with their project identifier
-/// - `Vec<Command>`: Commands with both template and (initial) expanded forms
+/// - `Vec<HookCommand>`: Commands with their hook types for approval display
 /// - `String`: Project identifier for config lookup
-type CollectedCommands = (Vec<Command>, String);
+type CollectedCommands = (Vec<HookCommand>, String);
 
 impl<'a> MergeCommandCollector<'a> {
     /// Collect all commands that will be executed during merge
@@ -307,8 +307,8 @@ pub fn run_pre_merge_commands(
 ) -> anyhow::Result<()> {
     run_hook_with_filter(
         ctx,
-        ctx.config.pre_merge.as_ref(),
-        project_config.pre_merge.as_ref(),
+        ctx.config.hooks.pre_merge.as_ref(),
+        project_config.hooks.pre_merge.as_ref(),
         HookType::PreMerge,
         &[("target", target_branch)],
         HookFailureStrategy::FailFast,
@@ -331,8 +331,10 @@ pub fn execute_post_merge_commands(
 
     run_hook_with_filter(
         ctx,
-        ctx.config.post_merge.as_ref(),
-        project_config.as_ref().and_then(|c| c.post_merge.as_ref()),
+        ctx.config.hooks.post_merge.as_ref(),
+        project_config
+            .as_ref()
+            .and_then(|c| c.hooks.post_merge.as_ref()),
         HookType::PostMerge,
         &[("target", target_branch)],
         HookFailureStrategy::Warn,
@@ -354,8 +356,10 @@ pub fn execute_pre_remove_commands(
 
     run_hook_with_filter(
         ctx,
-        ctx.config.pre_remove.as_ref(),
-        project_config.as_ref().and_then(|c| c.pre_remove.as_ref()),
+        ctx.config.hooks.pre_remove.as_ref(),
+        project_config
+            .as_ref()
+            .and_then(|c| c.hooks.pre_remove.as_ref()),
         HookType::PreRemove,
         &[],
         HookFailureStrategy::FailFast,

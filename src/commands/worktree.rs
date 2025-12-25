@@ -834,7 +834,7 @@ impl<'a> CommandContext<'a> {
         let pipeline = HookPipeline::new(*self);
 
         // Run user hooks first (no approval required)
-        if let Some(user_config) = &self.config.post_create {
+        if let Some(user_config) = &self.config.hooks.post_create {
             pipeline.run_sequential(
                 user_config,
                 HookType::PostCreate,
@@ -851,7 +851,7 @@ impl<'a> CommandContext<'a> {
             None => return Ok(()),
         };
 
-        let Some(post_create_config) = &project_config.post_create else {
+        let Some(post_create_config) = &project_config.hooks.post_create else {
             return Ok(());
         };
 
@@ -877,7 +877,7 @@ impl<'a> CommandContext<'a> {
         let pipeline = HookPipeline::new(*self);
 
         // Spawn user hooks first (no approval required)
-        if let Some(user_config) = &self.config.post_start {
+        if let Some(user_config) = &self.config.hooks.post_start {
             pipeline.spawn_background(
                 user_config,
                 HookType::PostStart,
@@ -893,7 +893,7 @@ impl<'a> CommandContext<'a> {
             None => return Ok(()),
         };
 
-        let Some(post_start_config) = &project_config.post_start else {
+        let Some(post_start_config) = &project_config.hooks.post_start else {
             return Ok(());
         };
 
@@ -918,7 +918,7 @@ impl<'a> CommandContext<'a> {
         let pipeline = HookPipeline::new(*self);
 
         // Spawn user hooks first (no approval required)
-        if let Some(user_config) = &self.config.post_switch {
+        if let Some(user_config) = &self.config.hooks.post_switch {
             pipeline.spawn_background(
                 user_config,
                 HookType::PostSwitch,
@@ -934,7 +934,7 @@ impl<'a> CommandContext<'a> {
             None => return Ok(()),
         };
 
-        let Some(post_switch_config) = &project_config.post_switch else {
+        let Some(post_switch_config) = &project_config.hooks.post_switch else {
             return Ok(());
         };
 

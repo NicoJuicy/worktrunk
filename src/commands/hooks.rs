@@ -74,6 +74,17 @@ impl<'a> HookPipeline<'a> {
         Ok(Self::filter_by_name(commands, name_filter))
     }
 
+    fn announce_command(
+        &self,
+        label_prefix: &str,
+        prepared: &PreparedCommand,
+    ) -> anyhow::Result<()> {
+        let label = crate::commands::format_command_label(label_prefix, prepared.name.as_deref());
+        crate::output::print(progress_message(format!("{label}:")))?;
+        crate::output::gutter(format_bash_with_gutter(&prepared.expanded, ""))?;
+        Ok(())
+    }
+
     /// Filter commands by name (returns empty vec if name not found - caller decides if that's an error)
     fn filter_by_name(
         commands: Vec<PreparedCommand>,
@@ -112,10 +123,7 @@ impl<'a> HookPipeline<'a> {
         let label_prefix = source.format_label(hook_type);
 
         for prepared in commands {
-            let label =
-                crate::commands::format_command_label(&label_prefix, prepared.name.as_deref());
-            crate::output::print(progress_message(format!("{label}:")))?;
-            crate::output::gutter(format_bash_with_gutter(&prepared.expanded, ""))?;
+            self.announce_command(&label_prefix, &prepared)?;
 
             if let Err(err) = execute_command_in_worktree(
                 self.ctx.worktree_path,
@@ -201,10 +209,7 @@ impl<'a> HookPipeline<'a> {
         let label_prefix = source.format_label(hook_type);
 
         for prepared in commands {
-            let label =
-                crate::commands::format_command_label(&label_prefix, prepared.name.as_deref());
-            crate::output::print(progress_message(format!("{label}:")))?;
-            crate::output::gutter(format_bash_with_gutter(&prepared.expanded, ""))?;
+            self.announce_command(&label_prefix, &prepared)?;
 
             let name = prepared.name.as_deref().unwrap_or("cmd");
             // Include source in operation name to prevent log file collisions between
@@ -237,7 +242,7 @@ impl<'a> HookPipeline<'a> {
         target_branch: Option<&str>,
         name_filter: Option<&str>,
     ) -> anyhow::Result<()> {
-        let Some(pre_commit_config) = &project_config.pre_commit else {
+        let Some(pre_commit_config) = &project_config.hooks.pre_commit else {
             return Ok(());
         };
 

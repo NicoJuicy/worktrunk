@@ -5,7 +5,7 @@
 use config::ConfigError;
 use serde::{Deserialize, Serialize};
 
-use super::commands::CommandConfig;
+use super::HooksConfig;
 
 /// Project-level configuration for `wt list` output.
 ///
@@ -68,60 +68,9 @@ impl ProjectListConfig {
 /// - `{{ branch | hash_port }}` - Hash string to deterministic port (10000-19999)
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct ProjectConfig {
-    /// Commands to execute sequentially before worktree is ready (blocking)
-    /// Supports string (single command) or table (named, sequential)
-    ///
-    /// Available template variables: `{{ repo }}`, `{{ branch }}`, `{{ worktree }}`, `{{ worktree_name }}`, `{{ repo_root }}`, `{{ default_branch }}`, `{{ commit }}`, `{{ short_commit }}`, `{{ remote }}`, `{{ upstream }}`
-    #[serde(default, rename = "post-create")]
-    pub post_create: Option<CommandConfig>,
-
-    /// Commands to execute in parallel as background processes (non-blocking)
-    /// Supports string (single command) or table (named, parallel)
-    ///
-    /// Available template variables: `{{ repo }}`, `{{ branch }}`, `{{ worktree }}`, `{{ worktree_name }}`, `{{ repo_root }}`, `{{ default_branch }}`, `{{ commit }}`, `{{ short_commit }}`, `{{ remote }}`, `{{ upstream }}`
-    #[serde(default, rename = "post-start")]
-    pub post_start: Option<CommandConfig>,
-
-    /// Commands to execute after switching to a worktree (non-blocking, background)
-    /// Runs on every switch, including to existing worktrees and newly created ones
-    /// Supports string (single command) or table (named, parallel)
-    ///
-    /// Available template variables: `{{ repo }}`, `{{ branch }}`, `{{ worktree }}`, `{{ worktree_name }}`, `{{ repo_root }}`, `{{ default_branch }}`, `{{ commit }}`, `{{ short_commit }}`, `{{ remote }}`, `{{ upstream }}`
-    #[serde(default, rename = "post-switch")]
-    pub post_switch: Option<CommandConfig>,
-
-    /// Commands to execute before committing changes during merge (blocking, fail-fast validation)
-    /// Supports string (single command) or table (named, sequential)
-    /// All commands must exit with code 0 for commit to proceed
-    /// Runs before any commit operation during `wt merge` (both squash and no-squash modes)
-    ///
-    /// Available template variables: `{{ repo }}`, `{{ branch }}`, `{{ worktree }}`, `{{ worktree_name }}`, `{{ repo_root }}`, `{{ default_branch }}`, `{{ commit }}`, `{{ short_commit }}`, `{{ remote }}`, `{{ upstream }}`, `{{ target }}`
-    #[serde(default, rename = "pre-commit")]
-    pub pre_commit: Option<CommandConfig>,
-
-    /// Commands to execute before merging (blocking, fail-fast validation)
-    /// Supports string (single command) or table (named, sequential)
-    /// All commands must exit with code 0 for merge to proceed
-    ///
-    /// Available template variables: `{{ repo }}`, `{{ branch }}`, `{{ worktree }}`, `{{ worktree_name }}`, `{{ repo_root }}`, `{{ default_branch }}`, `{{ commit }}`, `{{ short_commit }}`, `{{ remote }}`, `{{ upstream }}`, `{{ target }}`
-    #[serde(default, rename = "pre-merge")]
-    pub pre_merge: Option<CommandConfig>,
-
-    /// Commands to execute after successful merge in the main worktree (blocking)
-    /// Supports string (single command) or table (named, sequential)
-    /// Runs after push and cleanup complete
-    ///
-    /// Available template variables: `{{ repo }}`, `{{ branch }}`, `{{ worktree }}`, `{{ worktree_name }}`, `{{ repo_root }}`, `{{ default_branch }}`, `{{ commit }}`, `{{ short_commit }}`, `{{ remote }}`, `{{ upstream }}`, `{{ target }}`
-    #[serde(default, rename = "post-merge")]
-    pub post_merge: Option<CommandConfig>,
-
-    /// Commands to execute before a worktree is removed (blocking)
-    /// Supports string (single command) or table (named, sequential)
-    /// Runs in the worktree before removal; non-zero exit aborts removal
-    ///
-    /// Available template variables: `{{ repo }}`, `{{ branch }}`, `{{ worktree }}`, `{{ worktree_name }}`, `{{ repo_root }}`, `{{ default_branch }}`, `{{ commit }}`, `{{ short_commit }}`, `{{ remote }}`, `{{ upstream }}`
-    #[serde(default, rename = "pre-remove")]
-    pub pre_remove: Option<CommandConfig>,
+    /// Project hooks (same keys as user hooks, flattened at top level)
+    #[serde(flatten, default)]
+    pub hooks: HooksConfig,
 
     /// Configuration for `wt list` output
     #[serde(default)]
@@ -176,13 +125,13 @@ mod tests {
     #[test]
     fn test_project_config_default() {
         let config = ProjectConfig::default();
-        assert!(config.post_create.is_none());
-        assert!(config.post_start.is_none());
-        assert!(config.post_switch.is_none());
-        assert!(config.pre_commit.is_none());
-        assert!(config.pre_merge.is_none());
-        assert!(config.post_merge.is_none());
-        assert!(config.pre_remove.is_none());
+        assert!(config.hooks.post_create.is_none());
+        assert!(config.hooks.post_start.is_none());
+        assert!(config.hooks.post_switch.is_none());
+        assert!(config.hooks.pre_commit.is_none());
+        assert!(config.hooks.pre_merge.is_none());
+        assert!(config.hooks.post_merge.is_none());
+        assert!(config.hooks.pre_remove.is_none());
         assert!(config.list.is_none());
     }
 
@@ -194,15 +143,15 @@ mod tests {
     fn test_deserialize_empty_config() {
         let contents = "";
         let config: ProjectConfig = toml::from_str(contents).unwrap();
-        assert!(config.post_create.is_none());
-        assert!(config.pre_merge.is_none());
+        assert!(config.hooks.post_create.is_none());
+        assert!(config.hooks.pre_merge.is_none());
     }
 
     #[test]
     fn test_deserialize_post_create_string() {
         let contents = r#"post-create = "npm install""#;
         let config: ProjectConfig = toml::from_str(contents).unwrap();
-        assert!(config.post_create.is_some());
+        assert!(config.hooks.post_create.is_some());
     }
 
     #[test]
@@ -213,35 +162,35 @@ build = "cargo build"
 test = "cargo test"
 "#;
         let config: ProjectConfig = toml::from_str(contents).unwrap();
-        assert!(config.post_start.is_some());
+        assert!(config.hooks.post_start.is_some());
     }
 
     #[test]
     fn test_deserialize_pre_merge() {
         let contents = r#"pre-merge = "cargo test""#;
         let config: ProjectConfig = toml::from_str(contents).unwrap();
-        assert!(config.pre_merge.is_some());
+        assert!(config.hooks.pre_merge.is_some());
     }
 
     #[test]
     fn test_deserialize_post_merge() {
         let contents = r#"post-merge = "git push origin main""#;
         let config: ProjectConfig = toml::from_str(contents).unwrap();
-        assert!(config.post_merge.is_some());
+        assert!(config.hooks.post_merge.is_some());
     }
 
     #[test]
     fn test_deserialize_pre_remove() {
         let contents = r#"pre-remove = "echo cleaning up""#;
         let config: ProjectConfig = toml::from_str(contents).unwrap();
-        assert!(config.pre_remove.is_some());
+        assert!(config.hooks.pre_remove.is_some());
     }
 
     #[test]
     fn test_deserialize_pre_commit() {
         let contents = r#"pre-commit = "cargo fmt --check""#;
         let config: ProjectConfig = toml::from_str(contents).unwrap();
-        assert!(config.pre_commit.is_some());
+        assert!(config.hooks.pre_commit.is_some());
     }
 
     #[test]
@@ -256,13 +205,13 @@ post-merge = "git push"
 pre-remove = "echo bye"
 "#;
         let config: ProjectConfig = toml::from_str(contents).unwrap();
-        assert!(config.post_create.is_some());
-        assert!(config.post_start.is_some());
-        assert!(config.post_switch.is_some());
-        assert!(config.pre_commit.is_some());
-        assert!(config.pre_merge.is_some());
-        assert!(config.post_merge.is_some());
-        assert!(config.pre_remove.is_some());
+        assert!(config.hooks.post_create.is_some());
+        assert!(config.hooks.post_start.is_some());
+        assert!(config.hooks.post_switch.is_some());
+        assert!(config.hooks.pre_commit.is_some());
+        assert!(config.hooks.pre_merge.is_some());
+        assert!(config.hooks.post_merge.is_some());
+        assert!(config.hooks.pre_remove.is_some());
     }
 
     // ============================================================================

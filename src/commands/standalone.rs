@@ -52,7 +52,7 @@ pub fn run_hook(hook_type: HookType, force: bool, name_filter: Option<&str>) -> 
     // Helper to get user hook config
     macro_rules! user_hook {
         ($field:ident) => {
-            ctx.config.$field.as_ref()
+            ctx.config.hooks.$field.as_ref()
         };
     }
 
@@ -75,7 +75,9 @@ pub fn run_hook(hook_type: HookType, force: bool, name_filter: Option<&str>) -> 
     match hook_type {
         HookType::PostCreate => {
             let user_config = user_hook!(post_create);
-            let project_config = project_config.as_ref().and_then(|c| c.post_create.as_ref());
+            let project_config = project_config
+                .as_ref()
+                .and_then(|c| c.hooks.post_create.as_ref());
             require_hooks(user_config, project_config, hook_type)?;
             run_hook_with_filter(
                 &ctx,
@@ -89,7 +91,9 @@ pub fn run_hook(hook_type: HookType, force: bool, name_filter: Option<&str>) -> 
         }
         HookType::PostStart => {
             let user_config = user_hook!(post_start);
-            let project_config = project_config.as_ref().and_then(|c| c.post_start.as_ref());
+            let project_config = project_config
+                .as_ref()
+                .and_then(|c| c.hooks.post_start.as_ref());
             require_hooks(user_config, project_config, hook_type)?;
             run_hook_with_filter(
                 &ctx,
@@ -103,7 +107,9 @@ pub fn run_hook(hook_type: HookType, force: bool, name_filter: Option<&str>) -> 
         }
         HookType::PostSwitch => {
             let user_config = user_hook!(post_switch);
-            let project_config = project_config.as_ref().and_then(|c| c.post_switch.as_ref());
+            let project_config = project_config
+                .as_ref()
+                .and_then(|c| c.hooks.post_switch.as_ref());
             require_hooks(user_config, project_config, hook_type)?;
             run_hook_with_filter(
                 &ctx,
@@ -117,7 +123,9 @@ pub fn run_hook(hook_type: HookType, force: bool, name_filter: Option<&str>) -> 
         }
         HookType::PreCommit => {
             let user_config = user_hook!(pre_commit);
-            let project_config = project_config.as_ref().and_then(|c| c.pre_commit.as_ref());
+            let project_config = project_config
+                .as_ref()
+                .and_then(|c| c.hooks.pre_commit.as_ref());
             require_hooks(user_config, project_config, hook_type)?;
             // Pre-commit hook can optionally use target branch context
             let target_branch = repo.default_branch().ok();
@@ -253,9 +261,9 @@ pub fn handle_squash(
     let project_config = repo.load_project_config()?;
     let has_project_pre_commit = project_config
         .as_ref()
-        .map(|c| c.pre_commit.is_some())
+        .map(|c| c.hooks.pre_commit.is_some())
         .unwrap_or(false);
-    let has_user_pre_commit = ctx.config.pre_commit.is_some();
+    let has_user_pre_commit = ctx.config.hooks.pre_commit.is_some();
     let has_any_pre_commit = has_project_pre_commit || has_user_pre_commit;
 
     if skip_pre_commit && has_any_pre_commit {
@@ -268,7 +276,7 @@ pub fn handle_squash(
     let extra_vars = [("target", target_branch.as_str())];
 
     // Run user pre-commit hooks first (unless skipped)
-    if !skip_pre_commit && let Some(user_config) = &ctx.config.pre_commit {
+    if !skip_pre_commit && let Some(user_config) = &ctx.config.hooks.pre_commit {
         use super::hooks::{HookFailureStrategy, HookSource};
         pipeline
             .run_sequential(
@@ -573,7 +581,7 @@ pub fn add_approvals(show_all: bool) -> anyhow::Result<()> {
     let commands_to_approve = if !show_all {
         let unapproved: Vec<_> = commands
             .into_iter()
-            .filter(|cmd| !config.is_command_approved(project_id, &cmd.template))
+            .filter(|cmd| !config.is_command_approved(project_id, &cmd.command.template))
             .collect();
 
         if unapproved.is_empty() {
@@ -738,13 +746,13 @@ fn render_user_hooks(
 
     // Collect all user hooks
     let hooks = [
-        (HookType::PostCreate, &config.post_create),
-        (HookType::PostStart, &config.post_start),
-        (HookType::PostSwitch, &config.post_switch),
-        (HookType::PreCommit, &config.pre_commit),
-        (HookType::PreMerge, &config.pre_merge),
-        (HookType::PostMerge, &config.post_merge),
-        (HookType::PreRemove, &config.pre_remove),
+        (HookType::PostCreate, &config.hooks.post_create),
+        (HookType::PostStart, &config.hooks.post_start),
+        (HookType::PostSwitch, &config.hooks.post_switch),
+        (HookType::PreCommit, &config.hooks.pre_commit),
+        (HookType::PreMerge, &config.hooks.pre_merge),
+        (HookType::PostMerge, &config.hooks.post_merge),
+        (HookType::PreRemove, &config.hooks.pre_remove),
     ];
 
     let mut has_any = false;
@@ -798,13 +806,13 @@ fn render_project_hooks(
 
     // Collect all project hooks
     let hooks = [
-        (HookType::PostCreate, &config.post_create),
-        (HookType::PostStart, &config.post_start),
-        (HookType::PostSwitch, &config.post_switch),
-        (HookType::PreCommit, &config.pre_commit),
-        (HookType::PreMerge, &config.pre_merge),
-        (HookType::PostMerge, &config.post_merge),
-        (HookType::PreRemove, &config.pre_remove),
+        (HookType::PostCreate, &config.hooks.post_create),
+        (HookType::PostStart, &config.hooks.post_start),
+        (HookType::PostSwitch, &config.hooks.post_switch),
+        (HookType::PreCommit, &config.hooks.pre_commit),
+        (HookType::PreMerge, &config.hooks.pre_merge),
+        (HookType::PostMerge, &config.hooks.post_merge),
+        (HookType::PreRemove, &config.hooks.pre_remove),
     ];
 
     let mut has_any = false;

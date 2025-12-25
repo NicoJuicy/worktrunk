@@ -178,30 +178,13 @@ use unicode_width::UnicodeWidthStr;
 use worktrunk::styling::{ADDITION, DELETION};
 
 use super::collect::TaskKind;
-use super::columns::{COLUMN_SPECS, ColumnKind, ColumnSpec};
+use super::columns::{COLUMN_SPECS, ColumnKind, ColumnSpec, column_display_index};
 
 // Re-export DiffVariant for external use (e.g., select command)
 pub use super::columns::DiffVariant;
 
 /// Width of short commit hash display (first 8 hex characters)
 const COMMIT_HASH_WIDTH: usize = 8;
-
-/// Column header labels - single source of truth for all column headers.
-/// Both layout calculations and rendering use these constants.
-pub const HEADER_GUTTER: &str = ""; // No header for gutter (type indicator column)
-pub const HEADER_BRANCH: &str = "Branch";
-pub const HEADER_STATUS: &str = "Status";
-pub const HEADER_WORKING_DIFF: &str = "HEAD±";
-pub const HEADER_AHEAD_BEHIND: &str = "main↕";
-pub const HEADER_BRANCH_DIFF: &str = "main…±";
-pub const HEADER_PATH: &str = "Path";
-pub const HEADER_UPSTREAM: &str = "Remote⇅";
-pub const HEADER_URL: &str = "URL";
-pub const HEADER_AGE: &str = "Age";
-pub const HEADER_CI: &str = "CI";
-pub const HEADER_COMMIT: &str = "Commit";
-pub const HEADER_MESSAGE: &str = "Message";
-
 /// Get terminal width for list rendering.
 pub fn get_safe_list_width() -> usize {
     get_terminal_width()
@@ -495,13 +478,13 @@ fn build_estimated_widths(
     //
     // Status column: Must match PositionMask::FULL width for consistent alignment
     // PositionMask::FULL allocates: 1+1+1+1+1+1+2 = 8 chars (7 positions)
-    let status_fixed = fit_header(HEADER_STATUS, 8);
-    let working_diff_fixed = fit_header(HEADER_WORKING_DIFF, 9); // "+999 -999"
-    let ahead_behind_fixed = fit_header(HEADER_AHEAD_BEHIND, 7); // "↑99 ↓99"
-    let branch_diff_fixed = fit_header(HEADER_BRANCH_DIFF, 9); // "+999 -999"
-    let upstream_fixed = fit_header(HEADER_UPSTREAM, 7); // "↑99 ↓99"
+    let status_fixed = fit_header(ColumnKind::Status.header(), 8);
+    let working_diff_fixed = fit_header(ColumnKind::WorkingDiff.header(), 9); // "+999 -999"
+    let ahead_behind_fixed = fit_header(ColumnKind::AheadBehind.header(), 7); // "↑99 ↓99"
+    let branch_diff_fixed = fit_header(ColumnKind::BranchDiff.header(), 9); // "+999 -999"
+    let upstream_fixed = fit_header(ColumnKind::Upstream.header(), 7); // "↑99 ↓99"
     let age_estimate = 4; // "11mo" (short format)
-    let ci_estimate = fit_header(HEADER_CI, 1); // Single indicator symbol
+    let ci_estimate = fit_header(ColumnKind::CiStatus.header(), 1); // Single indicator symbol
 
     // Assume columns will have data (better to show and hide than to not show).
     // This is a limitation of progressive mode - we can't know which columns have data
@@ -524,7 +507,7 @@ fn build_estimated_widths(
     // URL width estimated from template + longest branch (or fallback)
     // When url_width is 0 (no template), don't allocate any space for URL column
     let url_estimate = if url_width > 0 {
-        fit_header(HEADER_URL, url_width)
+        fit_header(ColumnKind::Url.header(), url_width)
     } else {
         0
     };
@@ -692,8 +675,8 @@ fn allocate_columns_with_priority(
         max_message_len = message_col.width;
     }
 
-    // Sort by display index to maintain correct visual order
-    pending.sort_by_key(|col| col.spec.display_index);
+    // Sort by display order to maintain correct visual order
+    pending.sort_by_key(|col| column_display_index(col.spec.kind));
 
     // Build final column layouts with positions
     let gap = 2;
@@ -719,7 +702,7 @@ fn allocate_columns_with_priority(
 
         columns.push(ColumnLayout {
             kind: col.spec.kind,
-            header: col.spec.header,
+            header: col.spec.kind.header(),
             start,
             width: col.width,
             format: col.format,
@@ -795,7 +778,7 @@ pub fn calculate_layout_with_width(
         .max_by_key(|b| b.width());
 
     let max_branch = longest_branch.map(|b| b.width()).unwrap_or(0);
-    let max_branch = fit_header(HEADER_BRANCH, max_branch);
+    let max_branch = fit_header(ColumnKind::Branch.header(), max_branch);
 
     let path_data_width = items
         .iter()
@@ -806,7 +789,7 @@ pub fn calculate_layout_with_width(
         })
         .max()
         .unwrap_or(0);
-    let max_path_width = fit_header(HEADER_PATH, path_data_width);
+    let max_path_width = fit_header(ColumnKind::Path.header(), path_data_width);
 
     // Check if any worktree has a path that doesn't match the expected template.
     // Path column is only useful when there's a mismatch; otherwise it's redundant with branch.
@@ -821,7 +804,7 @@ pub fn calculate_layout_with_width(
     // Build pre-allocated width estimates (same as buffered mode)
     let metadata = build_estimated_widths(max_branch, skip_tasks, has_path_mismatch, url_width);
 
-    let commit_width = fit_header(HEADER_COMMIT, COMMIT_HASH_WIDTH);
+    let commit_width = fit_header(ColumnKind::Commit.header(), COMMIT_HASH_WIDTH);
 
     allocate_columns_with_priority(
         &metadata,

@@ -1,24 +1,30 @@
 use worktrunk::config::{Command, ProjectConfig};
 use worktrunk::git::HookType;
 
+#[derive(Clone)]
+pub struct HookCommand {
+    pub hook_type: HookType,
+    pub command: Command,
+}
+
 /// Collect commands for the given hook types, preserving order of the provided hooks.
 pub fn collect_commands_for_hooks(
     project_config: &ProjectConfig,
     hooks: &[HookType],
-) -> Vec<Command> {
+) -> Vec<HookCommand> {
     let mut commands = Vec::new();
     for hook in hooks {
-        let cfg = match hook {
-            HookType::PostCreate => &project_config.post_create,
-            HookType::PostStart => &project_config.post_start,
-            HookType::PostSwitch => &project_config.post_switch,
-            HookType::PreCommit => &project_config.pre_commit,
-            HookType::PreMerge => &project_config.pre_merge,
-            HookType::PostMerge => &project_config.post_merge,
-            HookType::PreRemove => &project_config.pre_remove,
-        };
-        if let Some(config) = cfg {
-            commands.extend(config.commands_with_phase(*hook));
+        if let Some(config) = project_config.hooks.get(*hook) {
+            commands.extend(
+                config
+                    .commands()
+                    .iter()
+                    .cloned()
+                    .map(|command| HookCommand {
+                        hook_type: *hook,
+                        command,
+                    }),
+            );
         }
     }
     commands
@@ -49,7 +55,7 @@ pre-merge = "cargo test"
         let config = make_project_config_with_hooks();
         let commands = collect_commands_for_hooks(&config, &[HookType::PostCreate]);
         assert_eq!(commands.len(), 1);
-        assert_eq!(commands[0].template, "npm install");
+        assert_eq!(commands[0].command.template, "npm install");
     }
 
     #[test]
@@ -58,8 +64,8 @@ pre-merge = "cargo test"
         let commands =
             collect_commands_for_hooks(&config, &[HookType::PostCreate, HookType::PreMerge]);
         assert_eq!(commands.len(), 2);
-        assert_eq!(commands[0].template, "npm install");
-        assert_eq!(commands[1].template, "cargo test");
+        assert_eq!(commands[0].command.template, "npm install");
+        assert_eq!(commands[1].command.template, "cargo test");
     }
 
     #[test]
@@ -76,8 +82,8 @@ pre-merge = "cargo test"
         let commands =
             collect_commands_for_hooks(&config, &[HookType::PreMerge, HookType::PostCreate]);
         assert_eq!(commands.len(), 2);
-        assert_eq!(commands[0].template, "cargo test");
-        assert_eq!(commands[1].template, "npm install");
+        assert_eq!(commands[0].command.template, "cargo test");
+        assert_eq!(commands[1].command.template, "npm install");
     }
 
     #[test]
@@ -107,8 +113,8 @@ build = "npm run build"
         let commands = collect_commands_for_hooks(&config, &[HookType::PostCreate]);
         assert_eq!(commands.len(), 2);
         // Named commands preserve order from TOML
-        assert_eq!(commands[0].name, Some("install".to_string()));
-        assert_eq!(commands[1].name, Some("build".to_string()));
+        assert_eq!(commands[0].command.name, Some("install".to_string()));
+        assert_eq!(commands[1].command.name, Some("build".to_string()));
     }
 
     #[test]
@@ -116,6 +122,6 @@ build = "npm run build"
         let config = make_project_config_with_hooks();
         let commands = collect_commands_for_hooks(&config, &[HookType::PostCreate]);
         assert_eq!(commands.len(), 1);
-        assert_eq!(commands[0].phase, HookType::PostCreate);
+        assert_eq!(commands[0].hook_type, HookType::PostCreate);
     }
 }

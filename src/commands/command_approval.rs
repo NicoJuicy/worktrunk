@@ -17,12 +17,12 @@
 //! This ensures approval happens exactly once at the command entry point,
 //! eliminating the need to thread `auto_trust` through execution layers.
 
-use super::project_config::collect_commands_for_hooks;
+use super::project_config::{HookCommand, collect_commands_for_hooks};
 use super::repository_ext::RepositoryCliExt;
 use crate::output;
 use anyhow::Context;
 use color_print::cformat;
-use worktrunk::config::{Command, WorktrunkConfig};
+use worktrunk::config::WorktrunkConfig;
 use worktrunk::git::{GitError, HookType};
 use worktrunk::styling::{
     INFO_SYMBOL, PROMPT_SYMBOL, WARNING_SYMBOL, eprint, eprintln, format_bash_with_gutter,
@@ -39,16 +39,17 @@ use worktrunk::styling::{
 /// # Parameters
 /// - `commands_already_filtered`: If true, commands list is pre-filtered; skip filtering by approval status
 pub fn approve_command_batch(
-    commands: &[Command],
+    commands: &[HookCommand],
     project_id: &str,
     config: &WorktrunkConfig,
     force: bool,
     commands_already_filtered: bool,
 ) -> anyhow::Result<bool> {
-    let needs_approval: Vec<&Command> = commands
+    let needs_approval: Vec<&HookCommand> = commands
         .iter()
         .filter(|cmd| {
-            commands_already_filtered || !config.is_command_approved(project_id, &cmd.template)
+            commands_already_filtered
+                || !config.is_command_approved(project_id, &cmd.command.template)
         })
         .collect();
 
@@ -77,8 +78,13 @@ pub fn approve_command_batch(
 
         let mut updated = false;
         for cmd in &needs_approval {
-            if !project_entry.approved_commands.contains(&cmd.template) {
-                project_entry.approved_commands.push(cmd.template.clone());
+            if !project_entry
+                .approved_commands
+                .contains(&cmd.command.template)
+            {
+                project_entry
+                    .approved_commands
+                    .push(cmd.command.template.clone());
                 updated = true;
             }
         }
@@ -94,7 +100,7 @@ pub fn approve_command_batch(
     Ok(true)
 }
 
-fn prompt_for_batch_approval(commands: &[&Command], project_id: &str) -> anyhow::Result<bool> {
+fn prompt_for_batch_approval(commands: &[&HookCommand], project_id: &str) -> anyhow::Result<bool> {
     use std::io::{self, IsTerminal, Write};
 
     let project_name = project_id.split('/').next_back().unwrap_or(project_id);
@@ -115,15 +121,15 @@ fn prompt_for_batch_approval(commands: &[&Command], project_id: &str) -> anyhow:
 
     for cmd in commands {
         // Format as: {phase} {bold}{name}{bold:#}:
-        // Phase comes from the command itself (e.g., "pre-commit", "pre-merge")
+        // Phase comes from the hook type (e.g., "pre-commit", "pre-merge")
         // Uses INFO_SYMBOL (○) since this is a preview, not active execution
-        let phase = cmd.phase.to_string();
-        let label = match &cmd.name {
+        let phase = cmd.hook_type.to_string();
+        let label = match &cmd.command.name {
             Some(name) => cformat!("{INFO_SYMBOL} {phase} <bold>{name}</>:"),
             None => format!("{INFO_SYMBOL} {phase}:"),
         };
         eprintln!("{label}");
-        eprint!("{}", format_bash_with_gutter(&cmd.template, ""));
+        eprint!("{}", format_bash_with_gutter(&cmd.command.template, ""));
     }
 
     // Check if stdin is a TTY before attempting to prompt
@@ -193,7 +199,7 @@ pub fn approve_hooks_filtered(
 
     // Apply name filter before approval to only prompt for targeted commands
     if let Some(name) = name_filter {
-        commands.retain(|cmd| cmd.name.as_deref() == Some(name));
+        commands.retain(|cmd| cmd.command.name.as_deref() == Some(name));
     }
 
     if commands.is_empty() {

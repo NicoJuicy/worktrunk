@@ -606,6 +606,26 @@ fn parse_port_from_url(url: &str) -> Option<u16> {
 // Collection Entry Points
 // ============================================================================
 
+fn collect_progressive(
+    ctx: TaskContext,
+    include_worktree_tasks: bool,
+    options: &CollectOptions,
+    tx: Sender<Result<TaskResult, TaskError>>,
+    expected_results: &Arc<ExpectedResults>,
+) {
+    let spawner = TaskSpawner::new(tx, expected_results.clone());
+    let skip = &options.skip_tasks;
+
+    std::thread::scope(|s| {
+        // Core tasks (always run)
+        spawner.spawn_core_tasks(s, &ctx);
+        if include_worktree_tasks {
+            spawner.spawn_worktree_only_tasks(s, &ctx);
+        }
+        spawner.spawn_optional_tasks(s, &ctx, skip);
+    });
+}
+
 /// Collect worktree data progressively, sending results as each task completes.
 ///
 /// Spawns parallel git operations (up to 10). Each task sends a TaskResult when it
@@ -652,15 +672,7 @@ pub fn collect_worktree_progressive(
         item_url,
     };
 
-    let spawner = TaskSpawner::new(tx, expected_results.clone());
-    let skip = &options.skip_tasks;
-
-    std::thread::scope(|s| {
-        // Core tasks (always run)
-        spawner.spawn_core_tasks(s, &ctx);
-        spawner.spawn_worktree_only_tasks(s, &ctx);
-        spawner.spawn_optional_tasks(s, &ctx, skip);
-    });
+    collect_progressive(ctx, true, options, tx, expected_results);
 }
 
 /// Collect branch data progressively, sending results as each task completes.
@@ -710,14 +722,7 @@ pub fn collect_branch_progressive(
         item_url,
     };
 
-    let spawner = TaskSpawner::new(tx, expected_results.clone());
-    let skip = &options.skip_tasks;
-
-    std::thread::scope(|s| {
-        // Core tasks (always run)
-        spawner.spawn_core_tasks(s, &ctx);
-        spawner.spawn_optional_tasks(s, &ctx, skip);
-    });
+    collect_progressive(ctx, false, options, tx, expected_results);
 }
 
 // ============================================================================

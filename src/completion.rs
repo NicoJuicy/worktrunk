@@ -220,12 +220,12 @@ fn complete_hook_commands() -> Vec<CompletionCandidate> {
     // Load user config and add user hook names
     if let Ok(user_config) = WorktrunkConfig::load() {
         let user_command_config = match hook_type {
-            "post-create" => &user_config.post_create,
-            "post-start" => &user_config.post_start,
-            "pre-commit" => &user_config.pre_commit,
-            "pre-merge" => &user_config.pre_merge,
-            "post-merge" => &user_config.post_merge,
-            "pre-remove" => &user_config.pre_remove,
+            "post-create" => &user_config.hooks.post_create,
+            "post-start" => &user_config.hooks.post_start,
+            "pre-commit" => &user_config.hooks.pre_commit,
+            "pre-merge" => &user_config.hooks.pre_merge,
+            "post-merge" => &user_config.hooks.post_merge,
+            "pre-remove" => &user_config.hooks.pre_remove,
             _ => &None,
         };
 
@@ -246,12 +246,12 @@ fn complete_hook_commands() -> Vec<CompletionCandidate> {
         && let Ok(Some(project_config)) = ProjectConfig::load(repo_root)
     {
         let project_command_config = match hook_type {
-            "post-create" => &project_config.post_create,
-            "post-start" => &project_config.post_start,
-            "pre-commit" => &project_config.pre_commit,
-            "pre-merge" => &project_config.pre_merge,
-            "post-merge" => &project_config.post_merge,
-            "pre-remove" => &project_config.pre_remove,
+            "post-create" => &project_config.hooks.post_create,
+            "post-start" => &project_config.hooks.post_start,
+            "pre-commit" => &project_config.hooks.pre_commit,
+            "pre-merge" => &project_config.hooks.pre_merge,
+            "post-merge" => &project_config.hooks.post_merge,
+            "pre-remove" => &project_config.hooks.pre_remove,
             _ => &None,
         };
 

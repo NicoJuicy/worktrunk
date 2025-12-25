@@ -123,6 +123,7 @@ fn expand_commands(
     commands: &[Command],
     ctx: &CommandContext<'_>,
     extra_vars: &[(&str, &str)],
+    hook_type: HookType,
 ) -> anyhow::Result<Vec<(Command, String)>> {
     if commands.is_empty() {
         return Ok(Vec::new());
@@ -149,7 +150,7 @@ fn expand_commands(
 
         // Build per-command JSON with hook_type and hook_name
         let mut cmd_context = base_context.clone();
-        cmd_context.insert("hook_type".into(), cmd.phase.to_string());
+        cmd_context.insert("hook_type".into(), hook_type.to_string());
         if let Some(ref name) = cmd.name {
             cmd_context.insert("hook_name".into(), name.clone());
         }
@@ -157,12 +158,7 @@ fn expand_commands(
             .expect("HashMap<String, String> serialization should never fail");
 
         result.push((
-            Command::with_expansion(
-                cmd.name.clone(),
-                cmd.template.clone(),
-                expanded_str,
-                cmd.phase,
-            ),
+            Command::with_expansion(cmd.name.clone(), cmd.template.clone(), expanded_str),
             context_json,
         ));
     }
@@ -184,12 +180,12 @@ pub fn prepare_commands(
     extra_vars: &[(&str, &str)],
     hook_type: HookType,
 ) -> anyhow::Result<Vec<PreparedCommand>> {
-    let commands = command_config.commands_with_phase(hook_type);
+    let commands = command_config.commands();
     if commands.is_empty() {
         return Ok(Vec::new());
     }
 
-    let expanded_with_json = expand_commands(&commands, ctx, extra_vars)?;
+    let expanded_with_json = expand_commands(commands, ctx, extra_vars, hook_type)?;
 
     Ok(expanded_with_json
         .into_iter()

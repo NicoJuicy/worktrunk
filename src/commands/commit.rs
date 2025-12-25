@@ -145,10 +145,10 @@ impl<'a> CommitGenerator<'a> {
 impl CommitOptions<'_> {
     pub fn commit(self) -> anyhow::Result<()> {
         let project_config = self.ctx.repo.load_project_config()?;
-        let user_hooks_exist = self.ctx.config.pre_commit.is_some();
+        let user_hooks_exist = self.ctx.config.hooks.pre_commit.is_some();
         let project_hooks_exist = project_config
             .as_ref()
-            .map(|c| c.pre_commit.is_some())
+            .map(|c| c.hooks.pre_commit.is_some())
             .unwrap_or(false);
         let any_hooks_exist = user_hooks_exist || project_hooks_exist;
 
@@ -168,7 +168,7 @@ impl CommitOptions<'_> {
                 .collect();
 
             // Run user pre-commit hooks first (no approval required)
-            if let Some(user_config) = &self.ctx.config.pre_commit {
+            if let Some(user_config) = &self.ctx.config.hooks.pre_commit {
                 pipeline
                     .run_sequential(
                         user_config,
