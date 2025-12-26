@@ -676,6 +676,7 @@ mod tests {
             head_pipeline: None,
             pipeline: None,
             source_project_id: None,
+            web_url: None,
         };
         assert_eq!(mr.ci_status(), CiStatus::NoCI);
 
@@ -687,12 +688,15 @@ mod tests {
             head_pipeline: Some(GitLabPipeline {
                 status: Some("success".into()),
                 sha: None,
+                web_url: None,
             }),
             pipeline: Some(GitLabPipeline {
                 status: Some("failed".into()),
                 sha: None,
+                web_url: None,
             }),
             source_project_id: None,
+            web_url: None,
         };
         assert_eq!(mr.ci_status(), CiStatus::Passed);
 
@@ -705,8 +709,10 @@ mod tests {
             pipeline: Some(GitLabPipeline {
                 status: Some("running".into()),
                 sha: None,
+                web_url: None,
             }),
             source_project_id: None,
+            web_url: None,
         };
         assert_eq!(mr.ci_status(), CiStatus::Running);
     }
@@ -1628,9 +1634,7 @@ impl PrStatus {
             ci_status,
             source: CiSource::PullRequest,
             is_stale,
-            // TODO: Fetch GitLab MR URL from glab output to enable clickable links
-            // Currently only GitHub PRs have clickable underlined indicators
-            url: None,
+            url: mr_info.web_url.clone(),
         })
     }
 
@@ -1740,8 +1744,7 @@ impl PrStatus {
             ci_status,
             source: CiSource::Branch,
             is_stale,
-            // TODO: Fetch GitLab pipeline URL to enable clickable links
-            url: None,
+            url: pipeline.web_url.clone(),
         })
     }
 }
@@ -1882,6 +1885,8 @@ struct GitLabMrInfo {
     /// The source project ID (the project the MR's branch comes from).
     /// Used to filter MRs by source project.
     source_project_id: Option<u64>,
+    /// URL to the MR page for clickable links
+    web_url: Option<String>,
 }
 
 impl GitLabMrInfo {
@@ -1900,6 +1905,9 @@ struct GitLabPipeline {
     /// Only present in `glab ci list` output, not in MR view embedded pipeline
     #[serde(default)]
     sha: Option<String>,
+    /// URL to the pipeline page for clickable links
+    #[serde(default)]
+    web_url: Option<String>,
 }
 
 fn parse_gitlab_status(status: Option<&str>) -> CiStatus {

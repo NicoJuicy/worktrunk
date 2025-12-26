@@ -6,7 +6,7 @@ use super::worktree::{BranchDeletionMode, RemoveResult};
 use anyhow::Context;
 use color_print::cformat;
 use worktrunk::config::ProjectConfig;
-use worktrunk::git::{GitError, Repository};
+use worktrunk::git::{GitError, IntegrationReason, Repository};
 use worktrunk::path::format_path_for_display;
 use worktrunk::styling::{format_with_gutter, progress_message, warning_message};
 
@@ -150,19 +150,12 @@ impl RepositoryCliExt for Repository {
         // Pre-compute integration reason to avoid race conditions when removing
         // multiple worktrees in background mode. Background git processes can hold
         // locks that cause subsequent integration checks to fail.
-        let integration_reason = if deletion_mode.should_keep() || deletion_mode.is_force() {
-            // Skip integration check if user explicitly controls branch deletion
-            None
-        } else if let Some(ref target) = target_branch {
-            // Use main_path repo for integration check (may be different from current repo)
-            let main_repo = Repository::at(&main_path);
-            let effective_target = main_repo.effective_integration_target(target);
-            let mut provider =
-                worktrunk::git::LazyGitIntegration::new(&main_repo, branch_name, &effective_target);
-            worktrunk::git::check_integration(&mut provider)
-        } else {
-            None
-        };
+        let integration_reason = compute_integration_reason(
+            &main_path,
+            Some(branch_name),
+            target_branch.as_deref(),
+            deletion_mode,
+        );
 
         Ok(RemoveResult::RemovedWorktree {
             main_path,
@@ -212,18 +205,12 @@ impl RepositoryCliExt for Repository {
         };
 
         // Pre-compute integration reason (same logic as remove_worktree_by_name)
-        let integration_reason =
-            if deletion_mode.should_keep() || deletion_mode.is_force() || branch_name.is_none() {
-                None
-            } else if let (Some(target), Some(bn)) = (&target_branch, &branch_name) {
-                let main_repo = Repository::at(&main_path);
-                let effective_target = main_repo.effective_integration_target(target);
-                let mut provider =
-                    worktrunk::git::LazyGitIntegration::new(&main_repo, bn, &effective_target);
-                worktrunk::git::check_integration(&mut provider)
-            } else {
-                None
-            };
+        let integration_reason = compute_integration_reason(
+            &main_path,
+            branch_name.as_deref(),
+            target_branch.as_deref(),
+            deletion_mode,
+        );
 
         Ok(RemoveResult::RemovedWorktree {
             main_path,
@@ -339,6 +326,30 @@ impl RepositoryCliExt for Repository {
 
 fn load_project_config_at(repo_root: &Path) -> anyhow::Result<Option<ProjectConfig>> {
     ProjectConfig::load(repo_root).context("Failed to load project config")
+}
+
+/// Compute integration reason for branch deletion.
+///
+/// Returns `None` if:
+/// - `deletion_mode` is `Keep` or `ForceDelete` (skip integration check)
+/// - `branch_name` is `None` (detached HEAD)
+/// - `target_branch` is `None` (no target to check against)
+/// - Branch is not integrated into target (safe deletion not confirmed)
+fn compute_integration_reason(
+    main_path: &Path,
+    branch_name: Option<&str>,
+    target_branch: Option<&str>,
+    deletion_mode: BranchDeletionMode,
+) -> Option<IntegrationReason> {
+    if deletion_mode.should_keep() || deletion_mode.is_force() {
+        return None;
+    }
+    let (branch, target) = branch_name.zip(target_branch)?;
+    let main_repo = Repository::at(main_path);
+    let effective_target = main_repo.effective_integration_target(target);
+    let mut provider =
+        worktrunk::git::LazyGitIntegration::new(&main_repo, branch, &effective_target);
+    worktrunk::git::check_integration(&mut provider)
 }
 
 /// Parse `git status --porcelain -z` output into a list of affected filenames.

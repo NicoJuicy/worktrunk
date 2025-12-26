@@ -338,6 +338,20 @@ fn shell_integration_hint() -> String {
     cformat!("Run <bright-black>wt config shell install</> to enable automatic cd")
 }
 
+/// Show switch message when changing directory after worktree removal
+fn print_switch_message_if_changed(
+    changed_directory: bool,
+    main_path: &Path,
+) -> anyhow::Result<()> {
+    if changed_directory && let Ok(Some(dest_branch)) = Repository::at(main_path).current_branch() {
+        let path_display = format_path_for_display(main_path);
+        super::print(info_message(cformat!(
+            "Switched to worktree for <bold>{dest_branch}</> @ <bold>{path_display}</>"
+        )))?;
+    }
+    Ok(())
+}
+
 /// Handle output for a switch operation
 ///
 /// When shell integration is not active and no execute command is provided,
@@ -689,15 +703,7 @@ fn handle_removed_worktree_output(
             )))?;
         }
 
-        // Show switch message when changing directory
-        if changed_directory
-            && let Ok(Some(dest_branch)) = Repository::at(main_path).current_branch()
-        {
-            let path_display = format_path_for_display(main_path);
-            super::print(info_message(cformat!(
-                "Switched to worktree for <bold>{dest_branch}</> @ <bold>{path_display}</>"
-            )))?;
-        }
+        print_switch_message_if_changed(changed_directory, main_path)?;
 
         // Build command with the decision we already made
         let remove_command =
@@ -773,15 +779,7 @@ fn handle_removed_worktree_output(
             )))?;
         }
 
-        // Show switch message when changing directory
-        if changed_directory
-            && let Ok(Some(dest_branch)) = Repository::at(main_path).current_branch()
-        {
-            let path_display = format_path_for_display(main_path);
-            super::print(info_message(cformat!(
-                "Switched to worktree for <bold>{dest_branch}</> @ <bold>{path_display}</>"
-            )))?;
-        }
+        print_switch_message_if_changed(changed_directory, main_path)?;
 
         super::flush()?;
         Ok(())
