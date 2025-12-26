@@ -949,7 +949,6 @@ impl<'a> CommandContext<'a> {
 /// overlaps with the push range.
 pub fn handle_push(
     target: Option<&str>,
-    allow_merge_commits: bool,
     verb: &str,
     operations: Option<MergeOperations>,
 ) -> anyhow::Result<()> {
@@ -981,15 +980,6 @@ pub fn handle_push(
             target_branch: target_branch.clone(),
             commits_formatted,
             in_merge_context: operations.is_some(),
-        }
-        .into());
-    }
-
-    // Check for merge commits unless allowed
-    let has_merge_commits = repo.has_merge_commits(&target_branch, "HEAD")?;
-    if !allow_merge_commits && has_merge_commits {
-        return Err(GitError::MergeCommitsFound {
-            target_branch: target_branch.clone(),
         }
         .into());
     }
@@ -1040,11 +1030,6 @@ pub fn handle_push(
             if !skipped_ops.is_empty() {
                 notes.push(format!("no {} needed", skipped_ops.join("/")));
             }
-        }
-
-        // Flag acknowledgments
-        if allow_merge_commits && has_merge_commits {
-            notes.push("merge commits allowed".to_string());
         }
 
         let operations_note = if notes.is_empty() {

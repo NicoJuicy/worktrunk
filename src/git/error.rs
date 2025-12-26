@@ -101,9 +101,6 @@ pub enum GitError {
         commits_formatted: String,
         in_merge_context: bool,
     },
-    MergeCommitsFound {
-        target_branch: String,
-    },
     RebaseConflict {
         target_branch: String,
         git_output: String,
@@ -382,20 +379,6 @@ impl std::fmt::Display for GitError {
                         ))
                     )
                 }
-            }
-
-            GitError::MergeCommitsFound { target_branch } => {
-                let merge_cmd = suggest_command("merge", &[], &["--allow-merge-commits"]);
-                write!(
-                    f,
-                    "{}\n\n{}",
-                    error_message(cformat!(
-                        "Can't push to local <bold>{target_branch}</> branch: found merge commits"
-                    )),
-                    hint_message(cformat!(
-                        "To push non-linear history, run <bright-black>{merge_cmd}</>"
-                    ))
-                )
             }
 
             GitError::RebaseConflict {
@@ -1023,18 +1006,6 @@ mod tests {
         };
         let display = err.to_string();
         assert!(display.contains("wt step rebase"));
-    }
-
-    #[test]
-    fn test_git_error_merge_commits_found() {
-        let err = GitError::MergeCommitsFound {
-            target_branch: "main".into(),
-        };
-        let display = err.to_string();
-        assert!(display.contains("push to local"));
-        assert!(display.contains("main"));
-        assert!(display.contains("merge commits"));
-        assert!(display.contains("--allow-merge-commits"));
     }
 
     #[test]

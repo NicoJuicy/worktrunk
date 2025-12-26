@@ -181,15 +181,6 @@ fn display_not_fast_forward_merge_context() {
 }
 
 #[test]
-fn display_merge_commits_found() {
-    let err = GitError::MergeCommitsFound {
-        target_branch: "main".into(),
-    };
-
-    assert_snapshot!("merge_commits_found", err.to_string());
-}
-
-#[test]
 fn display_rebase_conflict() {
     let err = GitError::RebaseConflict {
         target_branch: "main".into(),
