@@ -2601,3 +2601,38 @@ fn test_list_shows_warning_on_git_error(mut repo: TestRepo) {
 
     snapshot_list("git_error_warning", &repo);
 }
+
+/// Test that orphan branches (no common ancestor with main) are handled gracefully.
+///
+/// Creates a true orphan branch using `git checkout --orphan` which has no merge base
+/// with main. Verifies no error warning appears and the branch shows as unmerged.
+#[rstest]
+fn test_list_handles_orphan_branch(repo: TestRepo) {
+    // Create an orphan branch (no common ancestor with main)
+    repo.git_command(&["checkout", "--orphan", "assets"])
+        .output()
+        .unwrap();
+
+    // Clear working tree and create new content
+    repo.git_command(&["rm", "-rf", "."]).output().unwrap();
+    std::fs::write(repo.root_path().join("asset.txt"), "asset content\n").unwrap();
+    repo.git_command(&["add", "."]).output().unwrap();
+    repo.git_command(&["commit", "-m", "Add asset"])
+        .output()
+        .unwrap();
+
+    // Go back to main
+    repo.git_command(&["checkout", "main"]).output().unwrap();
+
+    // Verify no merge base exists (this confirms we have a true orphan branch)
+    let output = repo
+        .git_command(&["merge-base", "main", "assets"])
+        .output()
+        .unwrap();
+    assert!(
+        !output.status.success(),
+        "Expected no merge base for orphan branch"
+    );
+
+    snapshot_list_with_branches("orphan_branch_no_error", &repo);
+}

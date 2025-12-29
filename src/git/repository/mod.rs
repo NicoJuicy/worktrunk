@@ -689,12 +689,36 @@ impl Repository {
     /// Uses [three-dot diff][1] (`target...branch`) which shows files changed from
     /// merge-base to branch. Returns false when the diff is empty (no added changes).
     ///
+    /// For orphan branches (no common ancestor with target), returns true since all
+    /// their changes are unique.
+    ///
     /// [1]: https://git-scm.com/docs/git-diff#Documentation/git-diff.txt-emgitdiffemltoptionsgtltcommitgtltcommitgt--telepathhellip
     pub fn has_added_changes(&self, branch: &str, target: &str) -> anyhow::Result<bool> {
+        use crate::shell_exec::run;
+
         // git diff --name-only target...branch shows files changed from merge-base to branch
         let range = format!("{target}...{branch}");
-        let stdout = self.run_command(&["diff", "--name-only", &range])?;
-        Ok(!stdout.trim().is_empty())
+        let mut cmd = std::process::Command::new("git");
+        cmd.args(["diff", "--name-only", &range]);
+        cmd.current_dir(&self.path);
+
+        let output = run(&mut cmd, Some(&self.logging_context()))
+            .with_context(|| format!("Failed to execute: git diff --name-only {range}"))?;
+
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            Ok(!stdout.trim().is_empty())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            // Orphan branches have no merge base with target - they definitely have unique changes.
+            // Alternative: pre-check with `git merge-base`, but that adds a git call for every
+            // branch. String matching here only costs extra for the rare orphan branch case.
+            if stderr.contains("no merge base") {
+                Ok(true)
+            } else {
+                bail!("{}", stderr.trim())
+            }
+        }
     }
 
     /// Count commits between base and head.
