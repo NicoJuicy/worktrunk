@@ -993,6 +993,23 @@ impl Repository {
         Ok(branches)
     }
 
+    /// List all upstream tracking refs that local branches are tracking.
+    ///
+    /// Returns a set of upstream refs like "origin/main", "origin/feature".
+    /// Useful for filtering remote branches to only show those not tracked locally.
+    pub fn list_tracked_upstreams(&self) -> anyhow::Result<std::collections::HashSet<String>> {
+        let output =
+            self.run_command(&["for-each-ref", "--format=%(upstream:short)", "refs/heads/"])?;
+
+        let upstreams: std::collections::HashSet<String> = output
+            .lines()
+            .filter(|line| !line.is_empty())
+            .map(|line| line.to_string())
+            .collect();
+
+        Ok(upstreams)
+    }
+
     /// Get line diff statistics for working tree changes (unstaged + staged).
     pub fn working_tree_diff_stats(&self) -> anyhow::Result<LineDiff> {
         // Limit concurrent diff operations to reduce mmap thrash on pack files

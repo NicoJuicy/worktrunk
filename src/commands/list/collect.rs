@@ -626,34 +626,17 @@ fn worktree_branch_set(worktrees: &[Worktree]) -> std::collections::HashSet<&str
         .collect()
 }
 
-/// Get remote branches from all remotes that don't have local worktrees.
+/// Get remote branches that aren't tracked by any local branch.
 ///
 /// Returns (branch_name, commit_sha) pairs for remote branches.
-/// Filters out branches that already have worktrees (whether the worktree is on the
-/// local tracking branch or not).
-fn get_remote_branches(
-    repo: &Repository,
-    worktrees: &[Worktree],
-) -> anyhow::Result<Vec<(String, String)>> {
-    // Get all remote branches from all remotes
+/// Filters out branches that are set as upstream for any local branch.
+fn get_remote_branches(repo: &Repository) -> anyhow::Result<Vec<(String, String)>> {
     let all_remote_branches = repo.list_remote_branches()?;
+    let tracked_upstreams = repo.list_tracked_upstreams()?;
 
-    // Build a set of branch names that have worktrees
-    let worktree_branches = worktree_branch_set(worktrees);
-
-    // Filter to remote branches whose local equivalent doesn't have a worktree
     let remote_branches: Vec<_> = all_remote_branches
         .into_iter()
-        .filter(|(remote_branch_name, _)| {
-            // First '/' separates remote from branch: "origin/feature/foo" → "feature/foo"
-            if let Some((_, local_name)) = remote_branch_name.split_once('/') {
-                // Include remote branch if local branch doesn't have a worktree
-                !worktree_branches.contains(local_name)
-            } else {
-                // Skip branches without a remote prefix
-                false
-            }
-        })
+        .filter(|(remote_branch_name, _)| !tracked_upstreams.contains(remote_branch_name))
         .collect();
 
     Ok(remote_branches)
@@ -712,7 +695,7 @@ pub fn collect(
         },
         || {
             if show_remotes {
-                get_remote_branches(repo, &worktrees.worktrees)
+                get_remote_branches(repo)
             } else {
                 Ok(Vec::new())
             }

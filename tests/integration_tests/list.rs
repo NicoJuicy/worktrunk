@@ -464,10 +464,16 @@ fn test_list_with_remotes_and_branches(#[from(repo_with_remote)] repo: TestRepo)
 }
 
 #[rstest]
-fn test_list_with_remotes_filters_existing_worktrees(#[from(repo_with_remote)] mut repo: TestRepo) {
-    // Create a worktree and push the branch
+fn test_list_with_remotes_filters_tracked_worktrees(#[from(repo_with_remote)] mut repo: TestRepo) {
+    // Create a worktree and push with tracking
     repo.add_worktree("feature-with-worktree");
-    repo.push_branch("feature-with-worktree");
+    let feature_path = repo.worktree_path("feature-with-worktree");
+    let mut cmd = Command::new("git");
+    repo.configure_git_cmd(&mut cmd);
+    cmd.args(["push", "-u", "origin", "feature-with-worktree"])
+        .current_dir(feature_path)
+        .output()
+        .unwrap();
 
     // Create a branch, push it, delete it locally (remote-only)
     repo.create_branch("remote-only");
@@ -482,9 +488,38 @@ fn test_list_with_remotes_filters_existing_worktrees(#[from(repo_with_remote)] m
     // Should show:
     // - main worktree
     // - feature-with-worktree worktree
-    // - origin/remote-only (remote branch without local worktree)
-    // Should NOT show origin/main or origin/feature-with-worktree (both have worktrees)
-    snapshot_list_with_remotes("with_remotes_filters_worktrees", &repo);
+    // - origin/remote-only (remote branch not tracked by any local branch)
+    // Should NOT show origin/main or origin/feature-with-worktree (both tracked)
+    snapshot_list_with_remotes("with_remotes_filters_tracked_worktrees", &repo);
+}
+
+#[rstest]
+fn test_list_with_remotes_filters_tracked_branches(#[from(repo_with_remote)] repo: TestRepo) {
+    // Create a local branch (no worktree) and push with tracking
+    repo.create_branch("tracked-branch");
+    let mut cmd = Command::new("git");
+    repo.configure_git_cmd(&mut cmd);
+    cmd.args(["push", "-u", "origin", "tracked-branch"])
+        .current_dir(repo.root_path())
+        .output()
+        .unwrap();
+
+    // Create a branch, push it, then delete locally (remote-only)
+    repo.create_branch("remote-only");
+    repo.push_branch("remote-only");
+    let mut cmd = Command::new("git");
+    repo.configure_git_cmd(&mut cmd);
+    cmd.args(["branch", "-D", "remote-only"])
+        .current_dir(repo.root_path())
+        .output()
+        .unwrap();
+
+    // Should show:
+    // - main worktree
+    // - origin/remote-only (remote branch not tracked by any local branch)
+    // Should NOT show origin/main (tracked by main + has worktree)
+    // Should NOT show origin/tracked-branch (tracked by local tracked-branch)
+    snapshot_list_with_remotes("with_remotes_filters_tracked_branches", &repo);
 }
 
 #[rstest]
