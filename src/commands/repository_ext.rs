@@ -81,7 +81,7 @@ impl RepositoryCliExt for Repository {
         let status = self
             .run_command(&["status", "--porcelain", "-z"])
             .context("Failed to get status")?;
-        AutoStageWarning::from_status(&status).emit()
+        warn_about_untracked_files(&status)
     }
 
     fn remove_worktree_by_name(
@@ -374,7 +374,7 @@ fn compute_integration_reason(
 /// paths are included for renames/copies (important for overlap detection).
 fn parse_porcelain_z(output: &str) -> Vec<String> {
     let mut files = Vec::new();
-    let mut entries = output.split('\0').filter(|s| !s.is_empty()).peekable();
+    let mut entries = output.split('\0').filter(|s| !s.is_empty());
 
     while let Some(entry) = entries.next() {
         // Each entry is "XY path" where XY is exactly 2 status chars
@@ -397,61 +397,54 @@ fn parse_porcelain_z(output: &str) -> Vec<String> {
     files
 }
 
-struct AutoStageWarning {
-    files: Vec<String>,
+/// Parse untracked files from `git status --porcelain -z` output.
+///
+/// Format: "XY path\0" where XY is the status code and path follows a space.
+/// Untracked files have status "??".
+fn parse_untracked_files(status_output: &str) -> Vec<String> {
+    let mut files = Vec::new();
+    let mut entries = status_output.split('\0').filter(|s| !s.is_empty());
+
+    while let Some(entry) = entries.next() {
+        // Format: "XY PATH" where XY is 2 status chars, space, then path
+        if entry.len() < 3 {
+            continue;
+        }
+
+        let status = &entry[0..2];
+        let path = &entry[3..];
+
+        // Only collect untracked files
+        if status == "??" {
+            files.push(path.to_string());
+        }
+
+        // Skip old path for renames/copies (we don't care about them here)
+        if status.starts_with('R') || status.starts_with('C') {
+            entries.next();
+        }
+    }
+
+    files
 }
 
-impl AutoStageWarning {
-    /// Parse `git status --porcelain -z` output for untracked files.
-    ///
-    /// Format: "XY path\0" where XY is the status code and path follows a space.
-    /// Untracked files have status "??".
-    fn from_status(status_output: &str) -> Self {
-        let mut files = Vec::new();
-        let mut entries = status_output
-            .split('\0')
-            .filter(|s| !s.is_empty())
-            .peekable();
-
-        while let Some(entry) = entries.next() {
-            // Format: "XY PATH" where XY is 2 status chars, space, then path
-            if entry.len() < 3 {
-                continue;
-            }
-
-            let status = &entry[0..2];
-            let path = &entry[3..];
-
-            // Only collect untracked files
-            if status == "??" {
-                files.push(path.to_string());
-            }
-
-            // Skip old path for renames/copies (we don't care about them here)
-            if status.starts_with('R') || status.starts_with('C') {
-                entries.next();
-            }
-        }
-
-        Self { files }
+/// Warn about untracked files that will be auto-staged.
+fn warn_about_untracked_files(status_output: &str) -> anyhow::Result<()> {
+    let files = parse_untracked_files(status_output);
+    if files.is_empty() {
+        return Ok(());
     }
 
-    fn emit(&self) -> anyhow::Result<()> {
-        if self.files.is_empty() {
-            return Ok(());
-        }
+    let count = files.len();
+    let path_word = if count == 1 { "path" } else { "paths" };
+    crate::output::print(warning_message(format!(
+        "Auto-staging {count} untracked {path_word}:"
+    )))?;
 
-        let count = self.files.len();
-        let path_word = if count == 1 { "path" } else { "paths" };
-        crate::output::print(warning_message(format!(
-            "Auto-staging {count} untracked {path_word}:"
-        )))?;
+    let joined_files = files.join("\n");
+    crate::output::gutter(format_with_gutter(&joined_files, None))?;
 
-        let joined_files = self.files.join("\n");
-        crate::output::gutter(format_with_gutter(&joined_files, None))?;
-
-        Ok(())
-    }
+    Ok(())
 }
 
 pub(crate) struct TargetWorktreeStash {
@@ -584,54 +577,61 @@ mod tests {
     }
 
     #[test]
-    fn test_auto_stage_warning_from_status_untracked() {
-        let warning = AutoStageWarning::from_status("?? new.txt\0");
-        assert_eq!(warning.files, vec!["new.txt"]);
+    fn test_parse_untracked_files_single() {
+        assert_eq!(parse_untracked_files("?? new.txt\0"), vec!["new.txt"]);
     }
 
     #[test]
-    fn test_auto_stage_warning_from_status_multiple_untracked() {
-        let warning = AutoStageWarning::from_status("?? file1.txt\0?? file2.txt\0?? file3.txt\0");
-        assert_eq!(warning.files, vec!["file1.txt", "file2.txt", "file3.txt"]);
+    fn test_parse_untracked_files_multiple() {
+        assert_eq!(
+            parse_untracked_files("?? file1.txt\0?? file2.txt\0?? file3.txt\0"),
+            vec!["file1.txt", "file2.txt", "file3.txt"]
+        );
     }
 
     #[test]
-    fn test_auto_stage_warning_from_status_ignores_modified() {
+    fn test_parse_untracked_files_ignores_modified() {
         // Only untracked files should be collected
-        let warning = AutoStageWarning::from_status(" M modified.txt\0?? untracked.txt\0");
-        assert_eq!(warning.files, vec!["untracked.txt"]);
+        assert_eq!(
+            parse_untracked_files(" M modified.txt\0?? untracked.txt\0"),
+            vec!["untracked.txt"]
+        );
     }
 
     #[test]
-    fn test_auto_stage_warning_from_status_ignores_staged() {
-        let warning = AutoStageWarning::from_status("M  staged.txt\0?? untracked.txt\0");
-        assert_eq!(warning.files, vec!["untracked.txt"]);
+    fn test_parse_untracked_files_ignores_staged() {
+        assert_eq!(
+            parse_untracked_files("M  staged.txt\0?? untracked.txt\0"),
+            vec!["untracked.txt"]
+        );
     }
 
     #[test]
-    fn test_auto_stage_warning_from_status_empty() {
-        let warning = AutoStageWarning::from_status("");
-        assert!(warning.files.is_empty());
+    fn test_parse_untracked_files_empty() {
+        assert!(parse_untracked_files("").is_empty());
     }
 
     #[test]
-    fn test_auto_stage_warning_from_status_skips_rename_old_path() {
+    fn test_parse_untracked_files_skips_rename_old_path() {
         // Rename entries have old path as second NUL-separated field
-        let warning = AutoStageWarning::from_status("R  new.txt\0old.txt\0?? untracked.txt\0");
         // Should only have untracked file, not the rename paths
-        assert_eq!(warning.files, vec!["untracked.txt"]);
+        assert_eq!(
+            parse_untracked_files("R  new.txt\0old.txt\0?? untracked.txt\0"),
+            vec!["untracked.txt"]
+        );
     }
 
     #[test]
-    fn test_auto_stage_warning_from_status_with_spaces() {
-        let warning = AutoStageWarning::from_status("?? file with spaces.txt\0");
-        assert_eq!(warning.files, vec!["file with spaces.txt"]);
+    fn test_parse_untracked_files_with_spaces() {
+        assert_eq!(
+            parse_untracked_files("?? file with spaces.txt\0"),
+            vec!["file with spaces.txt"]
+        );
     }
 
     #[test]
-    fn test_auto_stage_warning_from_status_no_untracked() {
+    fn test_parse_untracked_files_no_untracked() {
         // All files are tracked (modified, staged, etc.)
-        let warning = AutoStageWarning::from_status(" M file1.txt\0M  file2.txt\0");
-        assert!(warning.files.is_empty());
+        assert!(parse_untracked_files(" M file1.txt\0M  file2.txt\0").is_empty());
     }
 }
