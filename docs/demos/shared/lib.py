@@ -384,14 +384,16 @@ keybinds clear-defaults=true {{
 ''')
 
 
-def setup_fish_config(env: DemoEnv, wsl_create: bool = False) -> None:
+def setup_fish_config(env: DemoEnv, repo_root: Path, wsl_create: bool = False) -> None:
     """Set up Fish shell configuration for demo recording.
 
     Creates config with wsl abbreviation, starship, wt shell integration,
-    and Zellij tab auto-rename.
+    and Zellij tab auto-rename. Runs `wt config shell install` to install
+    shell extension and completions.
 
     Args:
         env: Demo environment
+        repo_root: Path to worktrunk repo (for wt binary)
         wsl_create: If True, wsl abbreviation includes --create flag
     """
     fish_config_dir = env.home / ".config" / "fish"
@@ -405,7 +407,6 @@ set -U fish_greeting ""
 # wsl abbreviation: switch to worktree and launch Claude
 abbr --add wsl '{wsl_cmd}'
 starship init fish | source
-wt config shell init fish | source
 
 # Disable cursor blinking for VHS recording
 set fish_cursor_default block
@@ -421,6 +422,12 @@ function __zellij_tab_rename --on-variable PWD
     end
 end
 ''')
+
+    # Install shell extension and completions via wt command
+    wt_bin = repo_root / "target" / "debug" / "wt"
+    install_env = os.environ.copy()
+    install_env["HOME"] = str(env.home)
+    run([str(wt_bin), "config", "shell", "install", "fish", "--force"], env=install_env)
 
 
 def setup_mock_clis(env: DemoEnv) -> None:

@@ -177,7 +177,7 @@ def prepare_zellij(env: DemoEnv):
 
     # Zellij + Fish configs
     setup_zellij_config(env)
-    setup_fish_config(env, wsl_create=False)  # No --create, worktrees pre-created
+    setup_fish_config(env, REPO_ROOT, wsl_create=False)  # No --create, worktrees pre-created
 
     # Claude Code config with pre-approved tools
     worktree_branches = ["api", "billing", "auth", "metrics"]
@@ -241,7 +241,7 @@ echo "Add placeholder module for user profile settings."
 
     # Zellij + Fish configs (with --create in wsl abbreviation)
     setup_zellij_config(env, default_cwd=str(env.repo))
-    setup_fish_config(env, wsl_create=True)
+    setup_fish_config(env, REPO_ROOT, wsl_create=True)
 
     # Claude Code config with pre-approved tools
     worktree_branches = ["api", "auth", "billing", "feature"]
