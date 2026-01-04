@@ -888,9 +888,9 @@ pub enum StepCommand {
         show_prompt: bool,
     },
 
-    /// Squash commits down to target
+    /// Squash commits since target
     ///
-    /// Stages working tree changes, combines all commits since the target into a single commit, generates message with LLM.
+    /// Stages working tree changes, squashes all commits since diverging from target into one, generates message with LLM.
     Squash {
         /// Target branch
         ///
