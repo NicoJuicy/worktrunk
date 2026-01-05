@@ -141,7 +141,7 @@ pub enum OutputFormat {
 Getting started
 
   wt switch --create feature    Create worktree and branch
-  wt switch feature             Switch to existing worktree
+  wt switch feature             Switch to worktree
   wt list                       Show all worktrees
   wt merge                      Squash, rebase, and merge to default branch
 
@@ -1255,7 +1255,7 @@ pub enum Commands {
         after_long_help = r#"Change directory to a worktree, creating one if needed.
 <!-- demo: wt-switch.gif 1600x900 -->
 
-Worktrees are addressed by branch name; paths are computed from a template. Unlike `git switch`, this navigates between worktrees rather than changing branches in place.
+Worktrees are addressed by branch name; paths are computed from a configurable template. Unlike `git switch`, this navigates between worktrees rather than changing branches in place.
 
 ## Examples
 
