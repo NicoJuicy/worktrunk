@@ -47,7 +47,15 @@ Notable changes to document:
 - User-visible behavior changes
 - Bug fixes users might encounter
 
-**Section order:** Improved, Fixed, Documentation, Internal. Within each section, list most interesting/impactful changes first. Documentation is for help text, web docs, and terminology improvements. Internal is for selected notable internal changes (not everything).
+**Section order:** Improved, Fixed, Documentation, Internal. Documentation is for help text, web docs, and terminology improvements. Internal is for selected notable internal changes (not everything).
+
+**Within each section, order by impact:**
+1. Breaking/behavior changes (affect existing users' workflows)
+2. New user-facing features and commands
+3. Performance improvements users will notice
+4. Minor enhancements and display changes
+5. Niche/platform-specific improvements (Nix, Windows-only, etc.)
+6. Developer/internal tooling exposed to users
 
 **Breaking changes:** Note inline with the entry, not as a separate section:
 
