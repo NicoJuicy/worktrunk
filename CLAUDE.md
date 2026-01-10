@@ -166,7 +166,7 @@ Examples: `feature-user-post-start-npm.log`, `feature-project-post-start-build.l
 
 ## Coverage
 
-The `codecov/patch` CI check enforces coverage on changed lines — respond to failures by writing tests, not by ignoring them.
+The `codecov/patch` CI check enforces coverage on changed lines — respond to failures by writing tests, not by ignoring them. If code is unused, remove it. This includes specialized error handlers for rare cases when falling through to a more general handler is sufficient.
 
 ### Running Coverage Locally
 
