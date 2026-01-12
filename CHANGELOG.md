@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.12.0
+
+### Improved
+
+- **`wt select --branches` and `--remotes` flags**: Control which items appear in the selection UI. Shares the `[list]` config section with `wt list` for consistent defaults.
+- **Graceful degradation when default branch unavailable**: When the default branch cannot be determined (e.g., misconfigured), `wt list` shows warnings and empty cells rather than failing. `wt switch --create` without `--base` gives a clear error message.
+- **Remove `--refresh` flag from state commands**: `wt config state default-branch get` and `wt config state ci-status get` now purely read cached state. To force re-detection, use the explicit workflow: `clear` then `get`. (Breaking: `--refresh` flag removed)
+- **Windows: Require Git for Windows**: Removed PowerShell fallback. Worktrunk now requires Git for Windows (Git Bash) and shows a clear error message pointing to the download page if not found. (Breaking: PowerShell no longer supported)
+
+### Fixed
+
+- **Flag styling in messages**: Flags like `--clobber` and `--no-verify` in parentheses now inherit message color instead of using bright-black styling.
+- **Nix flake**: Remove apple_sdk framework dependency. ([#525](https://github.com/max-sixty/worktrunk/pull/525), thanks @MattiasMTS)
+- **`gh issue create` hint**: Now includes `--web` flag to open the issue form in browser.
+
+### Internal
+
+- **Binary size reduced ~1MB**: Trimmed unused config/minijinja features (13MB → 12MB).
+- **Repository module split**: Split 2200-line module into 8 focused submodules for maintainability.
+
 ## 0.11.0
 
 ### Improved
