@@ -1,11 +1,16 @@
 ---
-source: tests/integration_tests/post_start_commands.rs
+source: tests/integration_tests/switch.rs
 info:
   program: wt
   args:
     - switch
     - "--create"
-    - feature
+    - arg-error-test
+    - "--execute"
+    - echo
+    - "--"
+    - "valid={{ branch }}"
+    - "invalid={{ unclosed"
   env:
     APPDATA: "[TEST_CONFIG_HOME]"
     CLICOLOR_FORCE: "1"
@@ -28,16 +33,13 @@ info:
     WORKTRUNK_TEST_SKIP_URL_HEALTH_CHECK: "1"
     XDG_CONFIG_HOME: "[TEST_CONFIG_HOME]"
 ---
-success: true
-exit_code: 0
+success: false
+exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-[36m◎[39m [36mRunning post-create project hook @ [1m_REPO_.feature[22m:[39m
-[107m [0m [2m[0m[2m[34mecho[0m[2m [0m[2m[32m'Setup done'[0m[2m [0m[2m[36m>[0m[2m setup.txt
-[0m[32m✓[39m [32mCreated branch [1mfeature[22m from [1mmain[22m and worktree @ [1m_REPO_.feature[22m[39m
+[32m✓[39m [32mCreated branch [1marg-error-test[22m from [1mmain[22m and worktree @ [1m_REPO_.arg-error-test[22m[39m
 [2m↳[22m [2mCustomize worktree locations: [90mwt config create[39m[22m
-[33m▲[39m [33mCannot change directory — shell integration not installed[39m
+[33m▲[39m [33mExecuting [1mecho[22m @ [1m_REPO_.arg-error-test[22m, but shell directory unchanged — shell integration not installed[39m
 [2m↳[22m [2mTo enable automatic cd, run [90mwt config shell install[39m[22m
-[36m◎[39m [36mRunning post-start [1mproject:server[22m @ [1m_REPO_.feature[22m:[39m
-[107m [0m [2m[0m[2m[34msleep[0m[2m 0.05 [0m[2m[36m&&[0m[2m [0m[2m[34mecho[0m[2m [0m[2m[32m'Server running'[0m[2m [0m[2m[36m>[0m[2m server.txt
+[31m✗[39m [31mFailed to expand argument template: Template syntax error: syntax error: unexpected end of input, expected end of variable block (in <string>:1)[39m

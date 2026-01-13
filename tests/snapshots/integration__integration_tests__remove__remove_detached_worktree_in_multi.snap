@@ -1,11 +1,11 @@
 ---
-source: tests/integration_tests/switch.rs
+source: tests/integration_tests/remove.rs
 info:
   program: wt
   args:
-    - switch
-    - "--create"
-    - feature-x
+    - remove
+    - feature-a
+    - feature-b
   env:
     APPDATA: "[TEST_CONFIG_HOME]"
     CLICOLOR_FORCE: "1"
@@ -33,7 +33,6 @@ exit_code: 0
 ----- stdout -----
 
 ----- stderr -----
-[32m✓[39m [32mCreated branch [1mfeature-x[22m from [1mmain[22m and worktree @ [1m_REPO_.feature-x[22m[39m
-[2m↳[22m [2mCustomize worktree locations: [90mwt config create[39m[22m
-[33m▲[39m [33mCannot change directory — shell integration not installed[39m
-[2m↳[22m [2mTo enable automatic cd, run [90mwt config shell install[39m[22m
+[36m◎ Removing [1mfeature-a[22m worktree & branch in background (same commit as [1mmain[22m,[39m [2m_[22m[36m)[39m
+[33m▲[39m [33mNo worktree found for branch [1mfeature-b[22m[39m
+[32m✓ Removed branch [1mfeature-b[22m (same commit as [1mmain[22m,[39m [2m_[22m[32m)[39m
