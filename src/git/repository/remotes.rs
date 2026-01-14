@@ -1,6 +1,8 @@
 //! Remote and URL operations for Repository.
 
-use super::{GitError, GitRemoteUrl, Repository};
+use anyhow::Context;
+
+use super::{GitRemoteUrl, Repository};
 
 impl Repository {
     /// Get the primary remote name for this repository.
@@ -114,14 +116,7 @@ impl Repository {
                 let repo_name = repo_root
                     .file_name()
                     .and_then(|name| name.to_str())
-                    .ok_or_else(|| {
-                        anyhow::Error::from(GitError::Other {
-                            message: format!(
-                                "Repository directory has no valid name: {}",
-                                repo_root.display()
-                            ),
-                        })
-                    })?;
+                    .context("Repository directory has no valid name")?;
 
                 Ok(repo_name.to_string())
             })

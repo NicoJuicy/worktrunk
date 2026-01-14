@@ -318,17 +318,10 @@ impl Repository {
                 if self.is_bare()? {
                     Ok(git_common_dir)
                 } else {
-                    git_common_dir
+                    Ok(git_common_dir
                         .parent()
-                        .ok_or_else(|| {
-                            anyhow::Error::from(GitError::Other {
-                                message: format!(
-                                    "Git directory has no parent: {}",
-                                    git_common_dir.display()
-                                ),
-                            })
-                        })
-                        .map(Path::to_path_buf)
+                        .context("Git directory has no parent")?
+                        .to_path_buf())
                 }
             })
             .cloned()
