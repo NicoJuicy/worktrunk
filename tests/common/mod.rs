@@ -1823,20 +1823,60 @@ impl TestRepo {
 
     /// Setup mock `glab` that returns configurable MR/CI data for GitLab
     ///
-    /// Use this for testing GitLab CI status parsing code. The mock returns JSON data
-    /// for `glab mr list` and `glab repo view` commands.
+    /// Use this for testing GitLab CI status parsing code. The mock handles the
+    /// two-step MR resolution process:
+    /// - `glab mr list` returns basic MR info (iid, sha, conflicts, etc.)
+    /// - `glab mr view <iid>` returns full MR info including head_pipeline
     ///
     /// # Arguments
-    /// * `mr_json` - JSON string to return for `glab mr list --output json`
+    /// * `mr_json` - JSON string for MR data. Should include an `iid` field and
+    ///   optionally `head_pipeline`. This data is used for both `mr list` and
+    ///   `mr view` responses.
     /// * `project_id` - Optional project ID to return from `glab repo view`
+    ///
+    /// # Note
+    /// The mock automatically handles the compound command matching:
+    /// - "mr list" → returns MR list data
+    /// - "mr view" → returns same data (works because glab mr view returns same fields)
     pub fn setup_mock_glab_with_ci_data(&mut self, mr_json: &str, project_id: Option<u64>) {
         use crate::common::mock_commands::{MockConfig, MockResponse};
 
         let mock_bin = self.temp_dir.path().join("mock-bin");
         std::fs::create_dir_all(&mock_bin).unwrap();
 
-        // Write JSON data file
-        std::fs::write(mock_bin.join("mr_data.json"), mr_json).unwrap();
+        // Parse the MR JSON to create separate list and view responses
+        // mr list needs: iid (for two-step lookup), sha, has_conflicts, detailed_merge_status, source_project_id, web_url
+        // mr view needs: sha, has_conflicts, detailed_merge_status, head_pipeline, pipeline, web_url
+        //
+        // Since we provide the same JSON for both, we need to ensure iid is present.
+        // The actual glab mr list doesn't return head_pipeline, but our mock can return
+        // it harmlessly - the code will ignore it and do a second lookup.
+
+        // Write JSON data files - same data for list (array) and view (single object)
+        std::fs::write(mock_bin.join("mr_list_data.json"), mr_json).unwrap();
+
+        // For mr view, create separate files for each MR by iid
+        // This allows triple-matching "mr view <iid>" to return the correct MR
+        let mut mock_config = MockConfig::new("glab")
+            .version("glab version 1.0.0 (mock)")
+            .command("auth", MockResponse::exit(0))
+            .command("mr list", MockResponse::file("mr_list_data.json"));
+
+        // Parse MR array and create iid-specific view commands
+        // Triple match: "mr view 1" matches before "mr view" (see mock-stub)
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(mr_json)
+            && let Some(arr) = parsed.as_array()
+        {
+            for mr in arr {
+                if let Some(iid) = mr.get("iid").and_then(|v| v.as_u64()) {
+                    let filename = format!("mr_view_{}.json", iid);
+                    let json = serde_json::to_string(mr).unwrap_or_default();
+                    std::fs::write(mock_bin.join(&filename), json).unwrap();
+                    mock_config = mock_config
+                        .command(&format!("mr view {}", iid), MockResponse::file(&filename));
+                }
+            }
+        }
 
         // Build project ID response
         let project_id_response = match project_id {
@@ -1844,16 +1884,84 @@ impl TestRepo {
             None => r#"{"error": "not found"}"#.to_string(),
         };
 
-        // Configure glab mock
-        MockConfig::new("glab")
-            .version("glab version 1.0.0 (mock)")
-            .command("auth", MockResponse::exit(0))
-            .command("mr", MockResponse::file("mr_data.json"))
+        // Configure glab mock with compound command matching
+        // "mr view <iid>" is matched before "mr view" (see mock-stub triple matching)
+        mock_config
             .command("repo", MockResponse::output(&project_id_response))
             .command("ci", MockResponse::output("[]"))
             .write(&mock_bin);
 
         // Configure gh mock (fails - no GitHub support)
+        MockConfig::new("gh")
+            .command("_default", MockResponse::exit(1))
+            .write(&mock_bin);
+
+        self.mock_bin_path = Some(mock_bin);
+    }
+
+    /// Setup mock glab where mr list succeeds but mr view fails.
+    ///
+    /// Use this to test the error path when `glab mr view` fails after finding an MR.
+    /// The mock returns the MR from mr list but exits with error for mr view.
+    pub fn setup_mock_glab_with_failing_mr_view(&mut self, mr_json: &str, project_id: Option<u64>) {
+        use crate::common::mock_commands::{MockConfig, MockResponse};
+
+        let mock_bin = self.temp_dir.path().join("mock-bin");
+        std::fs::create_dir_all(&mock_bin).unwrap();
+
+        std::fs::write(mock_bin.join("mr_list_data.json"), mr_json).unwrap();
+
+        let project_id_response = match project_id {
+            Some(id) => format!(r#"{{"id": {}}}"#, id),
+            None => r#"{"error": "not found"}"#.to_string(),
+        };
+
+        // glab mock: mr list succeeds, but NO mr view commands registered
+        // (falls back to exit code 1)
+        MockConfig::new("glab")
+            .version("glab version 1.0.0 (mock)")
+            .command("auth", MockResponse::exit(0))
+            .command("mr list", MockResponse::file("mr_list_data.json"))
+            // No "mr view" commands - will fall back to default exit code 1
+            .command("repo", MockResponse::output(&project_id_response))
+            .command("ci", MockResponse::output("[]"))
+            .write(&mock_bin);
+
+        MockConfig::new("gh")
+            .command("_default", MockResponse::exit(1))
+            .write(&mock_bin);
+
+        self.mock_bin_path = Some(mock_bin);
+    }
+
+    /// Set up mock glab that returns a rate limit error on `ci list`.
+    ///
+    /// Used to test the `is_retriable_error` path in `detect_gitlab_pipeline`.
+    /// MR list returns empty (no MRs), so the code falls through to pipeline detection
+    /// which then hits the rate limit error.
+    pub fn setup_mock_glab_with_ci_rate_limit(&mut self, project_id: Option<u64>) {
+        use crate::common::mock_commands::{MockConfig, MockResponse};
+
+        let mock_bin = self.temp_dir.path().join("mock-bin");
+        std::fs::create_dir_all(&mock_bin).unwrap();
+
+        let project_id_response = match project_id {
+            Some(id) => format!(r#"{{"id": {}}}"#, id),
+            None => r#"{"error": "not found"}"#.to_string(),
+        };
+
+        // glab mock: mr list returns empty (no MRs), ci list fails with rate limit
+        MockConfig::new("glab")
+            .version("glab version 1.0.0 (mock)")
+            .command("auth", MockResponse::exit(0))
+            .command("mr list", MockResponse::output("[]")) // No MRs - triggers ci list fallback
+            .command("repo", MockResponse::output(&project_id_response))
+            .command(
+                "ci",
+                MockResponse::stderr("API rate limit exceeded").with_exit_code(1),
+            )
+            .write(&mock_bin);
+
         MockConfig::new("gh")
             .command("_default", MockResponse::exit(1))
             .write(&mock_bin);

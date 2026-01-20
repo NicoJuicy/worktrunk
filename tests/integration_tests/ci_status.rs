@@ -459,6 +459,7 @@ fn test_list_full_with_gitlab_mr_status(
 
     let mr_json = format!(
         r#"[{{
+        "iid": 1,
         "sha": "{}",
         "has_conflicts": {},
         "detailed_merge_status": null,
@@ -484,6 +485,7 @@ fn test_list_full_with_gitlab_stale_mr(mut repo: TestRepo) {
 
     // MR HEAD differs from local HEAD - simulates stale MR
     let mr_json = r#"[{
+        "iid": 1,
         "sha": "old_sha_from_before_local_commit",
         "has_conflicts": false,
         "detailed_merge_status": null,
@@ -502,6 +504,7 @@ fn test_list_full_with_gitlab_no_ci(mut repo: TestRepo) {
     // MR with no pipeline
     let mr_json = format!(
         r#"[{{
+        "iid": 1,
         "sha": "{}",
         "has_conflicts": false,
         "detailed_merge_status": null,
@@ -529,9 +532,11 @@ fn test_list_full_with_gitlab_filters_by_project_id(mut repo: TestRepo) {
     let head_sha = get_branch_sha(&repo, "feature");
 
     // Multiple MRs - only one from our project (should filter to project 99999)
+    // The "other" MR is listed first to prove filtering works (not just taking first element)
     let mr_json = format!(
         r#"[
         {{
+            "iid": 99,
             "sha": "wrong_sha",
             "has_conflicts": false,
             "detailed_merge_status": null,
@@ -540,6 +545,7 @@ fn test_list_full_with_gitlab_filters_by_project_id(mut repo: TestRepo) {
             "web_url": "https://gitlab.com/other-group/other-project/-/merge_requests/99"
         }},
         {{
+            "iid": 1,
             "sha": "{}",
             "has_conflicts": false,
             "detailed_merge_status": null,
@@ -611,4 +617,56 @@ fn test_list_full_with_url_based_pushremote(mut repo: TestRepo) {
     );
 
     run_ci_status_test(&mut repo, "url_based_pushremote", &pr_json, "[]");
+}
+
+// =============================================================================
+// GitLab error path tests
+// =============================================================================
+
+/// Test that when `glab mr view` fails after finding an MR, we show error status (not NoCI).
+#[rstest]
+fn test_list_full_with_gitlab_mr_view_failure(mut repo: TestRepo) {
+    let head_sha = setup_gitlab_repo_with_feature(&mut repo);
+
+    // Set up mock where mr list succeeds but mr view fails
+    let mr_list_json = format!(
+        r#"[{{
+        "iid": 1,
+        "sha": "{}",
+        "has_conflicts": false,
+        "detailed_merge_status": null,
+        "source_project_id": 12345,
+        "web_url": "https://gitlab.com/test/repo/-/merge_requests/1"
+    }}]"#,
+        head_sha
+    );
+
+    repo.setup_mock_glab_with_failing_mr_view(&mr_list_json, Some(12345));
+
+    let settings = setup_snapshot_settings(&repo);
+    settings.bind(|| {
+        let mut cmd = make_snapshot_cmd(&repo, "list", &["--full"], None);
+        repo.configure_mock_commands(&mut cmd);
+        assert_cmd_snapshot!("gitlab_mr_view_failure", cmd);
+    });
+}
+
+/// Test that rate limit errors in `glab ci list` show error status (not NoCI).
+///
+/// This exercises the `is_retriable_error` check in `detect_gitlab_pipeline`,
+/// which is the fallback path when no MR exists for a branch.
+#[rstest]
+fn test_list_full_with_gitlab_ci_rate_limit(mut repo: TestRepo) {
+    setup_gitlab_repo_with_feature(&mut repo);
+
+    // Mock returns empty MR list (no MRs), so we fall through to ci list,
+    // which returns a rate limit error
+    repo.setup_mock_glab_with_ci_rate_limit(Some(12345));
+
+    let settings = setup_snapshot_settings(&repo);
+    settings.bind(|| {
+        let mut cmd = make_snapshot_cmd(&repo, "list", &["--full"], None);
+        repo.configure_mock_commands(&mut cmd);
+        assert_cmd_snapshot!("gitlab_ci_rate_limit", cmd);
+    });
 }
