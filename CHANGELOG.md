@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.18.0
+
+### Improved
+
+- **Post-remove hook**: New hook type runs after worktree removal. Template variables (`{{ branch }}`, `{{ worktree_path }}`, `{{ commit }}`) reference the removed worktree, enabling cleanup scripts for containers, servers, or other resources. ([#757](https://github.com/max-sixty/worktrunk/pull/757))
+- **Graceful handling of missing worktree directories**: `wt remove` now prunes stale git metadata when the worktree directory was deleted externally (e.g., `rm -rf`), making the command more idempotent. Fixes [#724](https://github.com/max-sixty/worktrunk/issues/724). (thanks @strangemonad for reporting)
+- **Config validation warnings at load time**: Unknown fields in config files (typos like `[commit-gen]` instead of `[commit-generation]`) now show warnings immediately instead of only in `wt config show`. ([#758](https://github.com/max-sixty/worktrunk/pull/758))
+
+### Fixed
+
+- **Age column shows "future" on NixOS/direnv**: `wt list` no longer uses `SOURCE_DATE_EPOCH` for time calculations, which NixOS and direnv commonly set to past timestamps for reproducible builds. Fixes [#763](https://github.com/max-sixty/worktrunk/issues/763). (thanks @ngotchac for reporting)
+- **CI status with URL-based pushremote**: CI detection now works when `branch.<name>.pushremote` is set to a URL directly (as `gh pr checkout` does) instead of a remote name. ([#769](https://github.com/max-sixty/worktrunk/pull/769))
+- **GitLab nested groups in URL parsing**: URLs like `gitlab.com/group/subgroup/repo` now correctly identify `repo` as the repository name instead of `subgroup`. This was a security fix — previously, approval bypass was possible across sibling repos in the same parent group. ([#768](https://github.com/max-sixty/worktrunk/pull/768))
+- **GitLab CI status detection**: Fixed multiple issues with `glab` CLI compatibility — MR lookup now uses two-step resolution, "manual" pipelines show as running instead of failed, and rate limit errors are handled properly. Fixes [#764](https://github.com/max-sixty/worktrunk/issues/764). (thanks @ngotchac for reporting)
+
+### Internal
+
+- Refactored accessor functions to use bare nouns per Rust convention. ([#765](https://github.com/max-sixty/worktrunk/pull/765))
+- Clarified target/integration naming across codebase. ([#755](https://github.com/max-sixty/worktrunk/pull/755))
+
 ## 0.17.0
 
 ### Improved
