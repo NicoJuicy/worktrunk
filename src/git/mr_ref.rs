@@ -32,6 +32,14 @@ use crate::shell_exec::Cmd;
 pub struct MrInfo {
     /// The MR number (iid in GitLab terms).
     pub number: u32,
+    /// The MR title.
+    pub title: String,
+    /// The MR author's username.
+    pub author: String,
+    /// The MR state ("opened", "closed", "merged").
+    pub state: String,
+    /// Whether this is a draft/WIP MR.
+    pub draft: bool,
     /// The branch name in the source project.
     pub source_branch: String,
     /// The source project ID.
@@ -52,9 +60,38 @@ pub struct MrInfo {
     pub url: String,
 }
 
+impl super::RefContext for MrInfo {
+    fn ref_type(&self) -> super::RefType {
+        super::RefType::Mr
+    }
+    fn number(&self) -> u32 {
+        self.number
+    }
+    fn title(&self) -> &str {
+        &self.title
+    }
+    fn author(&self) -> &str {
+        &self.author
+    }
+    fn state(&self) -> &str {
+        &self.state
+    }
+    fn draft(&self) -> bool {
+        self.draft
+    }
+    fn url(&self) -> &str {
+        &self.url
+    }
+}
+
 /// Raw JSON response from `glab mr view <number> --output json`.
 #[derive(Debug, Deserialize)]
 struct GlabMrResponse {
+    title: String,
+    author: GlabAuthor,
+    state: String,
+    #[serde(default)]
+    draft: bool,
     source_branch: String,
     source_project_id: u64,
     target_project_id: u64,
@@ -65,6 +102,11 @@ struct GlabMrResponse {
     /// Target project info (for finding the correct remote)
     #[serde(default)]
     target_project: Option<GlabProject>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GlabAuthor {
+    username: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -168,6 +210,10 @@ pub fn fetch_mr_info(mr_number: u32, repo_root: &std::path::Path) -> anyhow::Res
 
     Ok(MrInfo {
         number: mr_number,
+        title: response.title,
+        author: response.author.username,
+        state: response.state,
+        draft: response.draft,
         source_branch: response.source_branch,
         source_project_id: response.source_project_id,
         target_project_id: response.target_project_id,
@@ -291,6 +337,10 @@ mod tests {
     fn test_local_branch_name() {
         let mr = MrInfo {
             number: 101,
+            title: "Fix authentication bug".to_string(),
+            author: "alice".to_string(),
+            state: "opened".to_string(),
+            draft: false,
             source_branch: "feature-auth".to_string(),
             source_project_id: 123,
             target_project_id: 123,
@@ -310,6 +360,10 @@ mod tests {
         // the local branch name must match the fork's branch for git push to work
         let mr = MrInfo {
             number: 101,
+            title: "Fix authentication bug".to_string(),
+            author: "contributor".to_string(),
+            state: "opened".to_string(),
+            draft: false,
             source_branch: "feature-auth".to_string(),
             source_project_id: 456,
             target_project_id: 123,
@@ -327,6 +381,10 @@ mod tests {
     fn test_fork_remote_url_with_both_urls() {
         let mr = MrInfo {
             number: 101,
+            title: "Feature".to_string(),
+            author: "contributor".to_string(),
+            state: "opened".to_string(),
+            draft: false,
             source_branch: "feature".to_string(),
             source_project_id: 456,
             target_project_id: 123,
@@ -353,6 +411,10 @@ mod tests {
     fn test_fork_remote_url_ssh_only() {
         let mr = MrInfo {
             number: 101,
+            title: "Feature".to_string(),
+            author: "contributor".to_string(),
+            state: "opened".to_string(),
+            draft: false,
             source_branch: "feature".to_string(),
             source_project_id: 456,
             target_project_id: 123,
@@ -373,6 +435,10 @@ mod tests {
     fn test_fork_remote_url_https_only() {
         let mr = MrInfo {
             number: 101,
+            title: "Feature".to_string(),
+            author: "contributor".to_string(),
+            state: "opened".to_string(),
+            draft: false,
             source_branch: "feature".to_string(),
             source_project_id: 456,
             target_project_id: 123,
@@ -396,6 +462,10 @@ mod tests {
     fn test_fork_remote_url_none() {
         let mr = MrInfo {
             number: 101,
+            title: "Feature".to_string(),
+            author: "contributor".to_string(),
+            state: "opened".to_string(),
+            draft: false,
             source_branch: "feature".to_string(),
             source_project_id: 456,
             target_project_id: 123,
@@ -416,6 +486,10 @@ mod tests {
     fn test_target_remote_url_with_both_urls() {
         let mr = MrInfo {
             number: 101,
+            title: "Feature".to_string(),
+            author: "contributor".to_string(),
+            state: "opened".to_string(),
+            draft: false,
             source_branch: "feature".to_string(),
             source_project_id: 456,
             target_project_id: 123,
@@ -442,6 +516,10 @@ mod tests {
     fn test_target_remote_url_none() {
         let mr = MrInfo {
             number: 101,
+            title: "Feature".to_string(),
+            author: "contributor".to_string(),
+            state: "opened".to_string(),
+            draft: false,
             source_branch: "feature".to_string(),
             source_project_id: 456,
             target_project_id: 123,

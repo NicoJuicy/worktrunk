@@ -1463,6 +1463,10 @@ fn test_switch_pr_same_repo(#[from(repo_with_remote)] mut repo: TestRepo) {
 
     // gh api repos/{owner}/{repo}/pulls/{number} format
     let gh_response = r#"{
+        "title": "Fix authentication bug in login flow",
+        "user": {"login": "alice"},
+        "state": "open",
+        "draft": false,
         "head": {
             "ref": "feature-auth",
             "repo": {"name": "test-repo", "owner": {"login": "owner"}}
@@ -1504,6 +1508,10 @@ fn test_switch_pr_same_repo_no_remote(#[from(repo_with_remote)] repo: TestRepo) 
     // but origin points to contributor/test-repo (different repo)
     // So find_remote_for_repo("owner", "test-repo") will fail
     let gh_response = r#"{
+        "title": "Fix authentication bug in login flow",
+        "user": {"login": "alice"},
+        "state": "open",
+        "draft": false,
         "head": {
             "ref": "feature-auth",
             "repo": {"name": "test-repo", "owner": {"login": "owner"}}
@@ -1585,6 +1593,10 @@ fn test_switch_pr_fork(#[from(repo_with_remote)] repo: TestRepo) {
     // gh api repos/{owner}/{repo}/pulls/{number} format
     // head.repo is the fork (contributor/test-repo), base.repo is the upstream (owner/test-repo)
     let gh_response = r#"{
+        "title": "Add feature fix for edge case",
+        "user": {"login": "contributor"},
+        "state": "open",
+        "draft": false,
         "head": {
             "ref": "feature-fix",
             "repo": {"name": "test-repo", "owner": {"login": "contributor"}}
@@ -1627,6 +1639,10 @@ fn test_switch_pr_fork_no_upstream_remote(#[from(repo_with_remote)] repo: TestRe
     // but origin points to contributor/test-repo (the fork)
     // So find_remote_for_repo("owner", "test-repo") will fail
     let gh_response = r#"{
+        "title": "Add feature fix for edge case",
+        "user": {"login": "contributor"},
+        "state": "open",
+        "draft": false,
         "head": {
             "ref": "feature-fix",
             "repo": {"name": "test-repo", "owner": {"login": "contributor"}}
@@ -1681,6 +1697,10 @@ fn test_switch_pr_deleted_fork(#[from(repo_with_remote)] repo: TestRepo) {
     // gh api repos/{owner}/{repo}/pulls/{number} format with null head.repo
     // This happens when the fork that the PR was opened from has been deleted
     let gh_response = r#"{
+        "title": "Add feature fix for edge case",
+        "user": {"login": "contributor"},
+        "state": "open",
+        "draft": false,
         "head": {
             "ref": "feature-fix",
             "repo": null
@@ -1732,6 +1752,10 @@ fn test_switch_pr_fork_existing_same_pr(#[from(repo_with_remote)] repo: TestRepo
 
     // gh api repos/{owner}/{repo}/pulls/{number} format
     let gh_response = r#"{
+        "title": "Add feature fix for edge case",
+        "user": {"login": "contributor"},
+        "state": "open",
+        "draft": false,
         "head": {
             "ref": "feature-fix",
             "repo": {"name": "test-repo", "owner": {"login": "contributor"}}
@@ -1812,6 +1836,10 @@ fn test_switch_pr_fork_existing_different_pr(#[from(repo_with_remote)] repo: Tes
 
     // gh api repos/{owner}/{repo}/pulls/{number} format
     let gh_response = r#"{
+        "title": "Add feature fix for edge case",
+        "user": {"login": "contributor"},
+        "state": "open",
+        "draft": false,
         "head": {
             "ref": "feature-fix",
             "repo": {"name": "test-repo", "owner": {"login": "contributor"}}
@@ -1883,6 +1911,10 @@ fn test_switch_pr_fork_existing_no_tracking(#[from(repo_with_remote)] repo: Test
 
     // gh api repos/{owner}/{repo}/pulls/{number} format
     let gh_response = r#"{
+        "title": "Add feature fix for edge case",
+        "user": {"login": "contributor"},
+        "state": "open",
+        "draft": false,
         "head": {
             "ref": "feature-fix",
             "repo": {"name": "test-repo", "owner": {"login": "contributor"}}
@@ -1963,6 +1995,10 @@ fn test_switch_pr_fork_prefixed_exists_same_pr(#[from(repo_with_remote)] repo: T
     ]);
 
     let gh_response = r#"{
+        "title": "Add feature fix for edge case",
+        "user": {"login": "contributor"},
+        "state": "open",
+        "draft": false,
         "head": {
             "ref": "feature-fix",
             "repo": {"name": "test-repo", "owner": {"login": "contributor"}}
@@ -2028,6 +2064,10 @@ fn test_switch_pr_fork_prefixed_exists_different_pr(#[from(repo_with_remote)] re
     ]);
 
     let gh_response = r#"{
+        "title": "Add feature fix for edge case",
+        "user": {"login": "contributor"},
+        "state": "open",
+        "draft": false,
         "head": {
             "ref": "feature-fix",
             "repo": {"name": "test-repo", "owner": {"login": "contributor"}}
@@ -2191,6 +2231,10 @@ fn test_switch_pr_empty_branch(#[from(repo_with_remote)] repo: TestRepo) {
 
     // Configure gh to return valid JSON but with empty branch name (head.ref is "")
     let gh_response = r#"{
+        "title": "PR with empty branch",
+        "user": {"login": "contributor"},
+        "state": "open",
+        "draft": false,
         "head": {
             "ref": "",
             "repo": {"name": "test-repo", "owner": {"login": "contributor"}}
@@ -2298,6 +2342,10 @@ fn test_switch_mr_same_repo(#[from(repo_with_remote)] mut repo: TestRepo) {
 
     // glab mr view <number> --output json format
     let glab_response = r#"{
+        "title": "Fix authentication bug in login flow",
+        "author": {"username": "alice"},
+        "state": "opened",
+        "draft": false,
         "source_branch": "feature-auth",
         "source_project_id": 123,
         "target_project_id": 123,
@@ -2406,6 +2454,10 @@ fn test_switch_mr_empty_branch(#[from(repo_with_remote)] repo: TestRepo) {
 
     // Configure glab to return valid JSON but with empty branch name
     let glab_response = r#"{
+        "title": "MR with empty branch",
+        "author": {"username": "contributor"},
+        "state": "opened",
+        "draft": false,
         "source_branch": "",
         "source_project_id": 456,
         "target_project_id": 123,
@@ -2490,6 +2542,10 @@ fn test_switch_mr_fork(#[from(repo_with_remote)] repo: TestRepo) {
     // glab mr view <number> --output json format
     // source_project is the fork (contributor/test-repo), target_project is the upstream (owner/test-repo)
     let glab_response = r#"{
+        "title": "Add feature fix for edge case",
+        "author": {"username": "contributor"},
+        "state": "opened",
+        "draft": false,
         "source_branch": "feature-fix",
         "source_project_id": 456,
         "target_project_id": 123,
@@ -2576,6 +2632,10 @@ fn test_switch_mr_fork_existing_branch_tracks_mr(#[from(repo_with_remote)] repo:
 
     // Fork MR response
     let glab_response = r#"{
+        "title": "Add feature fix for edge case",
+        "author": {"username": "contributor"},
+        "state": "opened",
+        "draft": false,
         "source_branch": "feature-fix",
         "source_project_id": 456,
         "target_project_id": 123,
@@ -2630,6 +2690,10 @@ fn test_switch_mr_fork_existing_branch_tracks_different(#[from(repo_with_remote)
 
     // Fork MR response for MR 42, but branch tracks MR 99
     let glab_response = r#"{
+        "title": "Add feature fix for edge case",
+        "author": {"username": "contributor"},
+        "state": "opened",
+        "draft": false,
         "source_branch": "feature-fix",
         "source_project_id": 456,
         "target_project_id": 123,
@@ -2671,6 +2735,10 @@ fn test_switch_mr_fork_existing_no_tracking(#[from(repo_with_remote)] repo: Test
 
     // Fork MR response
     let glab_response = r#"{
+        "title": "Add feature fix for edge case",
+        "author": {"username": "contributor"},
+        "state": "opened",
+        "draft": false,
         "source_branch": "feature-fix",
         "source_project_id": 456,
         "target_project_id": 123,
