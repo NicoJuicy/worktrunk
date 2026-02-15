@@ -285,7 +285,8 @@ pub fn handle_select(branches: bool, remotes: bool, config: &UserConfig) -> anyh
         let skip_hooks = !approve_switch_hooks(repo, &config, &plan, false, true)?;
         let (result, branch_info) = execute_switch(repo, plan, &config, false, skip_hooks)?;
 
-        // Compute path mismatch lazily (deferred from plan_switch for existing worktrees)
+        // Compute path mismatch lazily (deferred from plan_switch for existing worktrees).
+        // No early exit here — select's TUI already dominates latency.
         let branch_info = resolve_path_mismatch(branch_info, &result, repo, &config);
 
         // Show success message; emit cd directive if shell integration is active
