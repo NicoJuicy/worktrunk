@@ -81,6 +81,477 @@ fn test_config_show_no_project_config(mut repo: TestRepo, temp_home: TempDir) {
     });
 }
 
+// ==================== System Config Tests ====================
+
+#[rstest]
+fn test_config_show_with_system_config(mut repo: TestRepo, temp_home: TempDir) {
+    repo.setup_mock_ci_tools_unauthenticated();
+
+    // Create system config in a temp directory
+    let system_config_dir = tempfile::tempdir().unwrap();
+    let system_config_path = system_config_dir.path().join("config.toml");
+    fs::write(
+        &system_config_path,
+        r#"[merge]
+squash = true
+verify = true
+
+[commit.generation]
+command = "company-llm-tool"
+"#,
+    )
+    .unwrap();
+
+    // Create user config
+    let global_config_dir = temp_home.path().join(".config").join("worktrunk");
+    fs::create_dir_all(&global_config_dir).unwrap();
+    fs::write(
+        global_config_dir.join("config.toml"),
+        r#"worktree-path = "../{{ repo }}.{{ branch }}"
+"#,
+    )
+    .unwrap();
+
+    let settings = setup_snapshot_settings_with_home(&repo, &temp_home);
+    settings.bind(|| {
+        let mut cmd = wt_command();
+        repo.configure_wt_cmd(&mut cmd);
+        repo.configure_mock_commands(&mut cmd);
+        cmd.env("WORKTRUNK_SYSTEM_CONFIG_PATH", &system_config_path);
+        cmd.arg("config").arg("show").current_dir(repo.root_path());
+        set_temp_home_env(&mut cmd, temp_home.path());
+
+        assert_cmd_snapshot!(cmd);
+    });
+}
+
+#[rstest]
+fn test_system_config_values_used_as_defaults(repo: TestRepo) {
+    // System config with a distinctive worktree-path template
+    let system_config_dir = tempfile::tempdir().unwrap();
+    let system_config_path = system_config_dir.path().join("config.toml");
+    fs::write(
+        &system_config_path,
+        "worktree-path = \".worktrees/{{ branch | sanitize }}\"\n",
+    )
+    .unwrap();
+
+    // No user config — system config should provide the worktree-path default
+    let mut cmd = repo.wt_command();
+    cmd.env("WORKTRUNK_SYSTEM_CONFIG_PATH", &system_config_path);
+    cmd.args(["switch", "--create", "test-feature"])
+        .current_dir(repo.root_path());
+
+    let output = cmd.output().unwrap();
+    assert!(
+        output.status.success(),
+        "switch --create should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    // Worktree should be at the system config template path
+    let expected_path = repo.root_path().join(".worktrees").join("test-feature");
+    assert!(
+        expected_path.exists(),
+        "Worktree should be created at system config template path: {}",
+        expected_path.display()
+    );
+}
+
+#[rstest]
+fn test_user_config_overrides_system_config(repo: TestRepo) {
+    // System config with one template
+    let system_config_dir = tempfile::tempdir().unwrap();
+    let system_config_path = system_config_dir.path().join("config.toml");
+    fs::write(
+        &system_config_path,
+        "worktree-path = \".worktrees/system/{{ branch | sanitize }}\"\n",
+    )
+    .unwrap();
+
+    // User config overrides with a different template
+    let user_config_dir = tempfile::tempdir().unwrap();
+    let user_config_path = user_config_dir.path().join("config.toml");
+    fs::write(
+        &user_config_path,
+        "worktree-path = \".worktrees/user/{{ branch | sanitize }}\"\n",
+    )
+    .unwrap();
+
+    let mut cmd = repo.wt_command();
+    cmd.env("WORKTRUNK_SYSTEM_CONFIG_PATH", &system_config_path);
+    cmd.env("WORKTRUNK_CONFIG_PATH", &user_config_path);
+    cmd.args(["switch", "--create", "test-feature"])
+        .current_dir(repo.root_path());
+
+    let output = cmd.output().unwrap();
+    assert!(
+        output.status.success(),
+        "switch --create should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    // Should use user config template, not system
+    let user_path = repo.root_path().join(".worktrees/user/test-feature");
+    let system_path = repo.root_path().join(".worktrees/system/test-feature");
+    assert!(
+        user_path.exists(),
+        "Worktree should be at user config template path: {}",
+        user_path.display()
+    );
+    assert!(
+        !system_path.exists(),
+        "Worktree should NOT be at system config template path"
+    );
+}
+
+/// System and user config hooks are deep-merged by the config crate at the TOML
+/// key level. Differently-named commands within the same hook type coexist —
+/// system hooks and user hooks both run. Same-named commands: user replaces system.
+#[rstest]
+fn test_system_and_user_hooks_deep_merged(repo: TestRepo) {
+    // System config defines a named pre-merge hook
+    let system_config_dir = tempfile::tempdir().unwrap();
+    let system_config_path = system_config_dir.path().join("config.toml");
+    fs::write(
+        &system_config_path,
+        r#"[pre-merge]
+company-lint = "company-lint-tool"
+"#,
+    )
+    .unwrap();
+
+    // User config defines a differently-named pre-merge hook
+    let user_config_dir = tempfile::tempdir().unwrap();
+    let user_config_path = user_config_dir.path().join("config.toml");
+    fs::write(
+        &user_config_path,
+        r#"[pre-merge]
+my-lint = "my-lint-tool"
+"#,
+    )
+    .unwrap();
+
+    let mut cmd = repo.wt_command();
+    cmd.env("WORKTRUNK_SYSTEM_CONFIG_PATH", &system_config_path);
+    cmd.env("WORKTRUNK_CONFIG_PATH", &user_config_path);
+    cmd.args(["hook", "show", "pre-merge"])
+        .current_dir(repo.root_path());
+
+    let output = cmd.output().unwrap();
+    assert!(
+        output.status.success(),
+        "hook show should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    // Both hooks should be present (deep merge preserves differently-named keys)
+    assert!(
+        stderr.contains("company-lint-tool"),
+        "System hook should be preserved with different name, got:\n{stderr}"
+    );
+    assert!(
+        stderr.contains("my-lint-tool"),
+        "User hook should be present, got:\n{stderr}"
+    );
+}
+
+/// When user config defines a hook with the same name as system config,
+/// the user's command replaces the system's command for that name.
+#[rstest]
+fn test_user_hook_replaces_same_named_system_hook(repo: TestRepo) {
+    // System config defines a named hook
+    let system_config_dir = tempfile::tempdir().unwrap();
+    let system_config_path = system_config_dir.path().join("config.toml");
+    fs::write(
+        &system_config_path,
+        r#"[pre-merge]
+lint = "company-lint-tool"
+"#,
+    )
+    .unwrap();
+
+    // User config defines the same-named hook with different command
+    let user_config_dir = tempfile::tempdir().unwrap();
+    let user_config_path = user_config_dir.path().join("config.toml");
+    fs::write(
+        &user_config_path,
+        r#"[pre-merge]
+lint = "my-lint-tool"
+"#,
+    )
+    .unwrap();
+
+    let mut cmd = repo.wt_command();
+    cmd.env("WORKTRUNK_SYSTEM_CONFIG_PATH", &system_config_path);
+    cmd.env("WORKTRUNK_CONFIG_PATH", &user_config_path);
+    cmd.args(["hook", "show", "pre-merge"])
+        .current_dir(repo.root_path());
+
+    let output = cmd.output().unwrap();
+    assert!(
+        output.status.success(),
+        "hook show should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    // User's command should replace system's for the same name
+    assert!(
+        stderr.contains("my-lint-tool"),
+        "User's hook command should be present, got:\n{stderr}"
+    );
+    assert!(
+        !stderr.contains("company-lint-tool"),
+        "System's hook command should be replaced by user's same-named hook, got:\n{stderr}"
+    );
+}
+
+/// When user config doesn't define a hook type, the system config's hook is preserved.
+#[rstest]
+fn test_system_config_hooks_preserved_when_user_doesnt_override(repo: TestRepo) {
+    // System config defines pre-merge and pre-commit hooks
+    let system_config_dir = tempfile::tempdir().unwrap();
+    let system_config_path = system_config_dir.path().join("config.toml");
+    fs::write(
+        &system_config_path,
+        r#"[pre-merge]
+company-lint = "company-lint-tool"
+
+[pre-commit]
+company-format = "company-format-tool"
+"#,
+    )
+    .unwrap();
+
+    // User config only defines pre-merge (should leave system's pre-commit intact)
+    let user_config_dir = tempfile::tempdir().unwrap();
+    let user_config_path = user_config_dir.path().join("config.toml");
+    fs::write(
+        &user_config_path,
+        r#"[pre-merge]
+my-lint = "my-lint-tool"
+"#,
+    )
+    .unwrap();
+
+    // Check pre-commit — should still have system's hook
+    let mut cmd = repo.wt_command();
+    cmd.env("WORKTRUNK_SYSTEM_CONFIG_PATH", &system_config_path);
+    cmd.env("WORKTRUNK_CONFIG_PATH", &user_config_path);
+    cmd.args(["hook", "show", "pre-commit"])
+        .current_dir(repo.root_path());
+
+    let output = cmd.output().unwrap();
+    assert!(
+        output.status.success(),
+        "hook show should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("company-format-tool"),
+        "System's pre-commit hook should be preserved when user doesn't override it, got:\n{stderr}"
+    );
+}
+
+#[rstest]
+fn test_config_show_system_config_hint_under_user_config(repo: TestRepo, temp_home: TempDir) {
+    // When no system config exists but user config does, config show should
+    // display a hint under USER CONFIG with the platform-specific default path
+    let global_config_dir = temp_home.path().join(".config").join("worktrunk");
+    fs::create_dir_all(&global_config_dir).unwrap();
+    fs::write(
+        global_config_dir.join("config.toml"),
+        "worktree-path = \"../{{ repo }}.{{ branch }}\"\n",
+    )
+    .unwrap();
+
+    let mut cmd = wt_command();
+    repo.configure_wt_cmd(&mut cmd);
+    set_temp_home_env(&mut cmd, temp_home.path());
+    cmd.env_remove("WORKTRUNK_SYSTEM_CONFIG_PATH");
+    cmd.arg("config").arg("show").current_dir(repo.root_path());
+
+    let output = cmd.output().unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    // Should NOT show a full SYSTEM CONFIG heading
+    assert!(
+        !stderr.contains("SYSTEM CONFIG"),
+        "Should not show SYSTEM CONFIG section when absent, got:\n{stderr}"
+    );
+    // Should show a system config hint under USER CONFIG
+    assert!(
+        stderr.contains("Optional system config not found")
+            && stderr.contains("worktrunk/config.toml"),
+        "Expected system config hint in output, got:\n{stderr}"
+    );
+}
+
+#[rstest]
+fn test_system_config_found_via_xdg_config_dirs(repo: TestRepo) {
+    // Create system config in a custom XDG directory
+    let xdg_dir = tempfile::tempdir().unwrap();
+    let config_dir = xdg_dir.path().join("worktrunk");
+    fs::create_dir_all(&config_dir).unwrap();
+    fs::write(
+        config_dir.join("config.toml"),
+        r#"worktree-path = "/xdg-org/{{ repo }}/{{ branch | sanitize }}"
+"#,
+    )
+    .unwrap();
+
+    // Use XDG_CONFIG_DIRS instead of WORKTRUNK_SYSTEM_CONFIG_PATH
+    let mut cmd = wt_command();
+    repo.configure_wt_cmd(&mut cmd);
+    cmd.env_remove("WORKTRUNK_SYSTEM_CONFIG_PATH");
+    cmd.env("XDG_CONFIG_DIRS", xdg_dir.path());
+    cmd.arg("list")
+        .arg("--format=json")
+        .current_dir(repo.root_path());
+
+    let output = cmd.output().unwrap();
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let worktrees = json.as_array().unwrap();
+
+    for wt in worktrees {
+        if wt["is_primary"].as_bool() == Some(false) {
+            let path = wt["path"].as_str().unwrap();
+            assert!(
+                path.contains("/xdg-org/"),
+                "Expected XDG_CONFIG_DIRS system config, got: {path}"
+            );
+        }
+    }
+}
+
+#[rstest]
+fn test_system_config_xdg_dirs_set_but_no_config_found(repo: TestRepo) {
+    // When XDG_CONFIG_DIRS is set but contains no worktrunk config,
+    // system config should be None (no fallback to platform defaults)
+    let empty_xdg_dir = tempfile::tempdir().unwrap();
+
+    let mut cmd = wt_command();
+    repo.configure_wt_cmd(&mut cmd);
+    cmd.env_remove("WORKTRUNK_SYSTEM_CONFIG_PATH");
+    cmd.env("XDG_CONFIG_DIRS", empty_xdg_dir.path());
+    cmd.arg("list")
+        .arg("--format=json")
+        .current_dir(repo.root_path());
+
+    let output = cmd.output().unwrap();
+    assert!(output.status.success());
+
+    // Without system config, worktree paths should use the default template
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let worktrees = json.as_array().unwrap();
+
+    for wt in worktrees {
+        if wt["is_primary"].as_bool() == Some(false) {
+            let path = wt["path"].as_str().unwrap();
+            assert!(
+                !path.contains("/xdg-org/"),
+                "Should not use XDG system config path, got: {path}"
+            );
+        }
+    }
+}
+
+/// Test that `config show` displays empty system config with a hint
+#[rstest]
+fn test_config_show_empty_system_config(mut repo: TestRepo, temp_home: TempDir) {
+    repo.setup_mock_ci_tools_unauthenticated();
+
+    // Create empty system config
+    let system_config_dir = tempfile::tempdir().unwrap();
+    let system_config_path = system_config_dir.path().join("config.toml");
+    fs::write(&system_config_path, "").unwrap();
+
+    // Create user config
+    let global_config_dir = temp_home.path().join(".config").join("worktrunk");
+    fs::create_dir_all(&global_config_dir).unwrap();
+    fs::write(global_config_dir.join("config.toml"), "").unwrap();
+
+    let settings = setup_snapshot_settings_with_home(&repo, &temp_home);
+    settings.bind(|| {
+        let mut cmd = wt_command();
+        repo.configure_wt_cmd(&mut cmd);
+        repo.configure_mock_commands(&mut cmd);
+        cmd.env("WORKTRUNK_SYSTEM_CONFIG_PATH", &system_config_path);
+        cmd.arg("config").arg("show").current_dir(repo.root_path());
+        set_temp_home_env(&mut cmd, temp_home.path());
+
+        assert_cmd_snapshot!(cmd);
+    });
+}
+
+/// Test that `config show` displays invalid system config with error details
+#[rstest]
+fn test_config_show_invalid_system_config(mut repo: TestRepo, temp_home: TempDir) {
+    repo.setup_mock_ci_tools_unauthenticated();
+
+    // Create system config with invalid TOML
+    let system_config_dir = tempfile::tempdir().unwrap();
+    let system_config_path = system_config_dir.path().join("config.toml");
+    fs::write(&system_config_path, "invalid = [toml\n").unwrap();
+
+    // Create user config
+    let global_config_dir = temp_home.path().join(".config").join("worktrunk");
+    fs::create_dir_all(&global_config_dir).unwrap();
+    fs::write(global_config_dir.join("config.toml"), "").unwrap();
+
+    let settings = setup_snapshot_settings_with_home(&repo, &temp_home);
+    settings.bind(|| {
+        let mut cmd = wt_command();
+        repo.configure_wt_cmd(&mut cmd);
+        repo.configure_mock_commands(&mut cmd);
+        cmd.env("WORKTRUNK_SYSTEM_CONFIG_PATH", &system_config_path);
+        cmd.arg("config").arg("show").current_dir(repo.root_path());
+        set_temp_home_env(&mut cmd, temp_home.path());
+
+        assert_cmd_snapshot!(cmd);
+    });
+}
+
+/// Test that system config with unknown keys triggers a warning during config loading
+#[rstest]
+fn test_system_config_unknown_keys_warning_during_load(repo: TestRepo) {
+    // Create system config with an unknown key
+    let system_config_dir = tempfile::tempdir().unwrap();
+    let system_config_path = system_config_dir.path().join("config.toml");
+    fs::write(
+        &system_config_path,
+        "[totally-unknown-section]\nkey = \"value\"",
+    )
+    .unwrap();
+
+    // Run `wt list` which triggers config loading and unknown key warnings
+    let mut cmd = repo.wt_command();
+    cmd.env("WORKTRUNK_SYSTEM_CONFIG_PATH", &system_config_path);
+    cmd.arg("list").current_dir(repo.root_path());
+
+    let output = cmd.output().unwrap();
+    assert!(
+        output.status.success(),
+        "Command should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("has unknown field"),
+        "Expected unknown field warning from system config load, got: {stderr}"
+    );
+}
+
 #[rstest]
 fn test_config_show_outside_git_repo(mut repo: TestRepo, temp_home: TempDir) {
     let temp_dir = tempfile::tempdir().unwrap();

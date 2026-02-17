@@ -17,6 +17,7 @@ info:
     TERM: alacritty
     WORKTRUNK_APPROVALS_PATH: /nonexistent/test/approvals.toml
     WORKTRUNK_CONFIG_PATH: /nonexistent/test/config.toml
+    WORKTRUNK_SYSTEM_CONFIG_PATH: /etc/xdg/worktrunk/config.toml
     WORKTRUNK_TEST_CLAUDE_INSTALLED: "0"
     WORKTRUNK_TEST_DELAYED_STREAM_MS: "-1"
     WORKTRUNK_TEST_EPOCH: "1735776000"
@@ -79,6 +80,8 @@ Show current configuration and file locations:
    ────────────── ─────────────────────────────── ─────────────────────────────────────────────── ────────────────── 
    User config    ~/.config/worktrunk/config.toml Worktree path template, LLM commit configs, etc ✗                  
    Project config .config/wt.toml                 Project hooks, dev server URL                   ✓                  
+
+Organizations can also deploy a system-wide config file for shared defaults — run [2mwt config show[0m for the platform-specific location.
 
 [1mUser config[0m — personal preferences:
 
@@ -358,6 +361,8 @@ Override the LLM command in CI to use a mock:
    ───────────────────────────────── ───────────────────────────────────────────────────────────────────────────────── 
    WORKTRUNK_BIN                     Override binary path for shell wrappers (useful for testing dev builds)           
    WORKTRUNK_CONFIG_PATH             Override user config file location                                                
+   WORKTRUNK_SYSTEM_CONFIG_PATH      Override system config file location                                              
+   XDG_CONFIG_DIRS                   Colon-separated system config directories (default: /etc/xdg)                     
    WORKTRUNK_DIRECTIVE_FILE          Internal: set by shell wrappers to enable directory changes                       
    WORKTRUNK_SHELL                   Internal: set by shell wrappers to indicate shell type (e.g., powershell)         
    WORKTRUNK_MAX_CONCURRENT_COMMANDS Max parallel git commands (default: 32). Lower if hitting file descriptor limits. 

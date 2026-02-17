@@ -688,6 +688,10 @@ pub fn configure_cli_command(cmd: &mut Command) {
     // but correctness (isolating from host WORKTRUNK_* vars) trumps snapshot aesthetics.
     cmd.env("WORKTRUNK_CONFIG_PATH", "/nonexistent/test/config.toml");
     cmd.env(
+        "WORKTRUNK_SYSTEM_CONFIG_PATH",
+        "/etc/xdg/worktrunk/config.toml",
+    );
+    cmd.env(
         "WORKTRUNK_APPROVALS_PATH",
         "/nonexistent/test/approvals.toml",
     );
@@ -1181,6 +1185,10 @@ impl TestRepo {
                 self.test_config_path().display().to_string(),
             ),
             (
+                "WORKTRUNK_SYSTEM_CONFIG_PATH".to_string(),
+                "/etc/xdg/worktrunk/config.toml".to_string(),
+            ),
+            (
                 "WORKTRUNK_APPROVALS_PATH".to_string(),
                 self.test_approvals_path().display().to_string(),
             ),
@@ -1321,6 +1329,10 @@ impl TestRepo {
         configure_cli_command(cmd);
         self.configure_git_cmd(cmd);
         cmd.env("WORKTRUNK_CONFIG_PATH", &self.test_config_path);
+        cmd.env(
+            "WORKTRUNK_SYSTEM_CONFIG_PATH",
+            "/etc/xdg/worktrunk/config.toml",
+        );
         cmd.env("WORKTRUNK_APPROVALS_PATH", &self.test_approvals_path);
         set_temp_home_env(cmd, self.home_path());
         self.configure_mock_commands(cmd);
@@ -2251,6 +2263,10 @@ impl BareRepoTest {
     pub fn configure_wt_cmd(&self, cmd: &mut Command) {
         self.configure_git_cmd(cmd);
         cmd.env("WORKTRUNK_CONFIG_PATH", &self.test_config_path)
+            .env(
+                "WORKTRUNK_SYSTEM_CONFIG_PATH",
+                "/etc/xdg/worktrunk/config.toml",
+            )
             .env("WORKTRUNK_APPROVALS_PATH", &self.test_approvals_path)
             .env_remove("NO_COLOR")
             .env_remove("CLICOLOR_FORCE");
@@ -2277,6 +2293,7 @@ impl TestRepoBase for BareRepoTest {
 pub fn add_standard_env_redactions(settings: &mut insta::Settings) {
     settings.add_redaction(".env.GIT_CONFIG_GLOBAL", "[TEST_GIT_CONFIG]");
     settings.add_redaction(".env.WORKTRUNK_CONFIG_PATH", "[TEST_CONFIG]");
+    settings.add_redaction(".env.WORKTRUNK_SYSTEM_CONFIG_PATH", "[TEST_SYSTEM_CONFIG]");
     settings.add_redaction(".env.WORKTRUNK_APPROVALS_PATH", "[TEST_APPROVALS]");
     settings.add_redaction(".env.WORKTRUNK_DIRECTIVE_FILE", "[DIRECTIVE_FILE]");
     settings.add_redaction(".env.HOME", "[TEST_HOME]");
@@ -2646,6 +2663,11 @@ fn setup_snapshot_settings_for_paths_with_home(
     // Note: [^)'\s\x1b]+ stops at ), ', whitespace, or ANSI escape to avoid matching too much
     settings.add_filter(
         r"/private/var/folders/[^/]+/[^/]+/T/\.[^/]+/[^)'\s\x1b]+",
+        "[PROJECT_ID]",
+    );
+    // macOS non-canonicalized: /var/folders/.../T/.tmpXXXXXX/path -> [PROJECT_ID]
+    settings.add_filter(
+        r"/var/folders/[^/]+/[^/]+/T/\.[^/]+/[^)'\s\x1b]+",
         "[PROJECT_ID]",
     );
     // Linux: /tmp/.tmpXXXXXX/path -> [PROJECT_ID]
