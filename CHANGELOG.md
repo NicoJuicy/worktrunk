@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.28.0
+
+### Improved
+
+- **`wt step prune` command**: Remove worktrees whose branches are already merged into the default branch. Skips unmerged and recently created worktrees, with `--min-age` to control the staleness threshold. [Docs](https://worktrunk.dev/step/) ([#1191](https://github.com/max-sixty/worktrunk/pull/1191))
+
+- **Color palette in `wt config shell show-theme`**: Shows each color and style rendered in itself — base colors, modifiers, bold+color and dim+color variants — for diagnosing legibility issues on different terminal themes. ([#1185](https://github.com/max-sixty/worktrunk/pull/1185), thanks @jhigh2000 for reporting [#1184](https://github.com/max-sixty/worktrunk/issues/1184))
+
+- **Smarter column layout in `wt list`**: The Message column is hidden when the terminal is too narrow for Summary to reach 40 characters, preventing both columns from being truncated to unreadable widths. ([#1166](https://github.com/max-sixty/worktrunk/pull/1166))
+
+### Fixed
+
+- **Submodules in worktree removal**: `wt remove` now handles worktrees containing initialized git submodules, which previously failed with "working trees containing submodules cannot be moved or removed". ([#1196](https://github.com/max-sixty/worktrunk/pull/1196), thanks @dlecan for reporting [#1194](https://github.com/max-sixty/worktrunk/issues/1194))
+
+- **CWD recovery validation**: Recovery from a deleted worktree directory now validates that candidate repositories actually contain the deleted path as a worktree, preventing false matches when multiple repos share a parent directory. ([#1193](https://github.com/max-sixty/worktrunk/pull/1193))
+
+- **Shell-escape paths in `-C` flag hints**: Paths containing spaces or special characters in `-C` hints are now properly shell-escaped. ([#1173](https://github.com/max-sixty/worktrunk/pull/1173))
+
+- **ANSI handling in CWD recovery**: Recovery messages now use `anstream` for proper ANSI handling on terminals that don't support color. ([#1183](https://github.com/max-sixty/worktrunk/pull/1183))
+
+- **Worktree path in detached HEAD removal messages**: Removal output for detached HEAD worktrees now includes the worktree path for clarity. ([#1210](https://github.com/max-sixty/worktrunk/pull/1210))
+
+- **Pruned worktree output**: Worktree and branch deletion for pruned worktrees are combined into a single output line instead of two separate messages. ([#1211](https://github.com/max-sixty/worktrunk/pull/1211))
+
+### Documentation
+
+- **Page metadata and SEO**: All doc pages now have `<meta name="description">`, canonical URLs, and structured data (JSON-LD) for better search engine visibility. ([#1167](https://github.com/max-sixty/worktrunk/pull/1167))
+
+### Internal
+
+- **CI bot improvements**: Inline suggestions, confidence-based review scrutiny, consolidated review+CI analysis, self-poll prevention, verified-facts guideline for triage, and explicit issue-closing in nightly cleaner. ([#1172](https://github.com/max-sixty/worktrunk/pull/1172), [#1181](https://github.com/max-sixty/worktrunk/pull/1181), [#1199](https://github.com/max-sixty/worktrunk/pull/1199), [#1204](https://github.com/max-sixty/worktrunk/pull/1204), [#1212](https://github.com/max-sixty/worktrunk/pull/1212), [#1198](https://github.com/max-sixty/worktrunk/pull/1198), [#1209](https://github.com/max-sixty/worktrunk/pull/1209))
+
 ## 0.27.0
 
 ### Improved
