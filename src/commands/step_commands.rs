@@ -10,10 +10,12 @@
 //! Standalone:
 //! - `step_copy_ignored` - Copy gitignored files matching .worktreeinclude
 //! - `handle_promote` - Put a branch into the main worktree
+//! - `step_prune` - Remove worktrees merged into the default branch
 
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use anyhow::Context;
 use color_print::cformat;
@@ -31,7 +33,9 @@ use super::command_approval::approve_hooks;
 use super::commit::{CommitGenerator, CommitOptions, StageMode};
 use super::context::CommandEnv;
 use super::hooks::{HookFailureStrategy, run_hook_with_filter};
-use super::repository_ext::RepositoryCliExt;
+use super::repository_ext::{RemoveTarget, RepositoryCliExt};
+use super::worktree::BranchDeletionMode;
+use crate::output::handle_remove_output;
 use worktrunk::shell_exec::Cmd;
 
 /// Handle `wt step commit` command
@@ -1263,6 +1267,305 @@ fn create_symlink(target: &Path, src_path: &Path, dest_path: &Path) -> anyhow::R
         let _ = (target, src_path, dest_path);
         anyhow::bail!("symlink creation not supported on this platform");
     }
+    Ok(())
+}
+
+/// Remove worktrees and branches integrated into the default branch.
+///
+/// Handles four cases: live worktrees with branches (removed + branch deleted),
+/// detached HEAD worktrees (directory removed, no branch to delete), stale worktree
+/// entries (pruned + branch deleted), and orphan branches without worktrees (deleted).
+/// Skips the main/primary worktree, locked worktrees, and worktrees younger than
+/// `min_age`. Removes the current worktree last to trigger cd to primary.
+pub fn step_prune(dry_run: bool, yes: bool, min_age: &str, foreground: bool) -> anyhow::Result<()> {
+    let min_age_duration =
+        humantime::parse_duration(min_age).context("Invalid --min-age duration")?;
+
+    let repo = Repository::current()?;
+    let config = UserConfig::load()?;
+
+    let integration_target = match repo.integration_target() {
+        Some(target) => target,
+        None => {
+            anyhow::bail!("cannot determine default branch");
+        }
+    };
+
+    let worktrees = repo.list_worktrees()?;
+    let current_root = repo.current_worktree().root()?.to_path_buf();
+    let current_root = dunce::canonicalize(&current_root).unwrap_or(current_root);
+    let now_secs = worktrunk::utils::get_now();
+
+    let default_branch = repo.default_branch();
+
+    // Gather candidates: integrated worktrees + integrated branch-only refs
+    struct Candidate {
+        /// Branch name (None for detached HEAD worktrees)
+        branch: Option<String>,
+        /// Display label: branch name or abbreviated commit SHA
+        label: String,
+        /// Worktree path (for Path-based removal of detached worktrees)
+        path: Option<PathBuf>,
+        /// Current worktree, other worktree, or branch-only (no worktree)
+        kind: CandidateKind,
+        reason_desc: String,
+    }
+    enum CandidateKind {
+        Current,
+        Other,
+        BranchOnly,
+    }
+
+    let mut candidates: Vec<Candidate> = Vec::new();
+    let mut skipped_young: Vec<String> = Vec::new();
+    // Track branches seen via worktree entries so we don't double-count.
+    // Pre-seed with the default branch to prevent it from being pruned
+    // (it's trivially "integrated" into itself).
+    let mut seen_branches: std::collections::HashSet<String> =
+        default_branch.iter().cloned().collect();
+
+    for wt in &worktrees {
+        // Track branches so the orphan scan doesn't re-discover them
+        if let Some(branch) = &wt.branch {
+            seen_branches.insert(branch.clone());
+        }
+
+        // Skip locked worktrees
+        if wt.locked.is_some() {
+            continue;
+        }
+
+        // Never prune the default branch
+        if let Some(branch) = &wt.branch
+            && default_branch.as_deref() == Some(branch.as_str())
+        {
+            continue;
+        }
+
+        // Prunable entries (directory gone): check integration, include as branch-only
+        if wt.is_prunable() {
+            if let Some(branch) = &wt.branch {
+                let (effective_target, reason) =
+                    repo.integration_reason(branch, &integration_target)?;
+                if let Some(reason) = reason {
+                    candidates.push(Candidate {
+                        label: branch.clone(),
+                        branch: Some(branch.clone()),
+                        path: None,
+                        kind: CandidateKind::BranchOnly,
+                        reason_desc: format!("{} {}", reason.description(), effective_target),
+                    });
+                }
+            }
+            continue;
+        }
+
+        // Skip main worktree (non-linked); in bare repos all are linked,
+        // so the default-branch check above is the primary guard.
+        let wt_tree = repo.worktree_at(&wt.path);
+        if !wt_tree.is_linked()? {
+            continue;
+        }
+
+        // For integration check: use branch name, or commit SHA for detached
+        let integration_ref = match &wt.branch {
+            Some(b) if !wt.detached => b.as_str(),
+            _ => &wt.head,
+        };
+
+        // Check integration first — only apply age guard to integrated worktrees
+        let (effective_target, reason) =
+            repo.integration_reason(integration_ref, &integration_target)?;
+        let Some(reason) = reason else {
+            continue;
+        };
+
+        let label = wt
+            .branch
+            .clone()
+            .unwrap_or_else(|| format!("(detached {})", &wt.head[..7.min(wt.head.len())]));
+
+        // Check age: skip recently-created worktrees that look "merged" because
+        // they were just created from the default branch
+        if min_age_duration > Duration::ZERO {
+            let git_dir = wt_tree.git_dir()?;
+            let metadata = fs::metadata(&git_dir).context("Failed to read worktree git dir")?;
+            let created = metadata.created().or_else(|_| {
+                // Fallback: mtime of the `commondir` file (write-once by git worktree add)
+                fs::metadata(git_dir.join("commondir")).and_then(|m| m.modified())
+            });
+            if let Ok(created) = created
+                && let Ok(created_epoch) = created.duration_since(std::time::UNIX_EPOCH)
+            {
+                let age = Duration::from_secs(now_secs.saturating_sub(created_epoch.as_secs()));
+                if age < min_age_duration {
+                    skipped_young.push(label);
+                    continue;
+                }
+            }
+        }
+
+        let wt_path = dunce::canonicalize(&wt.path).unwrap_or(wt.path.clone());
+        let is_current = wt_path == current_root;
+        candidates.push(Candidate {
+            branch: if wt.detached { None } else { wt.branch.clone() },
+            label,
+            path: Some(wt.path.clone()),
+            kind: if is_current {
+                CandidateKind::Current
+            } else {
+                CandidateKind::Other
+            },
+            reason_desc: format!("{} {}", reason.description(), effective_target),
+        });
+    }
+
+    // Also scan local branches that don't have a worktree entry
+    for branch in repo.all_branches()? {
+        if seen_branches.contains(&branch) {
+            continue;
+        }
+        let (effective_target, reason) = repo.integration_reason(&branch, &integration_target)?;
+        if let Some(reason) = reason {
+            // Apply min-age guard: check reflog creation timestamp
+            if min_age_duration > Duration::ZERO {
+                let ref_name = format!("refs/heads/{branch}");
+                if let Ok(stdout) = repo.run_command(&["reflog", "show", "--format=%ct", &ref_name])
+                {
+                    // Last reflog entry is the branch creation event
+                    if let Some(created_epoch) = stdout
+                        .trim()
+                        .lines()
+                        .last()
+                        .and_then(|s| s.parse::<u64>().ok())
+                    {
+                        let age = Duration::from_secs(now_secs.saturating_sub(created_epoch));
+                        if age < min_age_duration {
+                            skipped_young.push(branch.clone());
+                            continue;
+                        }
+                    }
+                }
+            }
+            candidates.push(Candidate {
+                label: branch.clone(),
+                branch: Some(branch),
+                path: None,
+                kind: CandidateKind::BranchOnly,
+                reason_desc: format!("{} {}", reason.description(), effective_target),
+            });
+        }
+    }
+
+    if candidates.is_empty() {
+        let msg = if skipped_young.is_empty() {
+            "No merged worktrees to remove".to_string()
+        } else {
+            let names = skipped_young.join(", ");
+            format!("No merged worktrees to remove (skipped {names}, younger than {min_age})")
+        };
+        eprintln!("{}", info_message(msg));
+        return Ok(());
+    }
+
+    if !skipped_young.is_empty() {
+        let names = skipped_young.join(", ");
+        eprintln!(
+            "{}",
+            info_message(format!("Skipped {names} (younger than {min_age})"))
+        );
+    }
+
+    if dry_run {
+        for c in &candidates {
+            eprintln!(
+                "{}",
+                info_message(cformat!("<bold>{}</> — {}", c.label, c.reason_desc,))
+            );
+        }
+        let noun = if candidates.len() == 1 {
+            "worktree"
+        } else {
+            "worktrees"
+        };
+        eprintln!(
+            "{}",
+            hint_message(format!(
+                "{} {noun} would be removed (dry run)",
+                candidates.len()
+            ))
+        );
+        return Ok(());
+    }
+
+    // Approve hooks
+    let env = CommandEnv::for_action_branchless()?;
+    let ctx = env.context(yes);
+    let run_hooks = approve_hooks(
+        &ctx,
+        &[
+            HookType::PreRemove,
+            HookType::PostRemove,
+            HookType::PostSwitch,
+        ],
+    )?;
+    if !run_hooks {
+        eprintln!("{}", info_message("Commands declined, continuing removal"));
+    }
+
+    // Sort: current worktree last so cd-to-primary happens after other removals
+    candidates.sort_by_key(|c| matches!(c.kind, CandidateKind::Current));
+
+    // Prepare removal plans
+    let mut plans: Vec<super::worktree::RemoveResult> = Vec::new();
+    for c in &candidates {
+        let target = match c.kind {
+            CandidateKind::Current => RemoveTarget::Current,
+            CandidateKind::BranchOnly => {
+                RemoveTarget::Branch(c.branch.as_ref().expect("BranchOnly has branch"))
+            }
+            CandidateKind::Other => match &c.branch {
+                Some(branch) => RemoveTarget::Branch(branch),
+                None => RemoveTarget::Path(c.path.as_ref().expect("detached has path")),
+            },
+        };
+        let plan =
+            repo.prepare_worktree_removal(target, BranchDeletionMode::SafeDelete, false, &config)?;
+        plans.push(plan);
+    }
+
+    // Execute removals (current worktree is last due to sort above)
+    for result in &plans {
+        handle_remove_output(result, !foreground, run_hooks)?;
+    }
+
+    let worktree_count = candidates
+        .iter()
+        .filter(|c| !matches!(c.kind, CandidateKind::BranchOnly))
+        .count();
+    let branch_count = candidates.len() - worktree_count;
+    let mut parts = Vec::new();
+    if worktree_count > 0 {
+        let noun = if worktree_count == 1 {
+            "worktree"
+        } else {
+            "worktrees"
+        };
+        parts.push(format!("{worktree_count} {noun}"));
+    }
+    if branch_count > 0 {
+        let noun = if branch_count == 1 {
+            "branch"
+        } else {
+            "branches"
+        };
+        parts.push(format!("{branch_count} {noun}"));
+    }
+    eprintln!(
+        "{}",
+        success_message(format!("Pruned {}", parts.join(", ")))
+    );
+
     Ok(())
 }
 
