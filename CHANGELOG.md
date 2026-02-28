@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.28.1
+
+### Improved
+
+- **Nushell tab completions**: `wt switch <TAB>` and subcommand completions now work in nushell. ([#1220](https://github.com/max-sixty/worktrunk/pull/1220), thanks @omerxx for reporting [#1215](https://github.com/max-sixty/worktrunk/issues/1215))
+
+- **`wt step prune` reliability**: Candidates are now removed inline as they're discovered instead of scan-then-remove, with per-candidate error handling (dirty worktrees are warned and skipped). Dry-run and execution summaries now distinguish worktrees, branches, and detached worktrees. Command marked `[experimental]`. ([#1234](https://github.com/max-sixty/worktrunk/pull/1234), [#1232](https://github.com/max-sixty/worktrunk/pull/1232), [#1223](https://github.com/max-sixty/worktrunk/pull/1223))
+
+- **`wt step diff` performance**: Copies the real git index instead of creating an empty one, preserving git's stat cache so unchanged tracked files are skipped. ([#1230](https://github.com/max-sixty/worktrunk/pull/1230))
+
+### Fixed
+
+- **Branch delete race on fast-path remove**: `wt remove` now deletes merged branches synchronously on the fast path instead of deferring to the background process, fixing a race where `wt switch --create <branch>` fails with "branch already exists". ([#1216](https://github.com/max-sixty/worktrunk/pull/1216))
+
+- **Panic in `is_bare()` on unusual repositories**: `is_bare()` now propagates errors instead of panicking. ([#1221](https://github.com/max-sixty/worktrunk/pull/1221), @bendrucker)
+
+- **Help text table coloring**: Status symbols and backtick-enclosed text in `--help` tables now render with proper ANSI colors. ([#1231](https://github.com/max-sixty/worktrunk/pull/1231))
+
+### Internal
+
+- **CI workflow**: Added concurrency group to claude-mention workflow, fixed external contributor PR review permissions. ([#1233](https://github.com/max-sixty/worktrunk/pull/1233), [#1226](https://github.com/max-sixty/worktrunk/pull/1226))
+
 ## 0.28.0
 
 ### Improved
