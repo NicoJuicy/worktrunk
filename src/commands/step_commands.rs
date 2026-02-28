@@ -1316,29 +1316,46 @@ pub fn step_prune(dry_run: bool, yes: bool, min_age: &str, foreground: bool) -> 
         BranchOnly,
     }
 
-    /// Build a human-readable count like "2 worktrees, 1 branch".
-    fn count_summary(candidates: &[Candidate]) -> String {
-        let worktree_count = candidates
-            .iter()
-            .filter(|c| !matches!(c.kind, CandidateKind::BranchOnly))
-            .count();
-        let branch_count = candidates.len() - worktree_count;
-        let mut parts = Vec::new();
-        if worktree_count > 0 {
-            let noun = if worktree_count == 1 {
-                "worktree"
-            } else {
-                "worktrees"
-            };
-            parts.push(format!("{worktree_count} {noun}"));
+    /// Build a human-readable count like "2 worktrees (with branches), 1 branch".
+    fn prune_summary(candidates: &[Candidate]) -> String {
+        let mut worktree_with_branch = 0;
+        let mut branch_only = 0;
+        let mut detached_worktree = 0;
+        for c in candidates {
+            match (&c.kind, &c.branch) {
+                (CandidateKind::BranchOnly, _) => branch_only += 1,
+                (CandidateKind::Current | CandidateKind::Other, Some(_)) => {
+                    worktree_with_branch += 1;
+                }
+                (CandidateKind::Current | CandidateKind::Other, None) => {
+                    detached_worktree += 1;
+                }
+            }
         }
-        if branch_count > 0 {
-            let noun = if branch_count == 1 {
+        let mut parts = Vec::new();
+        if worktree_with_branch > 0 {
+            let noun = if worktree_with_branch == 1 {
+                "worktree (with branch)"
+            } else {
+                "worktrees (with branches)"
+            };
+            parts.push(format!("{worktree_with_branch} {noun}"));
+        }
+        if branch_only > 0 {
+            let noun = if branch_only == 1 {
                 "branch"
             } else {
                 "branches"
             };
-            parts.push(format!("{branch_count} {noun}"));
+            parts.push(format!("{branch_only} {noun}"));
+        }
+        if detached_worktree > 0 {
+            let noun = if detached_worktree == 1 {
+                "detached worktree"
+            } else {
+                "detached worktrees"
+            };
+            parts.push(format!("{detached_worktree} {noun}"));
         }
         parts.join(", ")
     }
@@ -1510,10 +1527,12 @@ pub fn step_prune(dry_run: bool, yes: bool, min_age: &str, foreground: bool) -> 
                 info_message(cformat!("<bold>{}</> — {}", c.label, c.reason_desc,))
             );
         }
-        let summary = count_summary(&candidates);
         eprintln!(
             "{}",
-            hint_message(format!("{summary} would be removed (dry run)"))
+            hint_message(format!(
+                "{} would be removed (dry run)",
+                prune_summary(&candidates)
+            ))
         );
         return Ok(());
     }
@@ -1541,12 +1560,16 @@ pub fn step_prune(dry_run: bool, yes: bool, min_age: &str, foreground: bool) -> 
     for c in &candidates {
         let target = match c.kind {
             CandidateKind::Current => RemoveTarget::Current,
-            CandidateKind::BranchOnly => {
-                RemoveTarget::Branch(c.branch.as_ref().expect("BranchOnly has branch"))
-            }
+            CandidateKind::BranchOnly => RemoveTarget::Branch(
+                c.branch
+                    .as_ref()
+                    .context("BranchOnly candidate missing branch")?,
+            ),
             CandidateKind::Other => match &c.branch {
                 Some(branch) => RemoveTarget::Branch(branch),
-                None => RemoveTarget::Path(c.path.as_ref().expect("detached has path")),
+                None => {
+                    RemoveTarget::Path(c.path.as_ref().context("detached candidate missing path")?)
+                }
             },
         };
         let plan =
@@ -1559,8 +1582,10 @@ pub fn step_prune(dry_run: bool, yes: bool, min_age: &str, foreground: bool) -> 
         handle_remove_output(result, !foreground, run_hooks)?;
     }
 
-    let summary = count_summary(&candidates);
-    eprintln!("{}", success_message(format!("Pruned {summary}")));
+    eprintln!(
+        "{}",
+        success_message(format!("Pruned {}", prune_summary(&candidates)))
+    );
 
     Ok(())
 }
