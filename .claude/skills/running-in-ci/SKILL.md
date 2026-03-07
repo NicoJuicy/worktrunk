@@ -46,15 +46,22 @@ After pushing changes to a PR branch, you **must** wait for CI before saying
 "done" or reporting completion. A push without green CI is not finished work.
 
 1. Push your changes
-2. Wait for CI completion with `gh run watch` or poll `gh pr checks <number>`
-3. If CI fails, diagnose with `gh run view <run-id> --log-failed`
-4. Fix issues, commit, push, and repeat from step 2
-5. Only after all checks pass, report completion
+2. Run `gh pr checks <number>` once
+3. If all checks passed, report completion
+4. If checks are still running, poll with `gh pr checks <number>` every 60
+   seconds until all checks complete (this may take up to 10 minutes — that's an
+   acceptable tradeoff to ensure the bot reports accurate CI status)
+5. If CI fails, diagnose with `gh run view <run-id> --log-failed`, fix issues,
+   commit, push, and repeat from step 2
+6. Only after all checks pass, report completion
 
 **Never** post a "done" or "fixed" comment before CI passes. Local tests alone
 are not sufficient — CI runs on Linux, Windows, and macOS. If you report
 completion and CI later fails, the user has to come back and ask you to fix it
 again.
+
+Avoid `gh run watch` — it can hang indefinitely. Use the poll loop above
+instead, which has a natural bound on CI completion time.
 
 ## Replying to Comments
 
