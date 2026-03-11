@@ -754,7 +754,7 @@ Remove current worktree:
 wt remove
 ```
 
-Remove specific worktrees:
+Remove specific worktrees / branches:
 
 ```console
 wt remove feature-branch
