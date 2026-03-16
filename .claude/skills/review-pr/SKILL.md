@@ -282,7 +282,7 @@ array indices to object keys, which GitHub rejects.
 ### 5. Monitor CI
 
 After approving or staying silent, monitor CI using the approach from
-`/running-in-ci`.
+/running-in-ci.
 
 - **All required checks passed** → done.
 - **A check failed** and it's related to the PR → post a follow-up COMMENT
