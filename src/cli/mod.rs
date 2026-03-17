@@ -1105,8 +1105,8 @@ Alias names that match a built-in step command (`commit`, `squash`, etc.) are sh
 | Hook | When | Blocking | Fail-fast |
 |------|------|----------|-----------|
 | `pre-switch` | Before every switch | Yes | Yes |
-| `post-start` | After worktree created | No | No |
 | `post-create` | After worktree created | Yes | No |
+| `post-start` | After worktree created | No | No |
 | `post-switch` | After every switch | No | No |
 | `pre-commit` | Before commit during merge | Yes | Yes |
 | `pre-merge` | Before merging to target | Yes | Yes |
@@ -1136,16 +1136,6 @@ fi
 """
 ```
 
-## post-start
-
-Dev servers, long builds, file watchers, copying caches. Output logged to `.git/wt-logs/{branch}-{source}-post-start-{name}.log`.
-
-```toml
-[post-start]
-copy = "wt step copy-ignored"
-server = "npm run dev -- --port {{ branch | hash_port }}"
-```
-
 ## post-create
 
 Tasks that must complete before `post-start` hooks or `--execute` run: dependency installation, environment file generation.
@@ -1154,6 +1144,16 @@ Tasks that must complete before `post-start` hooks or `--execute` run: dependenc
 [post-create]
 install = "npm ci"
 env = "echo 'PORT={{ branch | hash_port }}' > .env.local"
+```
+
+## post-start
+
+Dev servers, long builds, file watchers, copying caches. Output logged to `.git/wt-logs/{branch}-{source}-post-start-{name}.log`.
+
+```toml
+[post-start]
+copy = "wt step copy-ignored"
+server = "npm run dev -- --port {{ branch | hash_port }}"
 ```
 
 ## post-switch
