@@ -7,9 +7,7 @@ Practical recipes for common Worktrunk workflows.
 Create a worktree and launch Claude in one command:
 
 ```bash
-alias wsc='wt switch --create --execute=claude'
-wsc new-feature                       # Creates worktree, runs hooks, launches Claude
-wsc feature -- 'Fix GH #322'          # Runs `claude 'Fix GH #322'`
+$ alias wsc='wt switch --create --execute=claude'|||wsc new-feature                       # Creates worktree, runs hooks, launches Claude|||wsc feature -- 'Fix GH #322'          # Runs `claude 'Fix GH #322'`
 ```
 
 ## Eliminate cold starts
@@ -43,7 +41,6 @@ server = "lsof -ti :{{ branch | hash_port }} -sTCP:LISTEN | xargs kill 2>/dev/nu
 
 The URL column in `wt list` shows each worktree's dev server:
 
-{% terminal(cmd="wt list") %}
 <span class="cmd">wt list</span>
   <b>Branch</b>       <b>Status</b>        <b>HEAD±</b>    <b>main↕</b>  <b>Remote⇅</b>  <b>URL</b>                     <b>Commit</b>    <b>Age</b>
 @ main           <span class=c>?</span> <span class=d>^</span><span class=d>⇅</span>                         <span class=g>⇡1</span>  <span class=d><span class=r>⇣1</span></span>  <span class=d>http://localhost:12107</span>  <span class=d>41ee0834</span>  <span class=d>4d</span>
@@ -52,7 +49,6 @@ The URL column in `wt list` shows each worktree's dev server:
 + <span class=d>fix-typos</span>        <span class=d>_</span><span class=d>|</span>                           <span class=d>|</span>     <span class=d>http://localhost:14301</span>  <span class=d>41ee0834</span>  <span class=d>4d</span>
 
 <span class=d>○</span> <span class=d>Showing 4 worktrees, 2 with changes, 2 ahead, 2 columns hidden</span>
-{% end %}
 
 Ports are deterministic — `fix-auth` always gets port 16460, regardless of which machine or when. The URL dims if the server isn't running.
 
@@ -141,9 +137,7 @@ Custom emoji markers show agent state in `wt list`. The Claude Code plugin sets 
 Set status manually for any workflow:
 
 ```bash
-wt config state marker set "🚧"                   # Current branch
-wt config state marker set "✅" --branch feature  # Specific branch
-git config worktrunk.state.feature.marker '{"marker":"💬","set_at":0}'  # Direct
+$ wt config state marker set &quot;🚧&quot;                   # Current branch|||wt config state marker set &quot;✅&quot; --branch feature  # Specific branch|||git config worktrunk.state.feature.marker '{&quot;marker&quot;:&quot;💬&quot;,&quot;set_at&quot;:0}'  # Direct
 ```
 
 See [Claude Code Integration](https://worktrunk.dev/claude-code/#installation) for plugin installation.
@@ -151,7 +145,7 @@ See [Claude Code Integration](https://worktrunk.dev/claude-code/#installation) f
 ## Monitor CI across branches
 
 ```bash
-wt list --full --branches
+$ wt list --full --branches
 ```
 
 Shows PR/CI status for all branches, including those without worktrees. CI indicators are clickable links to the PR page.
@@ -171,7 +165,7 @@ Summaries are cached and regenerated only when the diff changes. See [LLM Commit
 ## JSON API
 
 ```bash
-wt list --format=json
+$ wt list --format=json
 ```
 
 Structured output for dashboards, statuslines, and scripts. See [`wt list`](https://worktrunk.dev/list/) for query examples.
@@ -181,7 +175,7 @@ Structured output for dashboards, statuslines, and scripts. See [`wt list`](http
 Worktrunk maintains useful state. Default branch [detection](https://worktrunk.dev/config/#wt-config-state-default-branch), for instance, means scripts work on any repo — no need to hardcode `main` or `master`:
 
 ```bash
-git rebase $(wt config state default-branch)
+$ git rebase $(wt config state default-branch)
 ```
 
 ## Task runners in hooks
@@ -201,9 +195,7 @@ Reference Taskfile/Justfile/Makefile in hooks:
 Special arguments work across all commands—see [`wt switch`](https://worktrunk.dev/switch/#shortcuts) for the full list.
 
 ```bash
-wt switch --create hotfix --base=@       # Branch from current HEAD
-wt switch -                              # Switch to previous worktree
-wt remove @                              # Remove current worktree
+$ wt switch --create hotfix --base=@       # Branch from current HEAD|||wt switch -                              # Switch to previous worktree|||wt remove @                              # Remove current worktree
 ```
 
 ## Stacked branches
@@ -211,7 +203,7 @@ wt remove @                              # Remove current worktree
 Branch from current HEAD instead of the default branch:
 
 ```bash
-wt switch --create feature-part2 --base=@
+$ wt switch --create feature-part2 --base=@
 ```
 
 Creates a worktree that builds on the current branch's changes.
@@ -222,14 +214,12 @@ Spawn a worktree with Claude running in the background:
 
 **tmux** (new detached session):
 ```bash
-tmux new-session -d -s fix-auth-bug "wt switch --create fix-auth-bug -x claude -- \
-  'The login session expires after 5 minutes. Find the session timeout config and extend it to 24 hours.'"
+$ tmux new-session -d -s fix-auth-bug &quot;wt switch --create fix-auth-bug -x claude -- \|||  'The login session expires after 5 minutes. Find the session timeout config and extend it to 24 hours.'&quot;
 ```
 
 **Zellij** (new pane in current session):
 ```bash
-zellij run -- wt switch --create fix-auth-bug -x claude -- \
-  'The login session expires after 5 minutes. Find the session timeout config and extend it to 24 hours.'
+$ zellij run -- wt switch --create fix-auth-bug -x claude -- \|||  'The login session expires after 5 minutes. Find the session timeout config and extend it to 24 hours.'
 ```
 
 This lets one Claude session hand off work to another that runs in the background. Hooks run inside the multiplexer session/pane.
@@ -275,9 +265,7 @@ tmux = "tmux kill-session -t {{ branch | sanitize }} 2>/dev/null || true"
 
 To create a worktree and immediately attach:
 
-```bash
-wt switch --create feature -x 'tmux attach -t {{ branch | sanitize }}'
-```
+<span class="cmd">wt switch --create feature -x 'tmux attach -t {{ branch | sanitize }}'</span>
 
 ## Xcode DerivedData cleanup
 
@@ -339,7 +327,7 @@ url = "http://{{ branch | sanitize }}.{{ repo }}.localhost:8080"
 Follow background hook output in real-time:
 
 ```bash
-tail -f "$(wt config state logs get --hook=user:post-start:server)"
+$ tail -f &quot;$(wt config state logs get --hook=user:post-start:server)&quot;
 ```
 
 The `--hook` format is `source:hook-type:name` — e.g., `project:post-start:build` for project-defined hooks. Use `wt config state logs get` to list all available logs.
@@ -347,7 +335,7 @@ The `--hook` format is `source:hook-type:name` — e.g., `project:post-start:bui
 Create an alias for frequent use:
 
 ```bash
-alias wtlog='f() { tail -f "$(wt config state logs get --hook="$1")"; }; f'
+$ alias wtlog='f() { tail -f &quot;$(wt config state logs get --hook=&quot;$1&quot;)&quot;; }; f'
 ```
 
 ## Bare repository layout
@@ -357,8 +345,7 @@ A [bare repository](https://git-scm.com/docs/gitrepository-layout) has no workin
 Cloning a bare repo into `<project>/.git` puts all worktrees under one directory:
 
 ```bash
-git clone --bare <url> myproject/.git
-cd myproject
+$ git clone --bare <url> myproject/.git|||cd myproject
 ```
 
 With `worktree-path = "{{ repo_path }}/../{{ branch | sanitize }}"`, worktrees become subdirectories of `myproject/`:
@@ -381,7 +368,7 @@ worktree-path = "{{ repo_path }}/../{{ branch | sanitize }}"
 Create the first worktree:
 
 ```bash
-wt switch --create main
+$ wt switch --create main
 ```
 
 Now `wt switch --create feature` creates `myproject/feature/`.

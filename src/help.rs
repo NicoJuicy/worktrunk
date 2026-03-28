@@ -18,6 +18,10 @@
 //! combine_command_docs()         — assembles "definition. subtitle\n\n<after_long_help>"
 //!         │
 //!         ▼
+//! convert_dollar_console_to_terminal() — ```console with $ → {% terminal() %} shortcode
+//! console→bash replacement             — remaining ```console → ```bash
+//!         │
+//!         ▼
 //! post_process_for_html()        — text replacements on after_long_help markdown:
 //!         │                        [experimental] → badge <span>
 //!         │                        `●` green → colored <span>
@@ -46,6 +50,7 @@ use std::process;
 use ansi_str::AnsiStr;
 use clap::ColorChoice;
 use clap::error::ErrorKind;
+use worktrunk::docs::convert_dollar_console_to_terminal;
 use worktrunk::styling::eprintln;
 
 use crate::cli;
@@ -360,10 +365,11 @@ Commands with pages: merge, switch, remove, list"
     };
 
     // Get combined docs: about + subtitle + after_long_help
-    // Transform for web docs: console→bash, status colors, demo images
+    // Transform for web docs: $→terminal shortcode, console→bash, status colors, demo images
     // Subdocs are expanded separately so main Command reference comes first
     let parent_name = format!("wt {}", subcommand);
     let raw_help = combine_command_docs(sub);
+    let raw_help = convert_dollar_console_to_terminal(&raw_help);
     let raw_help = raw_help.replace("```console\n", "```bash\n");
 
     // Split content at first subdoc placeholder
@@ -652,6 +658,7 @@ fn format_subcommand_section(
 
     // Get combined docs: about + subtitle + after_long_help
     let raw_help = combine_command_docs(sub);
+    let raw_help = convert_dollar_console_to_terminal(&raw_help);
     let raw_help = raw_help.replace("```console\n", "```bash\n");
 
     // Extract [experimental] marker from content start → badge after heading.

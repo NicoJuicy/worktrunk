@@ -365,11 +365,11 @@ fn update_section(
 // =============================================================================
 
 /// Regex to find command placeholder comments in help pages
-/// Matches: <!-- wt <args> -->\n```bash\n$ wt <args>\n```
+/// Matches: <!-- wt <args> -->\n```bash\nwt <args>\n```
 /// The HTML comment triggers expansion, the code block shows in terminal help
 /// Note: Pattern expects ```bash``` because --help-page converts ```console``` first
 static COMMAND_PLACEHOLDER_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"<!-- (wt [^>]+) -->\n```bash\n\$ wt [^\n]+\n```").unwrap());
+    LazyLock::new(|| Regex::new(r"<!-- (wt [^>]+) -->\n```bash\nwt [^\n]+\n```").unwrap());
 
 /// Map commands to their snapshot files for help page expansion
 fn command_to_snapshot(command: &str) -> Option<&'static str> {
@@ -1567,7 +1567,7 @@ fn sync_command_pages(project_root: &Path) -> (Vec<String>, Vec<String>) {
             continue;
         }
 
-        // Expand command placeholders ($ wt list -> terminal shortcode with snapshot output)
+        // Expand command placeholders (wt list -> terminal shortcode with snapshot output)
         let snapshots_dir = project_root.join("tests/snapshots");
         let generated = match expand_command_placeholders(&generated, &snapshots_dir) {
             Ok(expanded) => expanded,
@@ -1655,9 +1655,13 @@ static ZOLA_FRONTMATTER_PATTERN: LazyLock<Regex> =
 static ZOLA_TITLE_PATTERN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"title\s*=\s*"([^"]+)""#).unwrap());
 
-/// Regex to strip Zola terminal shortcodes ({% terminal() %}...{% end %})
-static ZOLA_TERMINAL_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?s)\{% terminal\(\) %\}\n?(.*?)\{% end %\}").unwrap());
+/// Regex to strip body-form terminal shortcodes ({% terminal(...) %}...{% end %})
+static ZOLA_TERMINAL_BODY_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(?s)\{% terminal\([^)]*\) %\}\n?(.*?)\{% end %\}"#).unwrap());
+
+/// Regex to strip self-closing terminal shortcodes ({{ terminal(cmd="...") }})
+static ZOLA_TERMINAL_SELF_CLOSING_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"\{\{ terminal\(cmd="([^"]*)"\) \}\}"#).unwrap());
 
 /// Regex to replace Zola experimental shortcode with plain text for skill files
 static ZOLA_EXPERIMENTAL_SHORTCODE: LazyLock<Regex> =
@@ -1694,8 +1698,11 @@ fn transform_docs_for_skill(content: &str) -> String {
     // Strip frontmatter
     let content = ZOLA_FRONTMATTER_PATTERN.replace(content, "");
 
-    // Strip terminal shortcodes, keeping inner content
-    let content = ZOLA_TERMINAL_PATTERN.replace_all(&content, "$1");
+    // Strip terminal shortcodes:
+    // - Body form: keep inner content
+    // - Self-closing: convert to `$ command` (plain text with prompt)
+    let content = ZOLA_TERMINAL_BODY_PATTERN.replace_all(&content, "$1");
+    let content = ZOLA_TERMINAL_SELF_CLOSING_PATTERN.replace_all(&content, "```bash\n$$ $1\n```");
 
     // Strip AUTO-GENERATED marker comments (keep content)
     let content = AUTO_GENERATED_MARKER_PATTERN.replace_all(&content, "");
@@ -1767,6 +1774,32 @@ fn remove_section(content: &str, heading: &str) -> String {
     } else {
         content.to_string()
     }
+}
+
+/// Convert ```console blocks with $ to terminal shortcodes in all docs files.
+///
+/// Command pages already have this conversion via --help-page, but hand-written
+/// docs (faq.md, llm-commits.md, claude-code.md) can also use ```console with $
+/// and get the same treatment.
+fn convert_console_blocks_in_docs(project_root: &Path) -> Vec<String> {
+    let docs_dir = project_root.join("docs/content");
+    let mut updated_files = Vec::new();
+
+    for entry in fs::read_dir(&docs_dir).unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        if path.extension().is_some_and(|e| e == "md") {
+            let content = fs::read_to_string(&path).unwrap();
+            let converted = worktrunk::docs::convert_dollar_console_to_terminal(&content);
+            if converted != content {
+                fs::write(&path, &converted).unwrap();
+                let rel = path.strip_prefix(project_root).unwrap_or(&path);
+                updated_files.push(rel.display().to_string());
+            }
+        }
+    }
+
+    updated_files
 }
 
 /// Sync all docs/content/*.md files to skills/worktrunk/reference/*.md
@@ -1920,6 +1953,10 @@ fn test_command_pages_and_skill_files_are_in_sync() {
     // Step 1: Sync command pages (mod.rs → docs/content/*.md)
     let (cmd_errors, cmd_files) = sync_command_pages(project_root);
 
+    // Step 1b: Convert $ console blocks to terminal shortcodes in ALL docs
+    // (command pages already converted via --help-page; this catches hand-written docs)
+    let console_files = convert_console_blocks_in_docs(project_root);
+
     // Step 2: Sync skill files (docs/content/*.md → skills/*)
     // This reads the freshly-written docs from step 1
     let (skill_errors, skill_files) = sync_skill_files(project_root);
@@ -1932,6 +1969,7 @@ fn test_command_pages_and_skill_files_are_in_sync() {
     let all_errors: Vec<_> = cmd_errors.into_iter().chain(skill_errors).collect();
     let all_files: Vec<_> = cmd_files
         .into_iter()
+        .chain(console_files)
         .chain(skill_files)
         .chain(well_known_files)
         .collect();

@@ -7,26 +7,25 @@ Remove worktree; delete branch if merged. Defaults to the current worktree.
 Remove current worktree:
 
 ```bash
-wt remove
+$ wt remove
 ```
 
 Remove specific worktrees / branches:
 
 ```bash
-wt remove feature-branch
-wt remove old-feature another-branch
+$ wt remove feature-branch|||wt remove old-feature another-branch
 ```
 
 Keep the branch:
 
 ```bash
-wt remove --no-delete-branch feature-branch
+$ wt remove --no-delete-branch feature-branch
 ```
 
 Force-delete an unmerged branch:
 
 ```bash
-wt remove -D experimental
+$ wt remove -D experimental
 ```
 
 ## Branch cleanup
@@ -55,9 +54,7 @@ Worktrunk has two force flags for different situations:
 | `--force-delete` (`-D`) | Branch | Branch has unmerged commits |
 
 ```bash
-wt remove feature --force       # Remove worktree with untracked files
-wt remove feature -D            # Delete unmerged branch
-wt remove feature --force -D    # Both
+$ wt remove feature --force       # Remove worktree with untracked files|||wt remove feature -D            # Delete unmerged branch|||wt remove feature --force -D    # Both
 ```
 
 Without `--force`, removal fails if the worktree contains untracked files. Without `--force-delete`, removal keeps branches with unmerged changes. Use `--no-delete-branch` to keep the branch regardless of merge status.
