@@ -390,7 +390,8 @@ fn render_dry_run(
 /// `pre-remove`/`post-remove`/`post-switch`). The integration checks haven't
 /// run yet, so every linked worktree is fed to the helper — its `pre-remove`
 /// approval is a superset of what executes. `post-remove` / `post-switch`
-/// resolve from the primary worktree's config (the same helper input).
+/// resolve from the primary worktree's config (the same helper input). No
+/// fallback between worktrees — each `.config/wt.toml` stands alone.
 ///
 /// Returns `true` when hooks should run, `false` when the user declined.
 fn approve_prune_hooks(

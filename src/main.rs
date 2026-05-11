@@ -895,14 +895,12 @@ fn handle_remove_command(args: RemoveArgs, yes: bool) -> anyhow::Result<()> {
 
             // Helper: approve every command the removal will run, in one batch.
             // `pre-remove` runs in — and resolves its `.config/wt.toml` from —
-            // each worktree being removed (falling back to the primary
-            // worktree's config when the removed one carries none, same rule
-            // as `execute_pre_remove_hooks_if_needed`); `post-remove` and
-            // `post-switch` run in the primary worktree afterwards and resolve
-            // their config from there. The shared helper assembles both,
-            // dedup'd by template (multiple worktrees often fall back to the
-            // same primary config). Returns `true` when the prompt was
-            // accepted or there was nothing to approve.
+            // each worktree being removed (no fallback to the primary worktree's
+            // config, same rule as `execute_pre_remove_hooks_if_needed`);
+            // `post-remove` and `post-switch` run in the primary worktree
+            // afterwards and resolve their config from there. The shared helper
+            // assembles both, dedup'd by template. Returns `true` when the prompt
+            // was accepted or there was nothing to approve.
             let approve_remove = |removed_worktree_paths: &[&Path], yes: bool| -> anyhow::Result<bool> {
                 let primary_path = repo.home_path()?;
                 let primary_repo = Repository::at(&primary_path)?;

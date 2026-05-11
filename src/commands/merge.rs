@@ -87,9 +87,9 @@ pub struct MergeOptions<'a> {
 /// - `pre-remove` / `post-remove` / `post-switch` (when the feature worktree
 ///   is being removed) → resolved by [`collect_remove_hook_commands`], which
 ///   reads `pre-remove` from the feature worktree's own `.config/wt.toml`
-///   (falling back to the destination's) and `post-remove` / `post-switch`
-///   from the destination — mirroring
-///   `output::handlers::execute_pre_remove_hooks_if_needed`.
+///   and `post-remove` / `post-switch` from the destination — mirroring
+///   `output::handlers::execute_pre_remove_hooks_if_needed`. No fallback
+///   between worktrees — each `.config/wt.toml` stands alone.
 fn collect_merge_commands(
     repo: &Repository,
     destination_path: &Path,
