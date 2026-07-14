@@ -631,18 +631,25 @@ impl Repository {
     ///
     /// If `WORKTRUNK_PROJECT_CONFIG_PATH` is set, returns that path (used for
     /// test isolation so the spawned `wt` does not pick up this repo's
-    /// `.config/wt.toml`). A missing file at that path still resolves to
-    /// `Ok(None)` via `ProjectConfig::load`, matching the no-config case.
+    /// `.config/wt.toml`). An empty value means no project config. A relative
+    /// value resolves against the same worktree root the default
+    /// `.config/wt.toml` is anchored to — never the process cwd, which would
+    /// make the override silently depend on the invocation directory — and
+    /// errors when no worktree root exists to anchor it. A missing file at the
+    /// resulting path still resolves to `Ok(None)` via `ProjectConfig::load`,
+    /// matching the no-config case.
     ///
-    /// Otherwise: uses the current worktree when inside one (both normal and
-    /// bare repos). For bare repos at the bare root (outside any worktree),
-    /// falls back to the primary worktree. When the default branch is checked
-    /// out in no worktree (so `primary_worktree()` is `None`), there is no
-    /// on-disk path to return here — `ProjectConfig::load` reads the committed
-    /// default-branch config from the object store via
+    /// Without the override: uses the current worktree when inside one (both
+    /// normal and bare repos). For bare repos at the bare root (outside any
+    /// worktree), falls back to the primary worktree. When the default branch
+    /// is checked out in no worktree (so `primary_worktree()` is `None`),
+    /// there is no on-disk path to return here — `ProjectConfig::load` reads
+    /// the committed default-branch config from the object store via
     /// [`default_branch_project_config_content`](Self::default_branch_project_config_content)
     /// so project config (and every project hook) isn't silently dropped while
-    /// the primary is parked on another branch (#3461).
+    /// the primary is parked on another branch (#3461). That fallback is for
+    /// the no-override case only: an override always names the config source
+    /// outright.
     ///
     /// "The current worktree" is whatever this `Repository` was rooted at, so
     /// the answer to "which `.config/wt.toml` does a hook read" is decided by
@@ -650,8 +657,34 @@ impl Repository {
     /// is resolved against — is the spec in the `commands::hooks` module docs
     /// (`src/commands/hooks.rs`).
     pub fn project_config_path(&self) -> anyhow::Result<Option<PathBuf>> {
-        if let Ok(path) = std::env::var("WORKTRUNK_PROJECT_CONFIG_PATH") {
-            return Ok(Some(PathBuf::from(path)));
+        let override_path = std::env::var_os("WORKTRUNK_PROJECT_CONFIG_PATH").map(PathBuf::from);
+        if let Some(path) = &override_path {
+            if path.as_os_str().is_empty() {
+                // An empty override means no project config, matching a
+                // missing file at the override path.
+                return Ok(None);
+            }
+            if path.is_absolute() {
+                return Ok(Some(path.clone()));
+            }
+            // Windows-only forms that are neither absolute nor purely
+            // relative — drive-relative (`C:cfg`) or rooted without a drive
+            // (`\cfg`, `/tmp/x`) — would resolve against the process drive or
+            // replace the anchor under `Path::join`; reject them rather than
+            // silently keep the cwd dependence this resolution exists to
+            // eliminate.
+            #[cfg(windows)]
+            if path.has_root()
+                || matches!(
+                    path.components().next(),
+                    Some(std::path::Component::Prefix(_))
+                )
+            {
+                anyhow::bail!(
+                    "WORKTRUNK_PROJECT_CONFIG_PATH ({}) is neither fully absolute nor relative; use an absolute path including the drive",
+                    path.display()
+                );
+            }
         }
 
         // Batched rev-parse: asks `--is-inside-work-tree` and also pre-warms
@@ -659,26 +692,29 @@ impl Repository {
         // forks on the typical alias path.
         let info = self.current_worktree().prewarm_info().unwrap_or_default();
 
-        if let Some(root) = info.root {
-            // Inside a worktree — use it (normal repo or linked worktree in
-            // bare repo). `root` is `Some` iff the batch saw us inside a work
-            // tree, so no separate `is_inside` check.
-            return Ok(Some(root.join(".config").join("wt.toml")));
-        }
+        // Inside a worktree — use it (normal repo or linked worktree in bare
+        // repo; `root` is `Some` iff the batch saw us inside a work tree). At
+        // the bare root, fall back to the primary worktree (the one holding
+        // the default branch); when the default branch is checked out in no
+        // worktree, there is no root and no on-disk path — `ProjectConfig::load`
+        // then reads the committed default-branch config from the object store
+        // via `default_branch_project_config_content` (#3461).
+        let root = match info.root {
+            Some(root) => Some(root),
+            None if self.is_bare().unwrap_or(false) => self.primary_worktree()?,
+            None => None,
+        };
 
-        if self.is_bare().unwrap_or(false) {
-            // At bare repo root — use the primary worktree (the one holding the
-            // default branch). When the default branch is checked out in no
-            // worktree, `primary_worktree()` is `None` and there is no on-disk
-            // path; `ProjectConfig::load` then reads the committed
-            // default-branch config from the object store via
-            // `default_branch_project_config_content` (#3461).
-            return Ok(self
-                .primary_worktree()?
-                .map(|p| p.join(".config").join("wt.toml")));
-        }
-
-        Ok(None)
+        let Some(relative) = override_path else {
+            return Ok(root.map(|root| root.join(".config").join("wt.toml")));
+        };
+        let Some(root) = root else {
+            anyhow::bail!(
+                "WORKTRUNK_PROJECT_CONFIG_PATH is relative ({}) but there is no worktree root to resolve it against; use an absolute path",
+                relative.display()
+            );
+        };
+        Ok(Some(root.join(relative)))
     }
 
     /// Content of the default branch's committed `.config/wt.toml`, read from
@@ -724,6 +760,14 @@ impl Repository {
     /// filesystem path. Nothing is read from or written to it; it only
     /// annotates diagnostics (e.g. a parse error) with the object-store source.
     pub fn default_branch_project_config_content(&self) -> Option<(String, PathBuf)> {
+        // An explicit WORKTRUNK_PROJECT_CONFIG_PATH override names the config
+        // source outright — an empty value or a missing file at the override
+        // path means no project config — so the committed fallback must not
+        // supersede it (the override exists for test isolation, where reading
+        // the repo's own committed config is exactly the leak being prevented).
+        if std::env::var_os("WORKTRUNK_PROJECT_CONFIG_PATH").is_some() {
+            return None;
+        }
         if !self.is_bare().unwrap_or(false) {
             return None;
         }

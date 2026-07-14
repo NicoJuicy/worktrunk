@@ -969,6 +969,66 @@ fn test_bare_repo_no_project_config_when_primary_off_branch_and_none_present() {
 }
 
 #[test]
+fn test_bare_repo_committed_config_does_not_supersede_override() {
+    // Companion to the #3461 fix: the object-store fallback must never
+    // supersede an explicit `WORKTRUNK_PROJECT_CONFIG_PATH`. The override
+    // names the config source outright — a missing file there means no
+    // project config — and it exists for test isolation, where reading the
+    // repo's own committed config is exactly the leak being prevented.
+    let test = BareRepoTest::new();
+
+    // Commit a project config on the default branch, then park the primary
+    // worktree off it — the state where the committed fallback applies.
+    let main_worktree = test.create_worktree("main", "main");
+    test.commit_in(&main_worktree, "Initial commit");
+    let config_dir = main_worktree.join(".config");
+    fs::create_dir_all(&config_dir).unwrap();
+    fs::write(
+        config_dir.join("wt.toml"),
+        "pre-start = \"echo committed\"\n",
+    )
+    .unwrap();
+    let output = test
+        .git_command(&main_worktree)
+        .args(["add", ".config/wt.toml"])
+        .run()
+        .unwrap();
+    assert!(output.status.success());
+    test.commit_in(&main_worktree, "Add project config");
+    let output = test
+        .git_command(&main_worktree)
+        .args(["checkout", "-b", "feature-x"])
+        .run()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "checkout -b feature-x failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let mut cmd = test.wt_command();
+    cmd.env(
+        "WORKTRUNK_PROJECT_CONFIG_PATH",
+        test.temp_path().join("nonexistent.toml"),
+    );
+    cmd.args(["config", "show", "--format=json"])
+        .current_dir(test.bare_repo_path());
+    let output = cmd.output().unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let json: serde_json::Value =
+        serde_json::from_str(&String::from_utf8_lossy(&output.stdout)).unwrap();
+    assert!(
+        json["project"]["config"].is_null(),
+        "an override pointing at a missing file must not fall back to the committed config, got: {}",
+        json["project"]["config"]
+    );
+}
+
+#[test]
 fn test_bare_repo_project_config_found_from_linked_worktree_when_primary_off_branch() {
     // Regression for the #3461 fix: the object-store fallback must resolve the
     // *default branch's* config by name, not via `HEAD`. `git show HEAD:...`
