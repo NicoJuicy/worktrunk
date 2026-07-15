@@ -783,7 +783,11 @@ fn format_show_warning(warning: &worktrunk::config::UnknownWarning) -> String {
         UnknownWarning::TopLevelWrongConfig {
             key,
             other_description,
-        } => cformat!("Key <bold>{key}</> belongs in {other_description} (will be ignored)"),
+        } => worktrunk::config::with_scope_note(
+            cformat!("Key <bold>{key}</> belongs in {other_description} (will be ignored)"),
+            other_description,
+            key,
+        ),
         UnknownWarning::TopLevelDeprecatedWrongConfig {
             key,
             other_description,
@@ -792,7 +796,11 @@ fn format_show_warning(warning: &worktrunk::config::UnknownWarning) -> String {
         UnknownWarning::NestedWrongConfig {
             path,
             other_description,
-        } => cformat!("Key <bold>{path}</> belongs in {other_description} (will be ignored)"),
+        } => worktrunk::config::with_scope_note(
+            cformat!("Key <bold>{path}</> belongs in {other_description} (will be ignored)"),
+            other_description,
+            path,
+        ),
         UnknownWarning::NestedUnknown { path } => {
             cformat!("Unknown key <bold>{path}</> will be ignored")
         }
