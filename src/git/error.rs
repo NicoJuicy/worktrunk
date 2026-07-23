@@ -531,6 +531,16 @@ pub enum GitError {
         target_branch: String,
         error: String,
     },
+    /// `wt merge` requires the local target ref to fast-forward to the merge
+    /// result. When the target has both fallen behind its upstream and grown
+    /// its own commits — diverged — while the branch is based past it on the
+    /// upstream side, no fast-forward exists in any mode: the target's own
+    /// commits first need reconciling with the upstream (#3519). Detected
+    /// locally, with no fetch, before any rewrite or approval prompt.
+    MergeTargetDivergedFromUpstream {
+        target_branch: String,
+        upstream: String,
+    },
 
     // Validation/other errors
     NotInteractive,
@@ -744,6 +754,13 @@ impl GitError {
             GitError::PushFailed { target_branch, .. } => {
                 cformat!("Can't push to local <bold>{target_branch}</> branch")
             }
+
+            GitError::MergeTargetDivergedFromUpstream {
+                target_branch,
+                upstream,
+            } => cformat!(
+                "Local <bold>{target_branch}</> has diverged from <bold>{upstream}</> — can't fast-forward to a branch based on <bold>{upstream}</>"
+            ),
 
             GitError::NotInteractive => {
                 "Cannot prompt for approval in non-interactive environment".to_string()
@@ -1208,6 +1225,21 @@ impl GitError {
             GitError::PushFailed { error, .. } => {
                 let title = self.title();
                 write!(f, "{}", format_error_block(error_message(&title), error))
+            }
+
+            GitError::MergeTargetDivergedFromUpstream {
+                target_branch,
+                upstream,
+            } => {
+                let title = self.title();
+                write!(
+                    f,
+                    "{}\n{}",
+                    error_message(&title),
+                    hint_message(cformat!(
+                        "Reconcile <underline>{target_branch}</> with <underline>{upstream}</> (rebase or merge its local commits), or specify a different target"
+                    ))
+                )
             }
 
             GitError::NotInteractive => {
